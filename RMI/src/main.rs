@@ -25,9 +25,19 @@ use std::io::BufWriter;
 use std::fs;
 use std::path::Path;
 use rayon::prelude::*;
+use std::time::Instant;
+use std::io::*;
+use std::fs::OpenOptions;
 
 use indicatif::{ProgressBar, ProgressStyle};
 use clap::{App, Arg};
+
+fn print_search_time(dataset: &str, search_time: u128) -> std::io::Result<()> {
+    let mut fout = OpenOptions::new()
+            .append(true).open("results/rmi_gridsearch_time.csv")?;
+    fout.write(format!("{},{}\n", dataset, search_time).as_bytes())?;
+    Ok(())
+}
 
 
 fn main() {
@@ -132,6 +142,8 @@ fn main() {
     };
 
     if matches.is_present("optimize") {
+        let timer = Instant::now();
+
         let results = dynamic!(optimizer::find_pareto_efficient_configs,
                                data, 10);
 
@@ -157,6 +169,12 @@ fn main() {
             .expect("Could not write optimization results file");
         let mut bw = BufWriter::new(f);
         grid_specs_json.write(&mut bw).unwrap();
+
+        let result = print_search_time(matches.value_of("input").unwrap().trim_start_matches("data/"), timer.elapsed().as_micros());
+        match result {
+            Ok(_v) => {},
+            Err(e) => println!("Error printing search time: {:?}", e)
+        }
         return;
     }
 

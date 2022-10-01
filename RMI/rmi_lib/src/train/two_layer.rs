@@ -144,7 +144,7 @@ pub fn train_two_layer<T: TrainingKey>(md_container: &mut RMITrainingData<T>,
         assert!(key_at > key_pr);
     }
 
-    let mut leaf_models = if split_idx >= md_container.len() {
+    let mut leaf_models = if split_idx + 1 >= md_container.len() {
         build_models_from(&md_container, &top_model, layer2_model,
                           0, md_container.len(), 0,
                           num_leaf_models as usize)
