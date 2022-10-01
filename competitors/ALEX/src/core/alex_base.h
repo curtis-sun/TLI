@@ -37,6 +37,7 @@ typedef unsigned __int32 uint32_t;
 #include <stdint.h>
 #endif
 
+#if !defined(forceinline)
 #ifdef _MSC_VER
 #define forceinline __forceinline
 #elif defined(__GNUC__)
@@ -49,6 +50,7 @@ typedef unsigned __int32 uint32_t;
 #endif
 #else
 #define forceinline inline
+#endif
 #endif
 
 namespace alex {
@@ -127,8 +129,14 @@ class LinearModelBuilder {
 
     // If floating point precision errors, fit spline
     if (model_->a_ <= 0) {
-      model_->a_ = (y_max_ - y_min_) / (x_max_ - x_min_);
-      model_->b_ = -static_cast<double>(x_min_) * model_->a_;
+      if (x_max_ - x_min_ == 0){
+        model_->a_ = 0;
+        model_->b_ = static_cast<double>(y_sum_) / count_;
+      }
+      else{
+        model_->a_ = (y_max_ - y_min_) / (x_max_ - x_min_);
+        model_->b_ = -static_cast<double>(x_min_) * model_->a_;
+      }
     }
   }
 

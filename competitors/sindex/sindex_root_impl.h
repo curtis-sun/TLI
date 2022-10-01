@@ -26,11 +26,27 @@
 
 namespace sindex {
 
-template <class key_t, class val_t, bool seq>
-Root<key_t, val_t, seq>::~Root() {}
+template <class key_t, class val_t, bool seq, class SearchClass>
+Root<key_t, val_t, seq, SearchClass>::~Root() {}
 
-template <class key_t, class val_t, bool seq>
-void Root<key_t, val_t, seq>::init(const std::vector<key_t> &keys,
+template <class key_t, class val_t, bool seq, class SearchClass>
+void Root<key_t, val_t, seq, SearchClass>::free_memory(){
+  for (size_t group_i = 0; group_i < group_n; group_i++) {
+    group_t *group = groups[group_i].second;
+    while (group != nullptr) {
+      group_t * old_group = group;
+      group = group->next;
+      old_group->free_data();
+      old_group->free_buffer();
+      old_group->free_buffer_temp();
+      delete old_group;
+    }
+    groups[group_i].second = nullptr;
+  }
+}
+
+template <class key_t, class val_t, bool seq, class SearchClass>
+void Root<key_t, val_t, seq, SearchClass>::init(const std::vector<key_t> &keys,
                                    const std::vector<val_t> &vals) {
   INVARIANT(seq == false);
 
@@ -95,8 +111,8 @@ void Root<key_t, val_t, seq>::init(const std::vector<key_t> &keys,
 /*
  * Root::put
  */
-template <class key_t, class val_t, bool seq>
-inline result_t Root<key_t, val_t, seq>::put(const key_t &key, const val_t &val,
+template <class key_t, class val_t, bool seq, class SearchClass>
+inline result_t Root<key_t, val_t, seq, SearchClass>::put(const key_t &key, const val_t &val,
                                              const uint32_t worker_id) {
   return locate_group(key)->put(key, val, worker_id);
 }
@@ -104,13 +120,13 @@ inline result_t Root<key_t, val_t, seq>::put(const key_t &key, const val_t &val,
 /*
  * Root::remove
  */
-template <class key_t, class val_t, bool seq>
-inline result_t Root<key_t, val_t, seq>::remove(const key_t &key) {
+template <class key_t, class val_t, bool seq, class SearchClass>
+inline result_t Root<key_t, val_t, seq, SearchClass>::remove(const key_t &key) {
   return locate_group(key)->remove(key);
 }
 
-template <class key_t, class val_t, bool seq>
-inline size_t Root<key_t, val_t, seq>::scan(
+template <class key_t, class val_t, bool seq, class SearchClass>
+inline size_t Root<key_t, val_t, seq, SearchClass>::scan(
     const key_t &begin, const size_t n,
     std::vector<std::pair<key_t, val_t>> &result) {
   size_t remaining = n;
@@ -138,15 +154,15 @@ inline size_t Root<key_t, val_t, seq>::scan(
   return n - remaining;
 }
 
-template <class key_t, class val_t, bool seq>
-inline size_t Root<key_t, val_t, seq>::range_scan(
+template <class key_t, class val_t, bool seq, class SearchClass>
+inline size_t Root<key_t, val_t, seq, SearchClass>::range_scan(
     const key_t &begin, const key_t &end,
     std::vector<std::pair<key_t, val_t>> &result) {
   COUT_N_EXIT("not implemented yet");
 }
 
-template <class key_t, class val_t, bool seq>
-void *Root<key_t, val_t, seq>::do_adjustment(void *args) {
+template <class key_t, class val_t, bool seq, class SearchClass>
+void *Root<key_t, val_t, seq, SearchClass>::do_adjustment(void *args) {
   std::atomic<bool> &started = ((BGInfo *)args)->started;
   std::atomic<bool> &finished = ((BGInfo *)args)->finished;
   size_t bg_i = (((BGInfo *)args)->bg_i);
@@ -343,8 +359,21 @@ void *Root<key_t, val_t, seq>::do_adjustment(void *args) {
   return nullptr;
 }
 
-template <class key_t, class val_t, bool seq>
-Root<key_t, val_t, seq> *Root<key_t, val_t, seq>::create_new_root() {
+template <class key_t, class val_t, bool seq, class SearchClass>
+unsigned long long Root<key_t, val_t, seq, SearchClass>::size() const{
+  unsigned long long size = sizeof(*this);
+  for (size_t group_i = 0; group_i < group_n; group_i ++){
+    group_t *group = get_group_ptr(group_i);
+    while (group != nullptr) {
+      size += group->size();
+      group = group->next;
+    }
+  }
+  return size;
+}
+
+template <class key_t, class val_t, bool seq, class SearchClass>
+Root<key_t, val_t, seq, SearchClass> *Root<key_t, val_t, seq, SearchClass>::create_new_root() {
   Root *new_root = new Root();
 
   size_t new_group_n = 0;
@@ -383,8 +412,8 @@ Root<key_t, val_t, seq> *Root<key_t, val_t, seq>::create_new_root() {
   return new_root;
 }
 
-template <class key_t, class val_t, bool seq>
-void Root<key_t, val_t, seq>::trim_root() {
+template <class key_t, class val_t, bool seq, class SearchClass>
+void Root<key_t, val_t, seq, SearchClass>::trim_root() {
   for (size_t group_i = 0; group_i < group_n; group_i++) {
     group_t *group = get_group_ptr(group_i);
     if (group_i != group_n - 1) {
@@ -394,13 +423,13 @@ void Root<key_t, val_t, seq>::trim_root() {
   }
 }
 
-template <class key_t, class val_t, bool seq>
-inline result_t Root<key_t, val_t, seq>::get(const key_t &key, val_t &val) {
+template <class key_t, class val_t, bool seq, class SearchClass>
+inline result_t Root<key_t, val_t, seq, SearchClass>::get(const key_t &key, val_t &val) {
   return locate_group(key)->get(key, val);
 }
 
-template <class key_t, class val_t, bool seq>
-void Root<key_t, val_t, seq>::adjust_root_model() {
+template <class key_t, class val_t, bool seq, class SearchClass>
+void Root<key_t, val_t, seq, SearchClass>::adjust_root_model() {
   train_piecewise_model();
 
   std::vector<double> errors(group_n);
@@ -415,8 +444,8 @@ void Root<key_t, val_t, seq>::adjust_root_model() {
              << this->root_model_n << ", error=" << mean_error);
 }
 
-template <class key_t, class val_t, bool seq>
-inline size_t Root<key_t, val_t, seq>::predict(const key_t &key) {
+template <class key_t, class val_t, bool seq, class SearchClass>
+inline size_t Root<key_t, val_t, seq, SearchClass>::predict(const key_t &key) {
   uint32_t m_i = 0;
   while (m_i < root_model_n - 1 && key >= model_pivots[m_i + 1]) {
     m_i++;
@@ -427,8 +456,8 @@ inline size_t Root<key_t, val_t, seq>::predict(const key_t &key) {
   return model_predict(models[m_i].weights.data(), model_key, f_len);
 }
 
-template <class key_t, class val_t, bool seq>
-inline void Root<key_t, val_t, seq>::train_piecewise_model() {
+template <class key_t, class val_t, bool seq, class SearchClass>
+inline void Root<key_t, val_t, seq, SearchClass>::train_piecewise_model() {
   std::vector<size_t> indexes;
   std::vector<key_t> pivots(group_n);
   for (size_t g_i = 0; g_i < group_n; ++g_i) {
@@ -489,8 +518,8 @@ inline void Root<key_t, val_t, seq>::train_piecewise_model() {
   }
 }
 
-template <class key_t, class val_t, bool seq>
-inline void Root<key_t, val_t, seq>::partial_key_len_of_pivots(
+template <class key_t, class val_t, bool seq, class SearchClass>
+inline void Root<key_t, val_t, seq, SearchClass>::partial_key_len_of_pivots(
     const size_t start_i, const size_t end_i, uint32_t &p_len,
     uint32_t &f_len) {
   assert(start_i < end_i);
@@ -523,63 +552,65 @@ inline void Root<key_t, val_t, seq>::partial_key_len_of_pivots(
 /*
  * Root::locate_group
  */
-template <class key_t, class val_t, bool seq>
-inline typename Root<key_t, val_t, seq>::group_t *
-Root<key_t, val_t, seq>::locate_group(const key_t &key) {
+template <class key_t, class val_t, bool seq, class SearchClass>
+inline typename Root<key_t, val_t, seq, SearchClass>::group_t *
+Root<key_t, val_t, seq, SearchClass>::locate_group(const key_t &key) {
   int group_i;  // unused
   group_t *head = locate_group_pt1(key, group_i);
   return locate_group_pt2(key, head);
 }
 
-template <class key_t, class val_t, bool seq>
-inline typename Root<key_t, val_t, seq>::group_t *
-Root<key_t, val_t, seq>::locate_group_pt1(const key_t &key, int &group_i) {
+template <class key_t, class val_t, bool seq, class SearchClass>
+inline typename Root<key_t, val_t, seq, SearchClass>::group_t *
+Root<key_t, val_t, seq, SearchClass>::locate_group_pt1(const key_t &key, int &group_i) {
   group_i = predict(key);
   group_i = group_i > (int)group_n - 1 ? group_n - 1 : group_i;
   group_i = group_i < 0 ? 0 : group_i;
 
   // exponential search
-  int begin_group_i, end_group_i;
-  if (get_group_pivot(group_i) <= key) {
-    size_t step = 1;
-    begin_group_i = group_i;
-    end_group_i = begin_group_i + step;
-    while (end_group_i < (int)group_n && get_group_pivot(end_group_i) <= key) {
-      step = step * 2;
-      begin_group_i = end_group_i;
-      end_group_i = begin_group_i + step;
-    }  // after this while loop, end_group_i might be >= group_n
-    if (end_group_i > (int)group_n - 1) {
-      end_group_i = group_n - 1;
-    }
-  } else {
-    size_t step = 1;
-    end_group_i = group_i;
-    begin_group_i = end_group_i - step;
-    while (begin_group_i >= 0 && get_group_pivot(begin_group_i) > key) {
-      step = step * 2;
-      end_group_i = begin_group_i;
-      begin_group_i = end_group_i - step;
-    }  // after this while loop, begin_group_i might be < 0
-    if (begin_group_i < 0) {
-      begin_group_i = -1;
-    }
-  }
+  long long end_group_i = SearchClass::upper_bound(groups.get(), groups.get() + group_n, key, groups.get() + group_i,
+                           std::function<key_t(std::pair<key_t, group_t *volatile>*)>([&](std::pair<key_t, group_t *volatile>* it)->key_t{ return it->first; })) - groups.get() - 1;
+  // int begin_group_i, end_group_i;
+  // if (get_group_pivot(group_i) <= key) {
+  //   size_t step = 1;
+  //   begin_group_i = group_i;
+  //   end_group_i = begin_group_i + step;
+  //   while (end_group_i < (int)group_n && get_group_pivot(end_group_i) <= key) {
+  //     step = step * 2;
+  //     begin_group_i = end_group_i;
+  //     end_group_i = begin_group_i + step;
+  //   }  // after this while loop, end_group_i might be >= group_n
+  //   if (end_group_i > (int)group_n - 1) {
+  //     end_group_i = group_n - 1;
+  //   }
+  // } else {
+  //   size_t step = 1;
+  //   end_group_i = group_i;
+  //   begin_group_i = end_group_i - step;
+  //   while (begin_group_i >= 0 && get_group_pivot(begin_group_i) > key) {
+  //     step = step * 2;
+  //     end_group_i = begin_group_i;
+  //     begin_group_i = end_group_i - step;
+  //   }  // after this while loop, begin_group_i might be < 0
+  //   if (begin_group_i < 0) {
+  //     begin_group_i = -1;
+  //   }
+  // }
 
   // now group[begin].pivot <= key && group[end + 1].pivot > key
   // in loop body, the valid search range is actually [begin + 1, end]
   // (inclusive range), thus the +1 term in mid is a must
   // this algorithm produces index to the last element that is <= key
-  while (end_group_i != begin_group_i) {
-    // the "+2" term actually should be a "+1" after "/2", this is due to the
-    // rounding in c++ when the first operant of "/" operator is negative
-    int mid = (end_group_i + begin_group_i + 2) / 2;
-    if (get_group_pivot(mid) <= key) {
-      begin_group_i = mid;
-    } else {
-      end_group_i = mid - 1;
-    }
-  }
+  // while (end_group_i != begin_group_i) {
+  //   // the "+2" term actually should be a "+1" after "/2", this is due to the
+  //   // rounding in c++ when the first operant of "/" operator is negative
+  //   int mid = (end_group_i + begin_group_i + 2) / 2;
+  //   if (get_group_pivot(mid) <= key) {
+  //     begin_group_i = mid;
+  //   } else {
+  //     end_group_i = mid - 1;
+  //   }
+  // }
   // the result falls in [-1, group_n - 1]
   // now we ensure the pointer is not null
   group_i = end_group_i < 0 ? 0 : end_group_i;
@@ -595,9 +626,9 @@ Root<key_t, val_t, seq>::locate_group_pt1(const key_t &key, int &group_i) {
   return group;
 }
 
-template <class key_t, class val_t, bool seq>
-inline typename Root<key_t, val_t, seq>::group_t *
-Root<key_t, val_t, seq>::locate_group_pt2(const key_t &key, group_t *begin) {
+template <class key_t, class val_t, bool seq, class SearchClass>
+inline typename Root<key_t, val_t, seq, SearchClass>::group_t *
+Root<key_t, val_t, seq, SearchClass>::locate_group_pt2(const key_t &key, group_t *begin) {
   group_t *group = begin;
   group_t *next = group->next;
   while (next != nullptr && next->pivot <= key) {
@@ -607,31 +638,31 @@ Root<key_t, val_t, seq>::locate_group_pt2(const key_t &key, group_t *begin) {
   return group;
 }
 
-template <class key_t, class val_t, bool seq>
-inline void Root<key_t, val_t, seq>::set_group_ptr(size_t group_i,
+template <class key_t, class val_t, bool seq, class SearchClass>
+inline void Root<key_t, val_t, seq, SearchClass>::set_group_ptr(size_t group_i,
                                                    group_t *g_ptr) {
   groups[group_i].second = g_ptr;
 }
 
-template <class key_t, class val_t, bool seq>
-inline typename Root<key_t, val_t, seq>::group_t *
-Root<key_t, val_t, seq>::get_group_ptr(size_t group_i) const {
+template <class key_t, class val_t, bool seq, class SearchClass>
+inline typename Root<key_t, val_t, seq, SearchClass>::group_t *
+Root<key_t, val_t, seq, SearchClass>::get_group_ptr(size_t group_i) const {
   return groups[group_i].second;
 }
 
-template <class key_t, class val_t, bool seq>
-inline void Root<key_t, val_t, seq>::set_group_pivot(size_t group_i,
+template <class key_t, class val_t, bool seq, class SearchClass>
+inline void Root<key_t, val_t, seq, SearchClass>::set_group_pivot(size_t group_i,
                                                      const key_t &key) {
   groups[group_i].first = key;
 }
 
-template <class key_t, class val_t, bool seq>
-inline key_t &Root<key_t, val_t, seq>::get_group_pivot(size_t group_i) const {
+template <class key_t, class val_t, bool seq, class SearchClass>
+inline key_t &Root<key_t, val_t, seq, SearchClass>::get_group_pivot(size_t group_i) const {
   return groups[group_i].first;
 }
 
-template <class key_t, class val_t, bool seq>
-inline void Root<key_t, val_t, seq>::grouping_by_partial_key(
+template <class key_t, class val_t, bool seq, class SearchClass>
+inline void Root<key_t, val_t, seq, SearchClass>::grouping_by_partial_key(
     const std::vector<key_t> &keys, size_t et, size_t pt, size_t fstep,
     size_t bstep, size_t min_size, std::vector<size_t> &pivot_indexes) const {
   pivot_indexes.clear();
@@ -714,8 +745,8 @@ inline void Root<key_t, val_t, seq>::grouping_by_partial_key(
              << ", avg_f_len=" << avg_f_len / pivot_indexes.size());
 }
 
-template <class key_t, class val_t, bool seq>
-inline void Root<key_t, val_t, seq>::partial_key_len_by_step(
+template <class key_t, class val_t, bool seq, class SearchClass>
+inline void Root<key_t, val_t, seq, SearchClass>::partial_key_len_by_step(
     const std::vector<key_t> &keys, const size_t start_i,
     const size_t step_start_i, const size_t step_end_i, size_t &common_p_len,
     size_t &max_p_len, std::unordered_map<size_t, size_t> &common_p_history,
@@ -761,8 +792,8 @@ inline void Root<key_t, val_t, seq>::partial_key_len_by_step(
   }
 }
 
-template <class key_t, class val_t, bool seq>
-inline double Root<key_t, val_t, seq>::train_and_get_err(
+template <class key_t, class val_t, bool seq, class SearchClass>
+inline double Root<key_t, val_t, seq, SearchClass>::train_and_get_err(
     std::vector<double> &model_keys, size_t start_i, size_t end_i, size_t p_len,
     size_t f_len) const {
   size_t key_n = end_i - start_i;

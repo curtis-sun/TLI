@@ -11,11 +11,11 @@
 #include "ctypes.h"
 
 struct stress_info {
-  u64 nkeys;
-  u32 nloader;
-  u32 nunldr;
-  u32 nth;
-  u32 cpt;
+  U64 nkeys;
+  U32 nloader;
+  U32 nunldr;
+  U32 nth;
+  U32 cpt;
   bool has_iter;
 
   au64 seqno;
@@ -25,7 +25,7 @@ struct stress_info {
   void * map;
   au64 tot;
   au64 wfail;
-  u64 endtime;
+  U64 endtime;
 };
 
   static void *
@@ -34,24 +34,24 @@ stress_load_worker(void * ptr)
   struct stress_info * const si = (typeof(si))ptr;
   srandom_u64(time_nsec() * time_nsec() / time_nsec());
   void * const ref = kvmap_ref(si->api, si->map);
-  const u64 seq = atomic_fetch_add(&si->seqno, 1);
-  const u64 n0 = si->nkeys / si->nloader * seq;
-  const u64 nz = (seq == (si->nloader - 1)) ? si->nkeys : (si->nkeys / si->nloader * (seq + 1));
+  const U64 seq = atomic_fetch_add(&si->seqno, 1);
+  const U64 n0 = si->nkeys / si->nloader * seq;
+  const U64 nz = (seq == (si->nloader - 1)) ? si->nkeys : (si->nkeys / si->nloader * (seq + 1));
   //printf("load worker %lu %lu\n", n0, nz-1);
 
   char * buf = malloc(128);
   debug_assert(buf);
-  u64 * buf64 = (typeof(buf64))buf;
-  for (u64 i = n0; i < nz; i++) {
-    const u32 klen = (u32)(random_u64() & 0x3flu) + 8;
-    const u32 klen8 = (klen + 7) >> 3;
+  U64 * buf64 = (typeof(buf64))buf;
+  for (U64 i = n0; i < nz; i++) {
+    const U32 klen = (U32)(random_u64() & 0x3flu) + 8;
+    const U32 klen8 = (klen + 7) >> 3;
     /*
        buf64[0] = bswap_64(i); // little endian
        for (u64 j = 1; j < klen8; j++)
        buf64[j] = random_u64();
      */
-    const u64 rkey = random_u64();
-    for (u32 j = 0; j < klen8; j++)
+    const U64 rkey = random_u64();
+    for (U32 j = 0; j < klen8; j++)
       buf64[j] = (rkey >> j) & 0x0101010101010101lu;
 
     si->keys[i] = kv_create(buf, klen, buf, 8);
@@ -68,12 +68,12 @@ stress_load_worker(void * ptr)
 stress_unload_worker(void * ptr)
 {
   struct stress_info * const si = (typeof(si))ptr;
-  const u64 seq = atomic_fetch_add(&si->seqno, 1);
-  const u64 n0 = si->nkeys / si->nunldr * seq;
-  const u64 nz = (seq == (si->nunldr - 1)) ? si->nkeys : (si->nkeys / si->nunldr * (seq + 1));
+  const U64 seq = atomic_fetch_add(&si->seqno, 1);
+  const U64 n0 = si->nkeys / si->nunldr * seq;
+  const U64 nz = (seq == (si->nunldr - 1)) ? si->nkeys : (si->nkeys / si->nunldr * (seq + 1));
 
   void * const ref = kvmap_ref(si->api, si->map);
-  for (u64 i = n0; i < nz; i++) {
+  for (U64 i = n0; i < nz; i++) {
     kvmap_kv_del(si->api, ref, si->keys[i]);
     free(si->keys[i]);
   }
@@ -86,7 +86,7 @@ stress_inp_plus1(struct kv * const kv0, void * const priv)
 {
   (void)priv;
   if (kv0) { // can be NULL
-    u64 * ptr = kv_vptr(kv0);
+    U64 * ptr = kv_vptr(kv0);
     ++(*ptr);
   }
 }
@@ -96,11 +96,11 @@ stress_merge_plus1(struct kv * const kv0, void * const priv)
 {
   (void)priv;
   if (kv0) { // can be NULL
-    u64 * ptr = kv_vptr(kv0);
+    U64 * ptr = kv_vptr(kv0);
     ++(*ptr);
     return kv0;
   } else {
-    u64 * ptr = kv_vptr((struct kv *)priv);
+    U64 * ptr = kv_vptr((struct kv *)priv);
     *ptr = 0;
     return priv;
   }
@@ -113,7 +113,7 @@ stress_func(struct stress_info * const si)
   const struct kvmap_api * const api = si->api;
   void * ref = kvmap_ref(api, si->map);
   struct kv * next = si->keys[random_u64() % si->nkeys];
-  u64 rnext = random_u64() % si->nkeys;
+  U64 rnext = random_u64() % si->nkeys;
   struct kv * const tmp = malloc(128);
   struct kref tmpkref;
   struct kvref tmpkvref;
@@ -123,23 +123,23 @@ stress_func(struct stress_info * const si)
     iter = api->iter_create(ref);
     api->iter_park(iter);
   }
-  u64 wfail1 = 0;
-  u64 nops = 0;
+  U64 wfail1 = 0;
+  U64 nops = 0;
 #define BATCHSIZE ((4096))
   do {
-    for (u64 i = 0; i < BATCHSIZE; i++) {
+    for (U64 i = 0; i < BATCHSIZE; i++) {
       // reading kv keys leads to unnecessary cache misses
       // use prefetch to minimize overhead on workload generation
       struct kv * const key = next;
       next = si->keys[rnext];
       cpu_prefetch0(next);
-      cpu_prefetch0(((u8 *)next) + 64);
+      cpu_prefetch0(((U8 *)next) + 64);
       rnext = random_u64() % si->nkeys;
       cpu_prefetch0(&(si->keys[rnext]));
 
       // do probe
       // customize your benchmark: do a mix of wh operations with switch-cases
-      const u64 r = random_u64() % 16;
+      const U64 r = random_u64() % 16;
       switch (r) {
       case 0:
         kvmap_kv_probe(api, ref, key);
@@ -237,19 +237,19 @@ stress_thread_worker(void * ptr)
 {
   struct stress_info * const si = (typeof(si))ptr;
   if (si->cpt) {
-    u64 hostrsp = 0;
+    U64 hostrsp = 0;
     struct corr * crs[32];
     do { // to work smoothly with ALLOCFAIL
       crs[0] = corr_create(16*PGSZ, stress_co_worker, si, &hostrsp);
     } while (crs[0] == NULL);
-    for (u32 j = 1; j < si->cpt; j++) {
+    for (U32 j = 1; j < si->cpt; j++) {
       do { // to work smoothly with ALLOCFAIL
         crs[j] = corr_link(16*PGSZ, stress_co_worker, si, crs[j-1]);
       } while (crs[j] == NULL);
     }
 
     corr_enter(crs[0]);
-    for (u32 j = 0; j < si->cpt; j++)
+    for (U32 j = 0; j < si->cpt; j++)
       corr_destroy(crs[j]);
   } else {
     stress_func(si);
@@ -308,24 +308,24 @@ main(int argc, char ** argv)
   if (si.cpt > 1)
     fprintf(stderr, TERMCLR(35) "CORR not enabled. Compile with -DCORR to enable it.\n" TERMCLR(0));
 #endif // CORR
-  const u64 nr = (argc >= 6) ? a2u64(argv[5]) : 1; // default 1
-  const u64 ne = (argc >= 7) ? a2u64(argv[6]) : 1; // default 1
+  const U64 nr = (argc >= 6) ? a2u64(argv[5]) : 1; // default 1
+  const U64 ne = (argc >= 7) ? a2u64(argv[6]) : 1; // default 1
   printf("stresstest: nkeys %lu ldr %u uldr %u th %u cpt %u r %lu e %lu\n",
       si.nkeys, si.nloader, si.nunldr, si.nth, si.cpt, nr, ne);
 
-  for (u64 e = 0; e < ne; e++) {
+  for (U64 e = 0; e < ne; e++) {
     si.seqno = 0;
-    const u64 dtl = thread_fork_join(si.nloader, (void *)stress_load_worker, false, &si);
+    const U64 dtl = thread_fork_join(si.nloader, (void *)stress_load_worker, false, &si);
     printf("load th %u mops %.2lf\n", si.nloader, ((double)si.nkeys) * 1e3 / ((double)dtl));
     if (si.api->fprint)
       si.api->fprint(si.map, stdout);
 
     debug_perf_switch();
-    for (u64 r = 0; r < nr; r++) {
+    for (U64 r = 0; r < nr; r++) {
       si.tot = 0;
       si.wfail = 0;
       si.endtime = time_nsec() + 2000000000lu;
-      const u64 dt = thread_fork_join(si.nth, (void *)stress_thread_worker, false, &si);
+      const U64 dt = thread_fork_join(si.nth, (void *)stress_thread_worker, false, &si);
       const double mops = ((double)si.tot) * 1e3 / ((double)dt);
       char ts[64];
       time_stamp(ts, 64);
@@ -336,14 +336,14 @@ main(int argc, char ** argv)
     }
     si.seqno = 0;
     if (si.nunldr == 0) { // use clean
-      const u64 t0 = time_nsec();
+      const U64 t0 = time_nsec();
       si.api->clean(si.map);
-      const u64 dtu = time_diff_nsec(t0);
-      for (u64 i = 0; i < si.nkeys; i++)
+      const U64 dtu = time_diff_nsec(t0);
+      for (U64 i = 0; i < si.nkeys; i++)
         free(si.keys[i]);
       printf("clean mops %.2lf\n", ((double)si.nkeys) *1e3 / ((double)dtu));
     } else {
-      const u64 dtu = thread_fork_join(si.nunldr, (void *)stress_unload_worker, false, &si);
+      const U64 dtu = thread_fork_join(si.nunldr, (void *)stress_unload_worker, false, &si);
       printf("unload th %u mops %.2lf\n", si.nunldr, ((double)si.nkeys) *1e3 / ((double)dtu));
     }
   }

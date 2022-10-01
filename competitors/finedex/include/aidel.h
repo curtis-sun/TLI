@@ -10,10 +10,10 @@
 
 namespace aidel {
 
-template<class key_t, class val_t>
+template<class key_t, class val_t, class SearchClass>
 class AIDEL{
 public:
-    typedef aidel::AidelModel<key_t, val_t> aidelmodel_type;
+    typedef aidel::AidelModel<key_t, val_t, SearchClass> aidelmodel_type;
     typedef LinearRegressionModel<key_t> lrmodel_type;
     typedef typename OptimalPiecewiseLinearModel<key_t, size_t>::CanonicalSegment canonical_segment;
     //typedef aidel::LevelIndex<key_t> root_type;
@@ -34,7 +34,9 @@ public:
     inline result_t update(const key_t &key, const val_t &val);
     inline result_t remove(const key_t &key);
     int scan(const key_t &key, const size_t n, std::vector<std::pair<key_t, val_t>> &result);
+    bool range_scan(const key_t &lkey, const key_t &rkey, std::vector<std::pair<key_t, val_t>> &result);
     size_t model_size();
+    size_t size() const;
 
 
 private:

@@ -9,28 +9,31 @@
 
 namespace aidel {
 
-template<class key_t, class val_t>
-inline AIDEL<key_t, val_t>::AIDEL()
+template<class key_t, class val_t, class SearchClass>
+inline AIDEL<key_t, val_t, SearchClass>::AIDEL()
     : maxErr(64), learning_step(1000), learning_rate(0.1)
 {
     //root = new root_type();
 }
 
-template<class key_t, class val_t>
-inline AIDEL<key_t, val_t>::AIDEL(int _maxErr, int _learning_step, float _learning_rate)
+template<class key_t, class val_t, class SearchClass>
+inline AIDEL<key_t, val_t, SearchClass>::AIDEL(int _maxErr, int _learning_step, float _learning_rate)
     : maxErr(_maxErr), learning_step(_learning_step), learning_rate(_learning_rate)
 {
     //root = new root_type();
 }
 
-template<class key_t, class val_t>
-AIDEL<key_t, val_t>::~AIDEL(){
+template<class key_t, class val_t, class SearchClass>
+AIDEL<key_t, val_t, SearchClass>::~AIDEL(){
     //root = nullptr;
+    for (size_t i = 0; i < aimodels.size(); i ++){
+        aimodels[i].clear();
+    }
 }
 
 // ====================== train models ========================
-template<class key_t, class val_t>
-void AIDEL<key_t, val_t>::train(const std::vector<key_t> &keys, 
+template<class key_t, class val_t, class SearchClass>
+void AIDEL<key_t, val_t, SearchClass>::train(const std::vector<key_t> &keys, 
                                 const std::vector<val_t> &vals, size_t _maxErr)
 {
     assert(keys.size() == vals.size());
@@ -58,7 +61,7 @@ void AIDEL<key_t, val_t>::train(const std::vector<key_t> &keys,
             }
             continue;
         } else {
-            size_t offset = backward_train(keys.begin()+start, vals.begin()+start, end-start, int(learning_step*learning_rate));
+            size_t offset = backward_train(keys.begin()+start, vals.begin()+start, end-start, std::max(int(learning_step*learning_rate), 1));
 			end = start + offset;
         }
         start = end;
@@ -73,11 +76,11 @@ void AIDEL<key_t, val_t>::train(const std::vector<key_t> &keys,
     assert(model_keys.size()==aimodels.size());
 }
 
-template<class key_t, class val_t>
-size_t AIDEL<key_t, val_t>::backward_train(const typename std::vector<key_t>::const_iterator &keys_begin, 
+template<class key_t, class val_t, class SearchClass>
+size_t AIDEL<key_t, val_t, SearchClass>::backward_train(const typename std::vector<key_t>::const_iterator &keys_begin, 
                                            const typename std::vector<val_t>::const_iterator &vals_begin,
                                            uint32_t size, int step)
-{   
+{
     if(size<=10){
         step = 1;
     } else {
@@ -88,7 +91,7 @@ size_t AIDEL<key_t, val_t>::backward_train(const typename std::vector<key_t>::co
     assert(step>0);
     size_t start = 0;
     size_t end = size-step;
-    while(end>0){
+    while(true){
         lrmodel_type model;
         model.train(keys_begin, end);
         size_t err = model.get_maxErr();
@@ -96,14 +99,18 @@ size_t AIDEL<key_t, val_t>::backward_train(const typename std::vector<key_t>::co
             append_model(model, keys_begin, vals_begin, end, err);
             return end;
         }
-        end -= step;
+        if (step < end){
+            end -= step;
+        } else{
+            break;
+        }
     }
     end = backward_train(keys_begin, vals_begin, end, int(step*learning_rate));
 	return end;
 }
 
-template<class key_t, class val_t>
-void AIDEL<key_t, val_t>::append_model(lrmodel_type &model, 
+template<class key_t, class val_t, class SearchClass>
+void AIDEL<key_t, val_t, SearchClass>::append_model(lrmodel_type &model, 
                                        const typename std::vector<key_t>::const_iterator &keys_begin, 
                                        const typename std::vector<val_t>::const_iterator &vals_begin, 
                                        size_t size, int err)
@@ -125,8 +132,8 @@ void AIDEL<key_t, val_t>::append_model(lrmodel_type &model,
     aimodels.push_back(aimodel);
 }
 
-template<class key_t, class val_t>
-typename AIDEL<key_t, val_t>::aidelmodel_type* AIDEL<key_t, val_t>::find_model(const key_t &key)
+template<class key_t, class val_t, class SearchClass>
+typename AIDEL<key_t, val_t, SearchClass>::aidelmodel_type* AIDEL<key_t, val_t, SearchClass>::find_model(const key_t &key)
 {
     // root 
     size_t model_pos = binary_search_branchless(&model_keys[0], model_keys.size(), key);
@@ -137,8 +144,8 @@ typename AIDEL<key_t, val_t>::aidelmodel_type* AIDEL<key_t, val_t>::find_model(c
 
 
 // ===================== print data =====================
-template<class key_t, class val_t>
-void AIDEL<key_t, val_t>::print_models()
+template<class key_t, class val_t, class SearchClass>
+void AIDEL<key_t, val_t, SearchClass>::print_models()
 {
     
     for(int i=0; i<model_keys.size(); i++){
@@ -150,8 +157,8 @@ void AIDEL<key_t, val_t>::print_models()
     
 }
 
-template<class key_t, class val_t>
-void AIDEL<key_t, val_t>::self_check()
+template<class key_t, class val_t, class SearchClass>
+void AIDEL<key_t, val_t, SearchClass>::self_check()
 {
     for(int i=0; i<model_keys.size(); i++){
         aimodels[i].self_check();
@@ -161,8 +168,8 @@ void AIDEL<key_t, val_t>::self_check()
 
 
 // =================== search the data =======================
-template<class key_t, class val_t>
-inline result_t AIDEL<key_t, val_t>::find(const key_t &key, val_t &val)
+template<class key_t, class val_t, class SearchClass>
+inline result_t AIDEL<key_t, val_t, SearchClass>::find(const key_t &key, val_t &val)
 {   
     /*size_t model_pos = root->find(key);
     if(model_pos >= aimodels.size())
@@ -175,8 +182,8 @@ inline result_t AIDEL<key_t, val_t>::find(const key_t &key, val_t &val)
 
 
 // =================  scan ====================
-template<class key_t, class val_t>
-int AIDEL<key_t, val_t>::scan(const key_t &key, const size_t n, std::vector<std::pair<key_t, val_t>> &result)
+template<class key_t, class val_t, class SearchClass>
+int AIDEL<key_t, val_t, SearchClass>::scan(const key_t &key, const size_t n, std::vector<std::pair<key_t, val_t>> &result)
 {
     size_t remaining = n;
     size_t model_pos = binary_search_branchless(&model_keys[0], model_keys.size(), key);
@@ -188,11 +195,23 @@ int AIDEL<key_t, val_t>::scan(const key_t &key, const size_t n, std::vector<std:
     return remaining;
 }
 
+template<class key_t, class val_t, class SearchClass>
+bool AIDEL<key_t, val_t, SearchClass>::range_scan(const key_t &lkey, const key_t &rkey, std::vector<std::pair<key_t, val_t>> &result){
+    size_t model_pos = binary_search_branchless(&model_keys[0], model_keys.size(), lkey);
+    if(model_pos >= aimodels.size())
+        model_pos = aimodels.size()-1;
+    bool is_end = false;
+    while(!is_end && model_pos < aimodels.size()){
+        is_end = aimodels[model_pos].range_scan(lkey, rkey, result);
+        ++ model_pos;
+    }
+    return true;
+}
 
 
 // =================== insert the data =======================
-template<class key_t, class val_t>
-inline result_t AIDEL<key_t, val_t>::insert(
+template<class key_t, class val_t, class SearchClass>
+inline result_t AIDEL<key_t, val_t, SearchClass>::insert(
         const key_t& key, const val_t& val)
 {
     return find_model(key)[0].con_insert_retrain(key, val);
@@ -201,8 +220,8 @@ inline result_t AIDEL<key_t, val_t>::insert(
 
 
 // ================ update =================
-template<class key_t, class val_t>
-inline result_t AIDEL<key_t, val_t>::update(
+template<class key_t, class val_t, class SearchClass>
+inline result_t AIDEL<key_t, val_t, SearchClass>::update(
         const key_t& key, const val_t& val)
 {
     return find_model(key)[0].update(key, val);
@@ -211,16 +230,16 @@ inline result_t AIDEL<key_t, val_t>::update(
 
 
 // ==================== remove =====================
-template<class key_t, class val_t>
-inline result_t AIDEL<key_t, val_t>::remove(const key_t& key)
+template<class key_t, class val_t, class SearchClass>
+inline result_t AIDEL<key_t, val_t, SearchClass>::remove(const key_t& key)
 {
     return find_model(key)[0].remove(key);
     //return find_model(key)[0].con_insert(key, val);
 }
 
 // ========================== using OptimalLPR train the model ==========================
-template<class key_t, class val_t>
-void AIDEL<key_t, val_t>::train_opt(const std::vector<key_t> &keys, 
+template<class key_t, class val_t, class SearchClass>
+void AIDEL<key_t, val_t, SearchClass>::train_opt(const std::vector<key_t> &keys, 
                                     const std::vector<val_t> &vals, size_t _maxErr)
 {
     using pair_type = typename std::pair<size_t, size_t>;
@@ -262,9 +281,18 @@ void AIDEL<key_t, val_t>::train_opt(const std::vector<key_t> &keys,
     return predicts;*/
 }
 
-template<class key_t, class val_t>
-size_t AIDEL<key_t, val_t>::model_size(){
+template<class key_t, class val_t, class SearchClass>
+size_t AIDEL<key_t, val_t, SearchClass>::model_size(){
     return segments.size();
+}
+
+template<class key_t, class val_t, class SearchClass>
+size_t AIDEL<key_t, val_t, SearchClass>::size() const{
+    size_t size = sizeof(*this) + sizeof(key_t) * model_keys.size() + sizeof(canonical_segment) * segments.size();
+    for (size_t i = 0; i < aimodels.size(); ++ i){
+        size += aimodels[i].size();
+    }
+    return size;
 }
 
 

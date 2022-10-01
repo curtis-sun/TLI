@@ -15,7 +15,7 @@
 namespace ts {
 
 // Builds a `TrieSpline`.
-template <class KeyType>
+template <class KeyType, class SearchClass>
 class Builder {
  public:
   Builder(KeyType min_key, KeyType max_key, size_t spline_max_error)
@@ -38,7 +38,7 @@ class Builder {
   }
 
   // Finalizes the construction and returns a read-only `TrieSpline`.
-  TrieSpline<KeyType> Finalize() {
+  TrieSpline<KeyType, SearchClass> Finalize() {
     // Last key needs to be equal to `max_key_`.
     assert(curr_num_keys_ == 0 || prev_key_ == max_key_);
 
@@ -55,7 +55,7 @@ class Builder {
     auto cht_ = chtb_.Finalize(tuning.numBins, tuning.treeMaxError);
 
     // And return the read-only instance
-    return TrieSpline<KeyType>(min_key_, max_key_, curr_num_keys_, spline_max_error_,
+    return TrieSpline<KeyType, SearchClass>(min_key_, max_key_, curr_num_keys_, spline_max_error_,
                                std::move(cht_), std::move(spline_points_));
   }
 
@@ -432,10 +432,17 @@ class Builder {
 
     // Update `statistics`.
     const auto UpdateWith = [&](unsigned index, unsigned delta) -> void {
+      unsigned searchTime;
+      if (SearchClass::name() == "LinearSearch") {
+        searchTime = (delta + 1) / 2;
+      }
+      else {
+        searchTime = ComputeLog(delta, true);
+      }
       statistics.emplace_back(
         possibleNumBins[index],
         delta,
-        1.0 * matrix[index][delta].first / spline_points_.size() + ComputeLog(delta, true),
+        1.0 * matrix[index][delta].first / spline_points_.size() + searchTime,
         static_cast<size_t>(1 + matrix[index][delta].second) * possibleNumBins[index] * sizeof(unsigned)
       );
     };

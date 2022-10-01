@@ -11,7 +11,7 @@
 namespace ts {
 // Approximates a cumulative distribution function (CDF) using spline
 // interpolation.
-template <class KeyType>
+template <class KeyType, class SearchClass>
 class TrieSpline {
  public:
   TrieSpline() = default;
@@ -33,7 +33,7 @@ class TrieSpline {
     if (key <= min_key_) return 0;
     if (key >= max_key_) return num_keys_ - 1;
 
-    // Find spline segment with `key` âˆˆ (spline[index - 1], spline[index]].
+    // Find spline segment with `key` âˆ?(spline[index - 1], spline[index]].
     const size_t index = GetSplineSegment(key);
     const Coord<KeyType> down = spline_points_[index - 1];
     const Coord<KeyType> up = spline_points_[index];
@@ -68,26 +68,26 @@ class TrieSpline {
 
  private:
   // Returns the index of the spline point that marks the end of the spline
-  // segment that contains the `key`: `key` âˆˆ (spline[index - 1], spline[index]]
+  // segment that contains the `key`: `key` âˆ?(spline[index - 1], spline[index]]
   size_t GetSplineSegment(const KeyType key) const {
     // Narrow search range using CHT.
     const auto range = cht_.GetSearchBound(key);
-
-    // Linear search?
-    if (range.end - range.begin < 32) {
-      // Do linear search over narrowed range.
-      uint32_t current = range.begin;
-      while (spline_points_[current].x < key) ++current;
-      return current;
-    }
+    
+    // // Linear search?
+    // if (range.end - range.begin < 32) {
+    //   // Do linear search over narrowed range.
+    //   uint32_t current = range.begin;
+    //   while (spline_points_[current].x < key) ++current;
+    //   return current;
+    // }
 
     // Do binary search over narrowed range.
+    typedef typename std::vector<Coord<KeyType>>::const_iterator Iterator;
     const auto lb =
-        std::lower_bound(spline_points_.begin() + range.begin,
+        SearchClass::lower_bound(spline_points_.begin() + range.begin,
                          spline_points_.begin() + range.end, key,
-                         [](const Coord<KeyType>& coord, const KeyType key) {
-                           return coord.x < key;
-                         });
+                         spline_points_.begin() + range.begin,
+                         std::function<KeyType(Iterator)>([](Iterator it)->KeyType{ return  it->x; }));
     return std::distance(spline_points_.begin(), lb);
   }
 

@@ -37,33 +37,33 @@
 // }}} headers
 
 // math {{{
-  inline u64
-mhash64(const u64 v)
+  inline U64
+mhash64(const U64 v)
 {
   return v * 11400714819323198485lu;
 }
 
-  inline u32
-mhash32(const u32 v)
+  inline U32
+mhash32(const U32 v)
 {
   return v * 2654435761u;
 }
 
 // From Daniel Lemire's blog (2013, lemire.me)
-  u64
-gcd64(u64 a, u64 b)
+  U64
+gcd64(U64 a, U64 b)
 {
   if (a == 0)
     return b;
   if (b == 0)
     return a;
 
-  const u32 shift = (u32)__builtin_ctzl(a | b);
+  const U32 shift = (U32)__builtin_ctzl(a | b);
   a >>= __builtin_ctzl(a);
   do {
     b >>= __builtin_ctzl(b);
     if (a > b) {
-      const u64 t = b;
+      const U64 t = b;
       b = a;
       a = t;
     }
@@ -88,36 +88,36 @@ gcd64(u64 a, u64 b)
  */
 struct lehmer_u64 {
   union {
-    u128 v128;
-    u64 v64[2];
+    U128 v128;
+    U64 v64[2];
   };
 };
 
 static __thread struct lehmer_u64 rseed_u128 = {.v64 = {4294967291, 1549556881}};
 
-  static inline u64
+  static inline U64
 lehmer_u64_next(struct lehmer_u64 * const s)
 {
-  const u64 r = s->v64[1];
+  const U64 r = s->v64[1];
   s->v128 *= 0xda942042e4dd58b5lu;
   return r;
 }
 
   static inline void
-lehmer_u64_seed(struct lehmer_u64 * const s, const u64 seed)
+lehmer_u64_seed(struct lehmer_u64 * const s, const U64 seed)
 {
-  s->v128 = (((u128)(~seed)) << 64) | (seed | 1);
+  s->v128 = (((U128)(~seed)) << 64) | (seed | 1);
   (void)lehmer_u64_next(s);
 }
 
-  inline u64
+  inline U64
 random_u64(void)
 {
   return lehmer_u64_next(&rseed_u128);
 }
 
   inline void
-srandom_u64(const u64 seed)
+srandom_u64(const U64 seed)
 {
   lehmer_u64_seed(&rseed_u128, seed);
 }
@@ -126,30 +126,30 @@ srandom_u64(const u64 seed)
 random_double(void)
 {
   // random between [0.0 - 1.0]
-  const u64 r = random_u64();
+  const U64 r = random_u64();
   return ((double)r) * (1.0 / ((double)(~0lu)));
 }
 // }}} random
 
 // timing {{{
-  inline u64
+  inline U64
 time_nsec(void)
 {
   struct timespec ts;
   // MONO_RAW is 5x to 10x slower than MONO
   clock_gettime(CLOCK_MONOTONIC, &ts);
-  return ((u64)ts.tv_sec) * 1000000000lu + ((u64)ts.tv_nsec);
+  return ((U64)ts.tv_sec) * 1000000000lu + ((U64)ts.tv_nsec);
 }
 
   inline double
 time_sec(void)
 {
-  const u64 nsec = time_nsec();
+  const U64 nsec = time_nsec();
   return ((double)nsec) * 1.0e-9;
 }
 
-  inline u64
-time_diff_nsec(const u64 last)
+  inline U64
+time_diff_nsec(const U64 last)
 {
   return time_nsec() - last;
 }
@@ -238,8 +238,8 @@ cpu_prefetchw(const void * const ptr)
 // }}} cpucache
 
 // crc32c {{{
-  inline u32
-crc32c_u8(const u32 crc, const u8 v)
+  inline U32
+crc32c_u8(const U32 crc, const U8 v)
 {
 #if defined(__x86_64__)
   return _mm_crc32_u8(crc, v);
@@ -248,8 +248,8 @@ crc32c_u8(const u32 crc, const u8 v)
 #endif
 }
 
-  inline u32
-crc32c_u16(const u32 crc, const u16 v)
+  inline U32
+crc32c_u16(const U32 crc, const U16 v)
 {
 #if defined(__x86_64__)
   return _mm_crc32_u16(crc, v);
@@ -258,8 +258,8 @@ crc32c_u16(const u32 crc, const u16 v)
 #endif
 }
 
-  inline u32
-crc32c_u32(const u32 crc, const u32 v)
+  inline U32
+crc32c_u32(const U32 crc, const U32 v)
 {
 #if defined(__x86_64__)
   return _mm_crc32_u32(crc, v);
@@ -268,45 +268,45 @@ crc32c_u32(const u32 crc, const u32 v)
 #endif
 }
 
-  inline u32
-crc32c_u64(const u32 crc, const u64 v)
+  inline U32
+crc32c_u64(const U32 crc, const U64 v)
 {
 #if defined(__x86_64__)
-  return (u32)_mm_crc32_u64(crc, v);
+  return (U32)_mm_crc32_u64(crc, v);
 #elif defined(__aarch64__)
-  return (u32)__crc32cd(crc, v);
+  return (U32)__crc32cd(crc, v);
 #endif
 }
 
-  inline u32
-crc32c_inc_123(const u8 * buf, u32 nr, u32 crc)
+  inline U32
+crc32c_inc_123(const U8 * buf, U32 nr, U32 crc)
 {
   if (nr == 1)
     return crc32c_u8(crc, buf[0]);
 
-  crc = crc32c_u16(crc, *(u16 *)buf);
+  crc = crc32c_u16(crc, *(U16 *)buf);
   return (nr == 2) ? crc : crc32c_u8(crc, buf[2]);
 }
 
-  inline u32
-crc32c_inc_x4(const u8 * buf, u32 nr, u32 crc)
+  inline U32
+crc32c_inc_x4(const U8 * buf, U32 nr, U32 crc)
 {
   //debug_assert((nr & 3) == 0);
-  const u32 nr8 = nr >> 3;
+  const U32 nr8 = nr >> 3;
 #pragma nounroll
-  for (u32 i = 0; i < nr8; i++)
-    crc = crc32c_u64(crc, ((u64*)buf)[i]);
+  for (U32 i = 0; i < nr8; i++)
+    crc = crc32c_u64(crc, ((U64*)buf)[i]);
 
   if (nr & 4u)
-    crc = crc32c_u32(crc, ((u32*)buf)[nr8<<1]);
+    crc = crc32c_u32(crc, ((U32*)buf)[nr8<<1]);
   return crc;
 }
 
-  u32
-crc32c_inc(const u8 * buf, u32 nr, u32 crc)
+  U32
+crc32c_inc(const U8 * buf, U32 nr, U32 crc)
 {
   crc = crc32c_inc_x4(buf, nr, crc);
-  const u32 nr123 = nr & 3u;
+  const U32 nr123 = nr & 3u;
   return nr123 ? crc32c_inc_123(buf + nr - nr123, nr123, crc) : crc;
 }
 // }}} crc32c
@@ -318,18 +318,18 @@ debug_break(void)
   usleep(100);
 }
 
-static u64 * debug_watch_u64 = NULL;
+static U64 * debug_watch_u64 = NULL;
 
   static void
 watch_u64_handler(const int sig)
 {
   (void)sig;
-  const u64 v = debug_watch_u64 ? (*debug_watch_u64) : 0;
+  const U64 v = debug_watch_u64 ? (*debug_watch_u64) : 0;
   fprintf(stderr, "[USR1] %lu (0x%lx)\n", v, v);
 }
 
   void
-watch_u64_usr1(u64 * const ptr)
+watch_u64_usr1(U64 * const ptr)
 {
   debug_watch_u64 = ptr;
   struct sigaction sa = {};
@@ -362,7 +362,7 @@ debug_bt_error_cb(void * const data, const char * const msg, const int errnum)
 debug_bt_print_cb(void * const data, const uintptr_t pc,
     const char * const file, const int lineno, const char * const func)
 {
-  u32 * const plevel = (typeof(plevel))data;
+  U32 * const plevel = (typeof(plevel))data;
   if (file || func || lineno) {
     dprintf(2, "[%u]0x%012lx " TERMCLR(35) "%s" TERMCLR(31) ":" TERMCLR(34) "%d" TERMCLR(0)" %s\n",
         *plevel, pc, file ? file : "???", lineno, func ? func : "???");
@@ -393,7 +393,7 @@ debug_wait_gdb(void * const bt_state)
   if (bt_state) {
 #if defined(BACKTRACE)
     dprintf(2, "Backtrace :\n");
-    u32 level = 0;
+    U32 level = 0;
     backtrace_full(debug_bt_state, 1, debug_bt_print_cb, debug_bt_error_cb, &level);
 #endif // BACKTRACE
   } else { // fallback to execinfo if no backtrace or initialization failed
@@ -426,7 +426,7 @@ debug_wait_gdb(void * const bt_state)
   // kill(getpid(), SIGSTOP); // stop burning cpu, once
 
   static au32 nr_waiting = 0;
-  const u32 seq = atomic_fetch_add_explicit(&nr_waiting, 1, MO_RELAXED);
+  const U32 seq = atomic_fetch_add_explicit(&nr_waiting, 1, MO_RELAXED);
   if (seq == 0) {
     sprintf(buf, "/run/user/%u/.debug_wait_gdb_pid", getuid());
     const int pidfd = open(buf, O_CREAT|O_TRUNC|O_WRONLY, 00644);
@@ -547,7 +547,7 @@ debug_perf_init(void)
   if (nr < 12)
     return;
   tmp[nr] = '\0';
-  for (u64 i = 0; i < nr; i++)
+  for (U64 i = 0; i < nr; i++)
     if (tmp[i] == 0)
       tmp[i] = ' ';
 
@@ -641,7 +641,7 @@ malloc_2d(const size_t nr, const size_t size)
   const size_t size1 = nr * sizeof(void *);
   const size_t size2 = nr * size;
   void ** const mem = malloc(size1 + size2);
-  u8 * const mem2 = ((u8 *)mem) + size1;
+  U8 * const mem2 = ((U8 *)mem) + size1;
   for (size_t i = 0; i < nr; i++)
     mem[i] = mem2 + (i * size);
   return mem;
@@ -713,7 +713,7 @@ pages_do_alloc(const size_t size, const int flags)
   inline void *
 pages_alloc_1gb(const size_t nr_1gb)
 {
-  const u64 sz = nr_1gb << 30;
+  const U64 sz = nr_1gb << 30;
 #ifndef HEAPCHECKING
   return pages_do_alloc(sz, MAP_PRIVATE | MAP_ANONYMOUS | PAGES_FLAGS_1G);
 #else
@@ -727,7 +727,7 @@ pages_alloc_1gb(const size_t nr_1gb)
   inline void *
 pages_alloc_2mb(const size_t nr_2mb)
 {
-  const u64 sz = nr_2mb << 21;
+  const U64 sz = nr_2mb << 21;
 #ifndef HEAPCHECKING
   return pages_do_alloc(sz, MAP_PRIVATE | MAP_ANONYMOUS | PAGES_FLAGS_2M);
 #else
@@ -753,7 +753,7 @@ pages_alloc_4kb(const size_t nr_4kb)
 }
 
   void *
-pages_alloc_best(const size_t size, const bool try_1gb, u64 * const size_out)
+pages_alloc_best(const size_t size, const bool try_1gb, U64 * const size_out)
 {
 #ifdef ALLOCFAIL
   if (alloc_fail())
@@ -790,11 +790,11 @@ pages_alloc_best(const size_t size, const bool try_1gb, u64 * const size_out)
 // }}} mm
 
 // process/thread {{{
-static u32 process_ncpu;
+static U32 process_ncpu;
 #if defined(__FreeBSD__)
 typedef cpuset_t cpu_set_t;
 #elif defined(__APPLE__) && defined(__MACH__)
-typedef u64 cpu_set_t;
+typedef U64 cpu_set_t;
 #define CPU_SETSIZE ((64))
 #define CPU_COUNT(__cpu_ptr__) (__builtin_popcountl(*__cpu_ptr__))
 #define CPU_ISSET(__cpu_idx__, __cpu_ptr__) (((*__cpu_ptr__) >> __cpu_idx__) & 1lu)
@@ -809,7 +809,7 @@ __attribute__((constructor))
 process_init(void)
 {
   // Linux's default is 1024 cpus
-  process_ncpu = (u32)sysconf(_SC_NPROCESSORS_CONF);
+  process_ncpu = (U32)sysconf(_SC_NPROCESSORS_CONF);
   if (process_ncpu > CPU_SETSIZE) {
     fprintf(stderr, "%s: can use only %zu cores\n",
         __func__, (size_t)CPU_SETSIZE);
@@ -880,29 +880,29 @@ process_get_rss(void)
   return rs.ru_maxrss;
 }
 
-  u32
+  U32
 process_affinity_count(void)
 {
   cpu_set_t set;
   if (thread_getaffinity_set(&set) != 0)
     return process_ncpu;
 
-  const u32 nr = (u32)CPU_COUNT(&set);
+  const U32 nr = (U32)CPU_COUNT(&set);
   return nr ? nr : process_ncpu;
 }
 
-  u32
-process_getaffinity_list(const u32 max, u32 * const cores)
+  U32
+process_getaffinity_list(const U32 max, U32 * const cores)
 {
   memset(cores, 0, max * sizeof(cores[0]));
   cpu_set_t set;
   if (thread_getaffinity_set(&set) != 0)
     return 0;
 
-  const u32 nr_affinity = (u32)CPU_COUNT(&set);
-  const u32 nr = nr_affinity < max ? nr_affinity : max;
-  u32 j = 0;
-  for (u32 i = 0; i < process_ncpu; i++) {
+  const U32 nr_affinity = (U32)CPU_COUNT(&set);
+  const U32 nr = nr_affinity < max ? nr_affinity : max;
+  U32 j = 0;
+  for (U32 i = 0; i < process_ncpu; i++) {
     if (CPU_ISSET(i, &set))
       cores[j++] = i;
 
@@ -913,18 +913,18 @@ process_getaffinity_list(const u32 max, u32 * const cores)
 }
 
   void
-thread_setaffinity_list(const u32 nr, const u32 * const list)
+thread_setaffinity_list(const U32 nr, const U32 * const list)
 {
   cpu_set_t set;
   CPU_ZERO(&set);
-  for (u32 i = 0; i < nr; i++)
+  for (U32 i = 0; i < nr; i++)
     if (list[i] < process_ncpu)
       CPU_SET(list[i], &set);
   thread_setaffinity_set(&set);
 }
 
   void
-thread_pin(const u32 cpu)
+thread_pin(const U32 cpu)
 {
   cpu_set_t set;
   CPU_ZERO(&set);
@@ -932,20 +932,20 @@ thread_pin(const u32 cpu)
   thread_setaffinity_set(&set);
 }
 
-  u64
+  U64
 process_cpu_time_usec(void)
 {
   struct rusage rs;
   getrusage(RUSAGE_SELF, &rs);
-  const u64 usr = (((u64)rs.ru_utime.tv_sec) * 1000000lu) + ((u64)rs.ru_utime.tv_usec);
-  const u64 sys = (((u64)rs.ru_stime.tv_sec) * 1000000lu) + ((u64)rs.ru_stime.tv_usec);
+  const U64 usr = (((U64)rs.ru_utime.tv_sec) * 1000000lu) + ((U64)rs.ru_utime.tv_usec);
+  const U64 sys = (((U64)rs.ru_stime.tv_sec) * 1000000lu) + ((U64)rs.ru_stime.tv_usec);
   return usr + sys;
 }
 
 struct fork_join_info {
-  u32 total;
-  u32 ncores;
-  u32 * cores;
+  U32 total;
+  U32 ncores;
+  U32 * cores;
   void *(*func)(void *);
   bool args;
   union {
@@ -977,13 +977,13 @@ struct fork_join_info {
 thread_do_fork_join_worker(void * const ptr)
 {
   struct entry13 fjp = {.ptr = ptr};
-  // GCC: Without explicitly casting from fjp.fji (a 45-bit u64 value),
+  // GCC: Without explicitly casting from fjp.fji (a 45-bit U64 value),
   // the high bits will get truncated, which is always CORRECT in gcc.
   // Don't use gcc.
-  struct fork_join_info * const fji = u64_to_ptr(fjp.e3);
-  const u32 rank = (u32)fjp.e1;
+  struct fork_join_info * const fji = U64_to_ptr(fjp.e3);
+  const U32 rank = (U32)fjp.e1;
 
-  const u32 nchild = (u32)__builtin_ctz(rank ? rank : bits_p2_up_u32(fji->total));
+  const U32 nchild = (U32)__builtin_ctz(rank ? rank : bits_p2_up_u32(fji->total));
   debug_assert(nchild <= FORK_JOIN_RANK_BITS);
   pthread_t tids[FORK_JOIN_RANK_BITS];
   if (nchild) {
@@ -993,19 +993,19 @@ thread_do_fork_join_worker(void * const ptr)
     pthread_attr_init(&attr);
     //pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE); // Joinable by default
     // fork top-down
-    for (u32 i = nchild - 1; i < nchild; i--) {
-      const u32 cr = rank + (1u << i); // child's rank
+    for (U32 i = nchild - 1; i < nchild; i--) {
+      const U32 cr = rank + (1u << i); // child's rank
       if (cr >= fji->total)
         continue; // should not break
-      const u32 core = fji->cores[(cr < fji->ncores) ? cr : (cr % fji->ncores)];
+      const U32 core = fji->cores[(cr < fji->ncores) ? cr : (cr % fji->ncores)];
       CPU_SET(core, &set);
       pthread_attr_setaffinity_np(&attr, sizeof(set), &set);
-      fjp.e1 = (u16)cr;
+      fjp.e1 = (U16)cr;
       const int r = pthread_create(&tids[i], &attr, thread_do_fork_join_worker, fjp.ptr);
       CPU_CLR(core, &set);
       if (unlikely(r)) { // fork failed
         memset(&tids[0], 0, sizeof(tids[0]) * (i+1));
-        u32 nmiss = (1u << (i + 1)) - 1;
+        U32 nmiss = (1u << (i + 1)) - 1;
         if ((rank + nmiss) >= fji->total)
           nmiss = fji->total - 1 - rank;
         (void)atomic_fetch_add_explicit(&fji->ferr, nmiss, MO_RELAXED);
@@ -1025,8 +1025,8 @@ thread_do_fork_join_worker(void * const ptr)
 
   thread_set_name(pthread_self(), thname0);
   // join bottom-up
-  for (u32 i = 0; i < nchild; i++) {
-    const u32 cr = rank + (1u << i); // child rank
+  for (U32 i = 0; i < nchild; i++) {
+    const U32 cr = rank + (1u << i); // child rank
     if (cr >= fji->total)
       break; // safe to break
     if (tids[i]) {
@@ -1040,19 +1040,19 @@ thread_do_fork_join_worker(void * const ptr)
   return ret;
 }
 
-  u64
-thread_fork_join(u32 nr, void *(*func) (void *), const bool args, void * const argx)
+  U64
+thread_fork_join(U32 nr, void *(*func) (void *), const bool args, void * const argx)
 {
   if (unlikely(nr > FORK_JOIN_MAX)) {
     fprintf(stderr, "%s reduce nr to %u\n", __func__, FORK_JOIN_MAX);
     nr = FORK_JOIN_MAX;
   }
 
-  u32 cores[CPU_SETSIZE];
-  u32 ncores = process_getaffinity_list(process_ncpu, cores);
+  U32 cores[CPU_SETSIZE];
+  U32 ncores = process_getaffinity_list(process_ncpu, cores);
   if (unlikely(ncores == 0)) { // force to use all cores
     ncores = process_ncpu;
-    for (u32 i = 0; i < process_ncpu; i++)
+    for (U32 i = 0; i < process_ncpu; i++)
       cores[i] = i;
   }
   if (unlikely(nr == 0))
@@ -1061,7 +1061,7 @@ thread_fork_join(u32 nr, void *(*func) (void *), const bool args, void * const a
   // the compiler does not know fji can change since we cast &fji into fjp
   struct fork_join_info fji = {.total = nr, .cores = cores, .ncores = ncores,
       .func = func, .args = args, .arg1 = argx};
-  const struct entry13 fjp = entry13(0, (u64)(&fji));
+  const struct entry13 fjp = entry13(0, (U64)(&fji));
 
   // save current affinity
   cpu_set_t set0;
@@ -1073,9 +1073,9 @@ thread_fork_join(u32 nr, void *(*func) (void *), const bool args, void * const a
   CPU_SET(fji.cores[0], &set);
   thread_setaffinity_set(&set);
 
-  const u64 t0 = time_nsec();
+  const U64 t0 = time_nsec();
   (void)thread_do_fork_join_worker(fjp.ptr);
-  const u64 dt = time_diff_nsec(t0);
+  const U64 dt = time_diff_nsec(t0);
 
   // restore original affinity
   thread_setaffinity_set(&set0);
@@ -1087,10 +1087,10 @@ thread_fork_join(u32 nr, void *(*func) (void *), const bool args, void * const a
 }
 
   int
-thread_create_at(const u32 cpu, pthread_t * const thread,
+thread_create_at(const U32 cpu, pthread_t * const thread,
     void *(*start_routine) (void *), void * const arg)
 {
-  const u32 cpu_id = (cpu < process_ncpu) ? cpu : (cpu % process_ncpu);
+  const U32 cpu_id = (cpu < process_ncpu) ? cpu : (cpu % process_ncpu);
   pthread_attr_t attr;
   pthread_attr_init(&attr);
   //pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
@@ -1239,7 +1239,7 @@ __thread const rwlock * rwdep_writers[RWDEP_NR] = {};
 rwdep_check(const rwlock * const lock)
 {
   debug_assert(lock);
-  for (u64 i = 0; i < RWDEP_NR; i++) {
+  for (U64 i = 0; i < RWDEP_NR; i++) {
     if (rwdep_readers[i] == lock)
       debug_die();
     if (rwdep_writers[i] == lock)
@@ -1253,7 +1253,7 @@ rwdep_lock_read(const rwlock * const lock)
 {
 #ifdef RWDEP
   rwdep_check(lock);
-  for (u64 i = 0; i < RWDEP_NR; i++) {
+  for (U64 i = 0; i < RWDEP_NR; i++) {
     if (rwdep_readers[i] == NULL) {
       rwdep_readers[i] = lock;
       return;
@@ -1268,7 +1268,7 @@ rwdep_lock_read(const rwlock * const lock)
 rwdep_unlock_read(const rwlock * const lock)
 {
 #ifdef RWDEP
-  for (u64 i = 0; i < RWDEP_NR; i++) {
+  for (U64 i = 0; i < RWDEP_NR; i++) {
     if (rwdep_readers[i] == lock) {
       rwdep_readers[i] = NULL;
       return;
@@ -1285,7 +1285,7 @@ rwdep_lock_write(const rwlock * const lock)
 {
 #ifdef RWDEP
   rwdep_check(lock);
-  for (u64 i = 0; i < RWDEP_NR; i++) {
+  for (U64 i = 0; i < RWDEP_NR; i++) {
     if (rwdep_writers[i] == NULL) {
       rwdep_writers[i] = lock;
       return;
@@ -1300,7 +1300,7 @@ rwdep_lock_write(const rwlock * const lock)
 rwdep_unlock_write(const rwlock * const lock)
 {
 #ifdef RWDEP
-  for (u64 i = 0; i < RWDEP_NR; i++) {
+  for (U64 i = 0; i < RWDEP_NR; i++) {
     if (rwdep_writers[i] == lock) {
       rwdep_writers[i] = NULL;
       return;
@@ -1315,7 +1315,7 @@ rwdep_unlock_write(const rwlock * const lock)
 
 // rwlock {{{
 typedef au32 lock_t;
-typedef u32 lock_v;
+typedef U32 lock_v;
 static_assert(sizeof(lock_t) == sizeof(lock_v), "lock size");
 static_assert(sizeof(lock_t) <= sizeof(rwlock), "lock size");
 
@@ -1355,7 +1355,7 @@ rwlock_trylock_read_lp(rwlock * const lock)
 
 // actually nr + 1
   inline bool
-rwlock_trylock_read_nr(rwlock * const lock, u16 nr)
+rwlock_trylock_read_nr(rwlock * const lock, U16 nr)
 {
   lock_t * const pvar = (typeof(pvar))lock;
   if ((atomic_fetch_add_explicit(pvar, 1, MO_ACQUIRE) >> RWLOCK_WSHIFT) == 0) {
@@ -1418,7 +1418,7 @@ rwlock_trylock_write(rwlock * const lock)
 
 // actually nr + 1
   inline bool
-rwlock_trylock_write_nr(rwlock * const lock, u16 nr)
+rwlock_trylock_write_nr(rwlock * const lock, U16 nr)
 {
 #pragma nounroll
   do {
@@ -1476,7 +1476,7 @@ rwlock_trylock_write_hp(rwlock * const lock)
 }
 
   inline bool
-rwlock_trylock_write_hp_nr(rwlock * const lock, u16 nr)
+rwlock_trylock_write_hp_nr(rwlock * const lock, U16 nr)
 {
 #pragma nounroll
   do {
@@ -1613,9 +1613,9 @@ asm (
 
 // co {{{
 struct co {
-  u64 rsp;
+  U64 rsp;
   void * priv;
-  u64 * host; // set host to NULL to exit
+  U64 * host; // set host to NULL to exit
   size_t stksz;
 };
 
@@ -1625,23 +1625,23 @@ static __thread struct co * volatile co_curr = NULL; // NULL in host
 
 // the stack sits under the struct co
   static void
-co_init(struct co * const co, void * func, void * priv, u64 * const host,
-    const u64 stksz, void * func_exit)
+co_init(struct co * const co, void * func, void * priv, U64 * const host,
+    const U64 stksz, void * func_exit)
 {
   debug_assert((stksz & 0x3f) == 0); // a multiple of 64 bytes
-  u64 * rsp = ((u64 *)co) - 4;
-  rsp[0] = (u64)func;
-  rsp[1] = (u64)func_exit;
-  rsp[2] = (u64)debug_die;
+  U64 * rsp = ((U64 *)co) - 4;
+  rsp[0] = (U64)func;
+  rsp[1] = (U64)func_exit;
+  rsp[2] = (U64)debug_die;
   rsp[3] = 0;
 
   rsp -= CO_CONTEXT_SIZE;
 
 #if defined(__aarch64__)
-  rsp[0] = (u64)co_entry_aarch64;
+  rsp[0] = (U64)co_entry_aarch64;
 #endif
 
-  co->rsp = (u64)rsp;
+  co->rsp = (U64)rsp;
   co->priv = priv;
   co->host = host;
   co->stksz = stksz;
@@ -1654,11 +1654,11 @@ co_exit0(void)
 }
 
   struct co *
-co_create(const u64 stacksize, void * func, void * priv, u64 * const host)
+co_create(const U64 stacksize, void * func, void * priv, U64 * const host)
 {
-  const u64 stksz = bits_round_up(stacksize, 6);
+  const U64 stksz = bits_round_up(stacksize, 6);
   const size_t alloc_size = stksz + sizeof(struct co);
-  u8 * const mem = yalloc(alloc_size);
+  U8 * const mem = yalloc(alloc_size);
   if (mem == NULL)
     return NULL;
 
@@ -1672,7 +1672,7 @@ co_create(const u64 stacksize, void * func, void * priv, u64 * const host)
 }
 
   inline void
-co_reuse(struct co * const co, void * func, void * priv, u64 * const host)
+co_reuse(struct co * const co, void * func, void * priv, U64 * const host)
 {
   co_init(co, func, priv, host, co->stksz, co_exit0);
 }
@@ -1690,14 +1690,14 @@ co_priv(void)
 }
 
 // the host calls this to enter a coroutine.
-  inline u64
-co_enter(struct co * const to, const u64 retval)
+  inline U64
+co_enter(struct co * const to, const U64 retval)
 {
   debug_assert(co_curr == NULL); // must entry from the host
   debug_assert(to && to->host);
-  u64 * const save = to->host;
+  U64 * const save = to->host;
   co_curr = to;
-  const u64 ret = co_switch_stack(save, to->rsp, retval);
+  const U64 ret = co_switch_stack(save, to->rsp, retval);
   co_curr = NULL;
   return ret;
 }
@@ -1705,8 +1705,8 @@ co_enter(struct co * const to, const u64 retval)
 // switch from a coroutine to another coroutine
 // co_curr must be valid
 // the target will resume and receive the retval
-  inline u64
-co_switch_to(struct co * const to, const u64 retval)
+  inline U64
+co_switch_to(struct co * const to, const U64 retval)
 {
   debug_assert(co_curr);
   debug_assert(co_curr != to);
@@ -1718,8 +1718,8 @@ co_switch_to(struct co * const to, const u64 retval)
 
 // switch from a coroutine to the host routine
 // co_yield is now a c++ keyword...
-  inline u64
-co_back(const u64 retval)
+  inline U64
+co_back(const U64 retval)
 {
   debug_assert(co_curr);
   struct co * const save = co_curr;
@@ -1729,13 +1729,13 @@ co_back(const u64 retval)
 
 #ifdef CO_STACK_CHECK
   static void
-co_stack_check(const u8 * const mem, const u64 stksz)
+co_stack_check(const U8 * const mem, const U64 stksz)
 {
-  const u64 * const mem64 = (typeof(mem64))mem;
-  const u64 size64 = stksz / sizeof(u64);
-  for (u64 i = 0; i < size64; i++) {
+  const U64 * const mem64 = (typeof(mem64))mem;
+  const U64 size64 = stksz / sizeof(U64);
+  for (U64 i = 0; i < size64; i++) {
     if (mem64[i] != 0x5c5c5c5c5c5c5c5clu) {
-      fprintf(stderr, "%s co stack usage: %lu/%lu\n", __func__, stksz - (i * sizeof(u64)), stksz);
+      fprintf(stderr, "%s co stack usage: %lu/%lu\n", __func__, stksz - (i * sizeof(U64)), stksz);
       break;
     }
   }
@@ -1745,15 +1745,15 @@ co_stack_check(const u8 * const mem, const u64 stksz)
 // return to host and set host to NULL
 __attribute__((noreturn))
   void
-co_exit(const u64 retval)
+co_exit(const U64 retval)
 {
   debug_assert(co_curr);
 #ifdef CO_STACK_CHECK
-  const u64 stksz = co_curr->stksz;
-  u8 * const mem = ((u8 *)co_curr) - stksz;
+  const U64 stksz = co_curr->stksz;
+  U8 * const mem = ((U8 *)co_curr) - stksz;
   co_stack_check(mem, stksz);
 #endif // CO_STACK_CHECK
-  const u64 hostrsp = *(co_curr->host);
+  const U64 hostrsp = *(co_curr->host);
   co_curr->host = NULL;
   struct co * const save = co_curr;
   co_curr = NULL;
@@ -1779,7 +1779,7 @@ co_self(void)
   inline void
 co_destroy(struct co * const co)
 {
-  u8 * const mem = ((u8 *)co) - co->stksz;
+  U8 * const mem = ((U8 *)co) - co->stksz;
   free(mem);
 }
 // }}} co
@@ -1793,11 +1793,11 @@ struct corr {
 
 // initial and link guest to the run-queue
   struct corr *
-corr_create(const u64 stacksize, void * func, void * priv, u64 * const host)
+corr_create(const U64 stacksize, void * func, void * priv, U64 * const host)
 {
-  const u64 stksz = bits_round_up(stacksize, 6);
+  const U64 stksz = bits_round_up(stacksize, 6);
   const size_t alloc_size = stksz + sizeof(struct corr);
-  u8 * const mem = yalloc(alloc_size);
+  U8 * const mem = yalloc(alloc_size);
   if (mem == NULL)
     return NULL;
 
@@ -1813,11 +1813,11 @@ corr_create(const u64 stacksize, void * func, void * priv, u64 * const host)
 }
 
   struct corr *
-corr_link(const u64 stacksize, void * func, void * priv, struct corr * const prev)
+corr_link(const U64 stacksize, void * func, void * priv, struct corr * const prev)
 {
-  const u64 stksz = bits_round_up(stacksize, 6);
+  const U64 stksz = bits_round_up(stacksize, 6);
   const size_t alloc_size = stksz + sizeof(struct corr);
-  u8 * const mem = yalloc(alloc_size);
+  U8 * const mem = yalloc(alloc_size);
   if (mem == NULL)
     return NULL;
 
@@ -1835,7 +1835,7 @@ corr_link(const u64 stacksize, void * func, void * priv, struct corr * const pre
 }
 
   inline void
-corr_reuse(struct corr * const co, void * func, void * priv, u64 * const host)
+corr_reuse(struct corr * const co, void * func, void * priv, U64 * const host)
 {
   co_init(&(co->co), func, priv, host, co->co.stksz, corr_exit);
   co->next = co;
@@ -1872,8 +1872,8 @@ corr_exit(void)
 {
   debug_assert(co_curr);
 #ifdef CO_STACK_CHECK
-  const u64 stksz = co_curr->stksz;
-  const u8 * const mem = ((u8 *)(co_curr)) - stksz;
+  const U64 stksz = co_curr->stksz;
+  const U8 * const mem = ((U8 *)(co_curr)) - stksz;
   co_stack_check(mem, stksz);
 #endif // CO_STACK_CHECK
 
@@ -1903,100 +1903,100 @@ corr_destroy(struct corr * const co)
 // }}} co
 
 // bits {{{
-  inline u32
-bits_reverse_u32(const u32 v)
+  inline U32
+bits_reverse_u32(const U32 v)
 {
-  const u32 v2 = __builtin_bswap32(v);
-  const u32 v3 = ((v2 & 0xf0f0f0f0u) >> 4) | ((v2 & 0x0f0f0f0fu) << 4);
-  const u32 v4 = ((v3 & 0xccccccccu) >> 2) | ((v3 & 0x33333333u) << 2);
-  const u32 v5 = ((v4 & 0xaaaaaaaau) >> 1) | ((v4 & 0x55555555u) << 1);
+  const U32 v2 = __builtin_bswap32(v);
+  const U32 v3 = ((v2 & 0xf0f0f0f0u) >> 4) | ((v2 & 0x0f0f0f0fu) << 4);
+  const U32 v4 = ((v3 & 0xccccccccu) >> 2) | ((v3 & 0x33333333u) << 2);
+  const U32 v5 = ((v4 & 0xaaaaaaaau) >> 1) | ((v4 & 0x55555555u) << 1);
   return v5;
 }
 
-  inline u64
-bits_reverse_u64(const u64 v)
+  inline U64
+bits_reverse_u64(const U64 v)
 {
-  const u64 v2 = __builtin_bswap64(v);
-  const u64 v3 = ((v2 & 0xf0f0f0f0f0f0f0f0lu) >>  4) | ((v2 & 0x0f0f0f0f0f0f0f0flu) <<  4);
-  const u64 v4 = ((v3 & 0xcccccccccccccccclu) >>  2) | ((v3 & 0x3333333333333333lu) <<  2);
-  const u64 v5 = ((v4 & 0xaaaaaaaaaaaaaaaalu) >>  1) | ((v4 & 0x5555555555555555lu) <<  1);
+  const U64 v2 = __builtin_bswap64(v);
+  const U64 v3 = ((v2 & 0xf0f0f0f0f0f0f0f0lu) >>  4) | ((v2 & 0x0f0f0f0f0f0f0f0flu) <<  4);
+  const U64 v4 = ((v3 & 0xcccccccccccccccclu) >>  2) | ((v3 & 0x3333333333333333lu) <<  2);
+  const U64 v5 = ((v4 & 0xaaaaaaaaaaaaaaaalu) >>  1) | ((v4 & 0x5555555555555555lu) <<  1);
   return v5;
 }
 
-  inline u64
-bits_rotl_u64(const u64 v, const u8 n)
+  inline U64
+bits_rotl_u64(const U64 v, const U8 n)
 {
-  const u8 sh = n & 0x3f;
+  const U8 sh = n & 0x3f;
   return (v << sh) | (v >> (64 - sh));
 }
 
-  inline u64
-bits_rotr_u64(const u64 v, const u8 n)
+  inline U64
+bits_rotr_u64(const U64 v, const U8 n)
 {
-  const u8 sh = n & 0x3f;
+  const U8 sh = n & 0x3f;
   return (v >> sh) | (v << (64 - sh));
 }
 
-  inline u32
-bits_rotl_u32(const u32 v, const u8 n)
+  inline U32
+bits_rotl_u32(const U32 v, const U8 n)
 {
-  const u8 sh = n & 0x1f;
+  const U8 sh = n & 0x1f;
   return (v << sh) | (v >> (32 - sh));
 }
 
-  inline u32
-bits_rotr_u32(const u32 v, const u8 n)
+  inline U32
+bits_rotr_u32(const U32 v, const U8 n)
 {
-  const u8 sh = n & 0x1f;
+  const U8 sh = n & 0x1f;
   return (v >> sh) | (v << (32 - sh));
 }
 
-  inline u64
-bits_p2_up_u64(const u64 v)
+  inline U64
+bits_p2_up_u64(const U64 v)
 {
   // clz(0) is undefined
   return (v > 1) ? (1lu << (64 - __builtin_clzl(v - 1lu))) : v;
 }
 
-  inline u32
-bits_p2_up_u32(const u32 v)
+  inline U32
+bits_p2_up_u32(const U32 v)
 {
   // clz(0) is undefined
   return (v > 1) ? (1u << (32 - __builtin_clz(v - 1u))) : v;
 }
 
-  inline u64
-bits_p2_down_u64(const u64 v)
+  inline U64
+bits_p2_down_u64(const U64 v)
 {
   return v ? (1lu << (63 - __builtin_clzl(v))) : v;
 }
 
-  inline u32
-bits_p2_down_u32(const u32 v)
+  inline U32
+bits_p2_down_u32(const U32 v)
 {
   return v ? (1u << (31 - __builtin_clz(v))) : v;
 }
 
-  inline u64
-bits_round_up(const u64 v, const u8 power)
+  inline U64
+bits_round_up(const U64 v, const U8 power)
 {
   return (v + (1lu << power) - 1lu) >> power << power;
 }
 
-  inline u64
-bits_round_up_a(const u64 v, const u64 a)
+  inline U64
+bits_round_up_a(const U64 v, const U64 a)
 {
   return (v + a - 1) / a * a;
 }
 
-  inline u64
-bits_round_down(const u64 v, const u8 power)
+  inline U64
+bits_round_down(const U64 v, const U8 power)
 {
   return v >> power << power;
 }
 
-  inline u64
-bits_round_down_a(const u64 v, const u64 a)
+  inline U64
+bits_round_down_a(const U64 v, const U64 a)
 {
   return v / a * a;
 }
@@ -2009,10 +2009,10 @@ bits_round_down_a(const u64 v, const u64 a)
 #define FALLTHROUGH ((void)0)
 #endif /* __GNUC__ >= 7 */
 
-  inline u32
-vi128_estimate_u32(const u32 v)
+  inline U32
+vi128_estimate_u32(const U32 v)
 {
-  static const u8 t[] = {5,5,5,5,
+  static const U8 t[] = {5,5,5,5,
     4,4,4,4,4,4,4, 3,3,3,3,3,3,3,
     2,2,2,2,2,2,2, 1,1,1,1,1,1,1};
   return v ? t[__builtin_clz(v)] : 2;
@@ -2027,20 +2027,20 @@ vi128_estimate_u32(const u32 v)
   // 29 to 32 -> 5    3 to 0
 }
 
-  u8 *
-vi128_encode_u32(u8 * dst, u32 v)
+  U8 *
+vi128_encode_u32(U8 * dst, U32 v)
 {
   switch (vi128_estimate_u32(v)) {
   case 5:
-    *(dst++) = (u8)(v | 0x80); v >>= 7; FALLTHROUGH;
+    *(dst++) = (U8)(v | 0x80); v >>= 7; FALLTHROUGH;
   case 4:
-    *(dst++) = (u8)(v | 0x80); v >>= 7; FALLTHROUGH;
+    *(dst++) = (U8)(v | 0x80); v >>= 7; FALLTHROUGH;
   case 3:
-    *(dst++) = (u8)(v | 0x80); v >>= 7; FALLTHROUGH;
+    *(dst++) = (U8)(v | 0x80); v >>= 7; FALLTHROUGH;
   case 2:
-    *(dst++) = (u8)(v | 0x80); v >>= 7; FALLTHROUGH;
+    *(dst++) = (U8)(v | 0x80); v >>= 7; FALLTHROUGH;
   case 1:
-    *(dst++) = (u8)v;
+    *(dst++) = (U8)v;
     break;
   default:
     debug_die();
@@ -2049,14 +2049,14 @@ vi128_encode_u32(u8 * dst, u32 v)
   return dst;
 }
 
-  const u8 *
-vi128_decode_u32(const u8 * src, u32 * const out)
+  const U8 *
+vi128_decode_u32(const U8 * src, U32 * const out)
 {
   debug_assert(*src);
-  u32 r = 0;
-  for (u32 shift = 0; shift < 32; shift += 7) {
-    const u8 byte = *(src++);
-    r |= (((u32)(byte & 0x7f)) << shift);
+  U32 r = 0;
+  for (U32 shift = 0; shift < 32; shift += 7) {
+    const U8 byte = *(src++);
+    r |= (((U32)(byte & 0x7f)) << shift);
     if ((byte & 0x80) == 0) { // No more bytes to consume
       *out = r;
       return src;
@@ -2066,10 +2066,10 @@ vi128_decode_u32(const u8 * src, u32 * const out)
   return NULL; // invalid
 }
 
-  inline u32
-vi128_estimate_u64(const u64 v)
+  inline U32
+vi128_estimate_u64(const U64 v)
 {
-  static const u8 t[] = {10,
+  static const U8 t[] = {10,
     9,9,9,9,9,9,9, 8,8,8,8,8,8,8, 7,7,7,7,7,7,7,
     6,6,6,6,6,6,6, 5,5,5,5,5,5,5, 4,4,4,4,4,4,4,
     3,3,3,3,3,3,3, 2,2,2,2,2,2,2, 1,1,1,1,1,1,1};
@@ -2077,30 +2077,30 @@ vi128_estimate_u64(const u64 v)
 }
 
 // return ptr after the generated bytes
-  u8 *
-vi128_encode_u64(u8 * dst, u64 v)
+  U8 *
+vi128_encode_u64(U8 * dst, U64 v)
 {
   switch (vi128_estimate_u64(v)) {
   case 10:
-    *(dst++) = (u8)(v | 0x80); v >>= 7; FALLTHROUGH;
+    *(dst++) = (U8)(v | 0x80); v >>= 7; FALLTHROUGH;
   case 9:
-    *(dst++) = (u8)(v | 0x80); v >>= 7; FALLTHROUGH;
+    *(dst++) = (U8)(v | 0x80); v >>= 7; FALLTHROUGH;
   case 8:
-    *(dst++) = (u8)(v | 0x80); v >>= 7; FALLTHROUGH;
+    *(dst++) = (U8)(v | 0x80); v >>= 7; FALLTHROUGH;
   case 7:
-    *(dst++) = (u8)(v | 0x80); v >>= 7; FALLTHROUGH;
+    *(dst++) = (U8)(v | 0x80); v >>= 7; FALLTHROUGH;
   case 6:
-    *(dst++) = (u8)(v | 0x80); v >>= 7; FALLTHROUGH;
+    *(dst++) = (U8)(v | 0x80); v >>= 7; FALLTHROUGH;
   case 5:
-    *(dst++) = (u8)(v | 0x80); v >>= 7; FALLTHROUGH;
+    *(dst++) = (U8)(v | 0x80); v >>= 7; FALLTHROUGH;
   case 4:
-    *(dst++) = (u8)(v | 0x80); v >>= 7; FALLTHROUGH;
+    *(dst++) = (U8)(v | 0x80); v >>= 7; FALLTHROUGH;
   case 3:
-    *(dst++) = (u8)(v | 0x80); v >>= 7; FALLTHROUGH;
+    *(dst++) = (U8)(v | 0x80); v >>= 7; FALLTHROUGH;
   case 2:
-    *(dst++) = (u8)(v | 0x80); v >>= 7; FALLTHROUGH;
+    *(dst++) = (U8)(v | 0x80); v >>= 7; FALLTHROUGH;
   case 1:
-    *(dst++) = (u8)v;
+    *(dst++) = (U8)v;
     break;
   default:
     debug_die();
@@ -2110,13 +2110,13 @@ vi128_encode_u64(u8 * dst, u64 v)
 }
 
 // return ptr after the consumed bytes
-  const u8 *
-vi128_decode_u64(const u8 * src, u64 * const out)
+  const U8 *
+vi128_decode_u64(const U8 * src, U64 * const out)
 {
-  u64 r = 0;
-  for (u32 shift = 0; shift < 64; shift += 7) {
-    const u8 byte = *(src++);
-    r |= (((u64)(byte & 0x7f)) << shift);
+  U64 r = 0;
+  for (U32 shift = 0; shift < 64; shift += 7) {
+    const U8 byte = *(src++);
+    r |= (((U64)(byte & 0x7f)) << shift);
     if ((byte & 0x80) == 0) { // No more bytes to consume
       *out = r;
       return src;
@@ -2131,29 +2131,29 @@ vi128_decode_u64(const u8 * src, u64 * const out)
 
 // misc {{{
   inline struct entry13
-entry13(const u16 e1, const u64 e3)
+entry13(const U16 e1, const U64 e3)
 {
   debug_assert((e3 >> 48) == 0);
   return (struct entry13){.v64 = (e3 << 16) | e1};
 }
 
   inline void
-entry13_update_e3(struct entry13 * const e, const u64 e3)
+entry13_update_e3(struct entry13 * const e, const U64 e3)
 {
   debug_assert((e3 >> 48) == 0);
   *e = entry13(e->e1, e3);
 }
 
   inline void *
-u64_to_ptr(const u64 v)
+U64_to_ptr(const U64 v)
 {
   return (void *)v;
 }
 
-  inline u64
+  inline U64
 ptr_to_u64(const void * const ptr)
 {
-  return (u64)ptr;
+  return (U64)ptr;
 }
 
 // portable malloc_usable_size
@@ -2186,8 +2186,8 @@ fdsize(const int fd)
 #if defined(__linux__)
     ioctl(fd, BLKGETSIZE64, &st.st_size);
 #elif defined(__APPLE__) && defined(__MACH__)
-    u64 blksz = 0;
-    u64 nblks = 0;
+    U64 blksz = 0;
+    U64 nblks = 0;
     ioctl(fd, DKIOCGETBLOCKSIZE, &blksz);
     ioctl(fd, DKIOCGETBLOCKCOUNT, &nblks);
     st.st_size = (ssize_t)(blksz * nblks);
@@ -2199,29 +2199,29 @@ fdsize(const int fd)
   return (size_t)st.st_size;
 }
 
-  u32
-memlcp(const u8 * const p1, const u8 * const p2, const u32 max)
+  U32
+memlcp(const U8 * const p1, const U8 * const p2, const U32 max)
 {
-  const u32 max64 = max & (~7u);
-  u32 clen = 0;
+  const U32 max64 = max & (~7u);
+  U32 clen = 0;
   while (clen < max64) {
-    const u64 v1 = *(const u64 *)(p1+clen);
-    const u64 v2 = *(const u64 *)(p2+clen);
-    const u64 x = v1 ^ v2;
+    const U64 v1 = *(const U64 *)(p1+clen);
+    const U64 v2 = *(const U64 *)(p2+clen);
+    const U64 x = v1 ^ v2;
     if (x)
-      return clen + (u32)(__builtin_ctzl(x) >> 3);
+      return clen + (U32)(__builtin_ctzl(x) >> 3);
 
-    clen += sizeof(u64);
+    clen += sizeof(U64);
   }
 
-  if ((clen + sizeof(u32)) <= max) {
-    const u32 v1 = *(const u32 *)(p1+clen);
-    const u32 v2 = *(const u32 *)(p2+clen);
-    const u32 x = v1 ^ v2;
+  if ((clen + sizeof(U32)) <= max) {
+    const U32 v1 = *(const U32 *)(p1+clen);
+    const U32 v2 = *(const U32 *)(p2+clen);
+    const U32 x = v1 ^ v2;
     if (x)
-      return clen + (u32)(__builtin_ctz(x) >> 3);
+      return clen + (U32)(__builtin_ctz(x) >> 3);
 
-    clen += sizeof(u32);
+    clen += sizeof(U32);
   }
 
   while ((clen < max) && (p1[clen] == p2[clen]))
@@ -2247,7 +2247,7 @@ logger_printf(const int fd, const char * const fmt, ...)
   va_start(ap, fmt);
   vsnprintf(buf, sizeof(buf), fmt, ap);
   va_end(ap);
-  dprintf(fd, "%010.3lf %08x %s", time_diff_sec(logger_t0), crc32c_u64(0x12345678, (u64)pthread_self()), buf);
+  dprintf(fd, "%010.3lf %08x %s", time_diff_sec(logger_t0), crc32c_u64(0x12345678, (U64)pthread_self()), buf);
 }
 // }}} misc
 
@@ -2257,31 +2257,31 @@ struct acell { struct acell * next; };
 
 // extract ptr from m value
   static inline struct acell *
-astk_ptr(const u64 m)
+astk_ptr(const U64 m)
 {
   return (struct acell *)(m >> 16);
 }
 
 // calculate the new magic
-  static inline u64
-astk_m1(const u64 m0, struct acell * const ptr)
+  static inline U64
+astk_m1(const U64 m0, struct acell * const ptr)
 {
-  return ((m0 + 1) & 0xfffflu) | (((u64)ptr) << 16);
+  return ((m0 + 1) & 0xfffflu) | (((U64)ptr) << 16);
 }
 
 // calculate the new magic
-  static inline u64
+  static inline U64
 astk_m1_unsafe(struct acell * const ptr)
 {
-  return ((u64)ptr) << 16;
+  return ((U64)ptr) << 16;
 }
 
   static bool
 astk_try_push(au64 * const pmagic, struct acell * const first, struct acell * const last)
 {
-  u64 m0 = atomic_load_explicit(pmagic, MO_CONSUME);
+  U64 m0 = atomic_load_explicit(pmagic, MO_CONSUME);
   last->next = astk_ptr(m0);
-  const u64 m1 = astk_m1(m0, first);
+  const U64 m1 = astk_m1(m0, first);
   return atomic_compare_exchange_weak_explicit(pmagic, &m0, m1, MO_RELEASE, MO_RELAXED);
 }
 
@@ -2295,9 +2295,9 @@ astk_push_safe(au64 * const pmagic, struct acell * const first, struct acell * c
 astk_push_unsafe(au64 * const pmagic, struct acell * const first,
     struct acell * const last)
 {
-  const u64 m0 = atomic_load_explicit(pmagic, MO_CONSUME);
+  const U64 m0 = atomic_load_explicit(pmagic, MO_CONSUME);
   last->next = astk_ptr(m0);
-  const u64 m1 = astk_m1_unsafe(first);
+  const U64 m1 = astk_m1_unsafe(first);
   atomic_store_explicit(pmagic, m1, MO_RELAXED);
 }
 
@@ -2305,12 +2305,12 @@ astk_push_unsafe(au64 * const pmagic, struct acell * const first,
 //  static void *
 //astk_try_pop(au64 * const pmagic)
 //{
-//  u64 m0 = atomic_load_explicit(pmagic, MO_CONSUME);
+//  U64 m0 = atomic_load_explicit(pmagic, MO_CONSUME);
 //  struct acell * const ret = astk_ptr(m0);
 //  if (ret == NULL)
 //    return NULL;
 //
-//  const u64 m1 = astk_m1(m0, ret->next);
+//  const U64 m1 = astk_m1(m0, ret->next);
 //  if (atomic_compare_exchange_weak_explicit(pmagic, &m0, m1, MO_ACQUIRE, MO_RELAXED))
 //    return ret;
 //  else
@@ -2321,12 +2321,12 @@ astk_push_unsafe(au64 * const pmagic, struct acell * const first,
 astk_pop_safe(au64 * const pmagic)
 {
   do {
-    u64 m0 = atomic_load_explicit(pmagic, MO_CONSUME);
+    U64 m0 = atomic_load_explicit(pmagic, MO_CONSUME);
     struct acell * const ret = astk_ptr(m0);
     if (ret == NULL)
       return NULL;
 
-    const u64 m1 = astk_m1(m0, ret->next);
+    const U64 m1 = astk_m1(m0, ret->next);
     if (atomic_compare_exchange_weak_explicit(pmagic, &m0, m1, MO_ACQUIRE, MO_RELAXED))
       return ret;
   } while (true);
@@ -2335,12 +2335,12 @@ astk_pop_safe(au64 * const pmagic)
   static void *
 astk_pop_unsafe(au64 * const pmagic)
 {
-  const u64 m0 = atomic_load_explicit(pmagic, MO_CONSUME);
+  const U64 m0 = atomic_load_explicit(pmagic, MO_CONSUME);
   struct acell * const ret = astk_ptr(m0);
   if (ret == NULL)
     return NULL;
 
-  const u64 m1 = astk_m1_unsafe(ret->next);
+  const U64 m1 = astk_m1_unsafe(ret->next);
   atomic_store_explicit(pmagic, m1, MO_RELAXED);
   return (void *)ret;
 }
@@ -2348,7 +2348,7 @@ astk_pop_unsafe(au64 * const pmagic)
   static void *
 astk_peek_unsafe(au64 * const pmagic)
 {
-  const u64 m0 = atomic_load_explicit(pmagic, MO_CONSUME);
+  const U64 m0 = atomic_load_explicit(pmagic, MO_CONSUME);
   return astk_ptr(m0);
 }
 // }}} astk
@@ -2357,25 +2357,25 @@ astk_peek_unsafe(au64 * const pmagic)
 #define SLAB_OBJ0_OFFSET ((64))
 struct slab {
   au64 magic; // hi 48: ptr, lo 16: seq
-  u64 padding1[7];
+  U64 padding1[7];
 
   // 2nd line
   struct acell * head_active; // list of blocks in use or in magic
   struct acell * head_backup; // list of unused full blocks
-  u64 nr_ready; // UNSAFE only! number of objects under magic
-  u64 padding2[5];
+  U64 nr_ready; // UNSAFE only! number of objects under magic
+  U64 padding2[5];
 
   // 3rd line const
-  u64 obj_size; // const: aligned size of each object
-  u64 blk_size; // const: size of each memory block
-  u64 objs_per_slab; // const: number of objects in a slab
-  u64 obj0_offset; // const: offset of the first object in a block
-  u64 padding3[4];
+  U64 obj_size; // const: aligned size of each object
+  U64 blk_size; // const: size of each memory block
+  U64 objs_per_slab; // const: number of objects in a slab
+  U64 obj0_offset; // const: offset of the first object in a block
+  U64 padding3[4];
 
   // 4th line
   union {
     mutex lock;
-    u64 padding4[8];
+    U64 padding4[8];
   };
 };
 static_assert(sizeof(struct slab) == 256, "sizeof(struct slab) != 256");
@@ -2387,9 +2387,9 @@ slab_add(struct slab * const slab, struct acell * const blk, const bool is_safe)
   blk->next = slab->head_active;
   slab->head_active = blk;
 
-  u8 * const base = ((u8 *)blk) + slab->obj0_offset;
+  U8 * const base = ((U8 *)blk) + slab->obj0_offset;
   struct acell * iter = (typeof(iter))base; // [0]
-  for (u64 i = 1; i < slab->objs_per_slab; i++) {
+  for (U64 i = 1; i < slab->objs_per_slab; i++) {
     struct acell * const next = (typeof(next))(base + (i * slab->obj_size));
     iter->next = next;
     iter = next;
@@ -2425,8 +2425,8 @@ slab_expand(struct slab * const slab, const bool is_safe)
 }
 
 // return 0 on failure; otherwise, obj0_offset
-  static u64
-slab_check_sizes(const u64 obj_size, const u64 blk_size)
+  static U64
+slab_check_sizes(const U64 obj_size, const U64 blk_size)
 {
   // obj must be non-zero and 8-byte aligned
   // blk must be at least of page size and power of 2
@@ -2434,7 +2434,7 @@ slab_check_sizes(const u64 obj_size, const u64 blk_size)
     return 0;
 
   // each slab should have at least one object
-  const u64 obj0_offset = (obj_size & (obj_size - 1)) ? SLAB_OBJ0_OFFSET : obj_size;
+  const U64 obj0_offset = (obj_size & (obj_size - 1)) ? SLAB_OBJ0_OFFSET : obj_size;
   if (obj0_offset >= blk_size || (blk_size - obj0_offset) < obj_size)
     return 0;
 
@@ -2442,7 +2442,7 @@ slab_check_sizes(const u64 obj_size, const u64 blk_size)
 }
 
   static void
-slab_init_internal(struct slab * const slab, const u64 obj_size, const u64 blk_size, const u64 obj0_offset)
+slab_init_internal(struct slab * const slab, const U64 obj_size, const U64 blk_size, const U64 obj0_offset)
 {
   memset(slab, 0, sizeof(*slab));
   slab->obj_size = obj_size;
@@ -2454,9 +2454,9 @@ slab_init_internal(struct slab * const slab, const u64 obj_size, const u64 blk_s
 }
 
   struct slab *
-slab_create(const u64 obj_size, const u64 blk_size)
+slab_create(const U64 obj_size, const U64 blk_size)
 {
-  const u64 obj0_offset = slab_check_sizes(obj_size, blk_size);
+  const U64 obj0_offset = slab_check_sizes(obj_size, blk_size);
   if (!obj0_offset)
     return NULL;
 
@@ -2470,7 +2470,7 @@ slab_create(const u64 obj_size, const u64 blk_size)
 
 // unsafe
   bool
-slab_reserve_unsafe(struct slab * const slab, const u64 nr)
+slab_reserve_unsafe(struct slab * const slab, const U64 nr)
 {
   while (slab->nr_ready < nr)
     if (!slab_expand(slab, false))
@@ -2544,11 +2544,11 @@ slab_free_all(struct slab * const slab)
 }
 
 // unsafe
-  u64
+  U64
 slab_get_nalloc(struct slab * const slab)
 {
   struct acell * iter = slab->head_active;
-  u64 n = 0;
+  U64 n = 0;
   while (iter) {
     n++;
     iter = iter->next;
@@ -2590,15 +2590,15 @@ slab_destroy(struct slab * const slab)
 // }}} slab
 
 // string {{{
-static union { u16 v16; u8 v8[2]; } strdec_table[100];
+static union { U16 v16; U8 v8[2]; } strdec_table[100];
 
 __attribute__((constructor))
   static void
 strdec_init(void)
 {
-  for (u8 i = 0; i < 100; i++) {
-    const u8 hi = (typeof(hi))('0' + (i / 10));
-    const u8 lo = (typeof(lo))('0' + (i % 10));
+  for (U8 i = 0; i < 100; i++) {
+    const U8 hi = (typeof(hi))('0' + (i / 10));
+    const U8 lo = (typeof(lo))('0' + (i % 10));
     strdec_table[i].v8[0] = hi;
     strdec_table[i].v8[1] = lo;
   }
@@ -2606,11 +2606,11 @@ strdec_init(void)
 
 // output 10 bytes
   void
-strdec_32(void * const out, const u32 v)
+strdec_32(void * const out, const U32 v)
 {
-  u32 vv = v;
-  u16 * const ptr = (typeof(ptr))out;
-  for (u64 i = 4; i <= 4; i--) { // x5
+  U32 vv = v;
+  U16 * const ptr = (typeof(ptr))out;
+  for (U64 i = 4; i <= 4; i--) { // x5
     ptr[i] = strdec_table[vv % 100].v16;
     vv /= 100u;
   }
@@ -2618,23 +2618,23 @@ strdec_32(void * const out, const u32 v)
 
 // output 20 bytes
   void
-strdec_64(void * const out, const u64 v)
+strdec_64(void * const out, const U64 v)
 {
-  u64 vv = v;
-  u16 * const ptr = (typeof(ptr))out;
-  for (u64 i = 9; i <= 9; i--) { // x10
+  U64 vv = v;
+  U16 * const ptr = (typeof(ptr))out;
+  for (U64 i = 9; i <= 9; i--) { // x10
     ptr[i] = strdec_table[vv % 100].v16;
     vv /= 100;
   }
 }
 
-static const u8 strhex_table_16[16] = {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'};
+static const U8 strhex_table_16[16] = {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'};
 
 #if defined(__x86_64__)
   static inline m128
-strhex_helper(const u64 v)
+strhex_helper(const U64 v)
 {
-  static const u8 mask1[16] = {15,7,14,6,13,5,12,4,11,3,10,2,9,1,8,0};
+  static const U8 mask1[16] = {15,7,14,6,13,5,12,4,11,3,10,2,9,1,8,0};
 
   const m128 tmp = _mm_set_epi64x((s64)(v>>4), (s64)v); // mm want s64
   const m128 hilo = _mm_and_si128(tmp, _mm_set1_epi8(0xf));
@@ -2644,41 +2644,41 @@ strhex_helper(const u64 v)
 }
 #elif defined(__aarch64__)
   static inline m128
-strhex_helper(const u64 v)
+strhex_helper(const U64 v)
 {
-  static const u8 mask1[16] = {15,7,14,6,13,5,12,4,11,3,10,2,9,1,8,0};
-  u64 v2[2] = {v, v>>4};
-  const m128 tmp = vld1q_u8((u8 *)v2);
+  static const U8 mask1[16] = {15,7,14,6,13,5,12,4,11,3,10,2,9,1,8,0};
+  U64 v2[2] = {v, v>>4};
+  const m128 tmp = vld1q_u8((U8 *)v2);
   const m128 hilo = vandq_u8(tmp, vdupq_n_u8(0xf));
   const m128 bin = vqtbl1q_u8(hilo, vld1q_u8(mask1));
   const m128 str = vqtbl1q_u8(vld1q_u8(strhex_table_16), bin);
   return str;
 }
 #else
-static u16 strhex_table_256[256];
+static U16 strhex_table_256[256];
 
 __attribute__((constructor))
   static void
 strhex_init(void)
 {
-  for (u64 i = 0; i < 256; i++)
-    strhex_table_256[i] = (((u16)strhex_table_16[i & 0xf]) << 8) | (strhex_table_16[i>>4]);
+  for (U64 i = 0; i < 256; i++)
+    strhex_table_256[i] = (((U16)strhex_table_16[i & 0xf]) << 8) | (strhex_table_16[i>>4]);
 }
 #endif // __x86_64__
 
 // output 8 bytes
   void
-strhex_32(void * const out, u32 v)
+strhex_32(void * const out, U32 v)
 {
 #if defined(__x86_64__)
-  const m128 str = strhex_helper((u64)v);
+  const m128 str = strhex_helper((U64)v);
   _mm_storel_epi64(out, _mm_srli_si128(str, 8));
 #elif defined(__aarch64__)
-  const m128 str = strhex_helper((u64)v);
+  const m128 str = strhex_helper((U64)v);
   vst1q_lane_u64(out, vreinterpretq_u64_u8(str), 1);
 #else
-  u16 * const ptr = (typeof(ptr))out;
-  for (u64 i = 0; i < 4; i++) {
+  U16 * const ptr = (typeof(ptr))out;
+  for (U64 i = 0; i < 4; i++) {
     ptr[3-i] = strhex_table_256[v & 0xff];
     v >>= 8;
   }
@@ -2687,7 +2687,7 @@ strhex_32(void * const out, u32 v)
 
 // output 16 bytes // buffer must be aligned by 16B
   void
-strhex_64(void * const out, u64 v)
+strhex_64(void * const out, U64 v)
 {
 #if defined(__x86_64__)
   const m128 str = strhex_helper(v);
@@ -2696,25 +2696,25 @@ strhex_64(void * const out, u64 v)
   const m128 str = strhex_helper(v);
   vst1q_u8(out, str);
 #else
-  u16 * const ptr = (typeof(ptr))out;
-  for (u64 i = 0; i < 8; i++) {
+  U16 * const ptr = (typeof(ptr))out;
+  for (U64 i = 0; i < 8; i++) {
     ptr[7-i] = strhex_table_256[v & 0xff];
     v >>= 8;
   }
 #endif
 }
 
-// string to u64
-  inline u64
+// string to U64
+  inline U64
 a2u64(const void * const str)
 {
   return strtoull(str, NULL, 10);
 }
 
-  inline u32
+  inline U32
 a2u32(const void * const str)
 {
-  return (u32)strtoull(str, NULL, 10);
+  return (U32)strtoull(str, NULL, 10);
 }
 
   inline s64
@@ -2730,12 +2730,12 @@ a2s32(const void * const str)
 }
 
   void
-str_print_hex(FILE * const out, const void * const data, const u32 len)
+str_print_hex(FILE * const out, const void * const data, const U32 len)
 {
-  const u8 * const ptr = data;
-  const u32 strsz = len * 3;
-  u8 * const buf = malloc(strsz);
-  for (u32 i = 0; i < len; i++) {
+  const U8 * const ptr = data;
+  const U32 strsz = len * 3;
+  U8 * const buf = malloc(strsz);
+  for (U32 i = 0; i < len; i++) {
     buf[i*3] = ' ';
     buf[i*3+1] = strhex_table_16[ptr[i]>>4];
     buf[i*3+2] = strhex_table_16[ptr[i] & 0xf];
@@ -2745,19 +2745,19 @@ str_print_hex(FILE * const out, const void * const data, const u32 len)
 }
 
   void
-str_print_dec(FILE * const out, const void * const data, const u32 len)
+str_print_dec(FILE * const out, const void * const data, const U32 len)
 {
-  const u8 * const ptr = data;
-  const u32 strsz = len * 4;
-  u8 * const buf = malloc(strsz);
-  for (u32 i = 0; i < len; i++) {
-    const u8 v = ptr[i];
+  const U8 * const ptr = data;
+  const U32 strsz = len * 4;
+  U8 * const buf = malloc(strsz);
+  for (U32 i = 0; i < len; i++) {
+    const U8 v = ptr[i];
     buf[i*4] = ' ';
-    const u8 v1 = v / 100u;
-    const u8 v23 = v % 100u;
-    buf[i*4+1] = (u8)'0' + v1;
-    buf[i*4+2] = (u8)'0' + (v23 / 10u);
-    buf[i*4+3] = (u8)'0' + (v23 % 10u);
+    const U8 v1 = v / 100u;
+    const U8 v23 = v % 100u;
+    buf[i*4+1] = (U8)'0' + v1;
+    buf[i*4+2] = (U8)'0' + (v23 / 10u);
+    buf[i*4+3] = (U8)'0' + (v23 % 10u);
   }
   fwrite(buf, strsz, 1, out);
   free(buf);
@@ -2806,7 +2806,7 @@ strtoks(const char * const str, const char * const delim)
   tokens = r;
   char * const dest = (char *)(&(tokens[nptr]));
   memcpy(dest, buf, bufsize);
-  for (u64 i = 0; i < ntoks; i++)
+  for (U64 i = 0; i < ntoks; i++)
     tokens[i] += (dest - buf);
 
   free(buf);
@@ -2819,12 +2819,12 @@ fail_buf:
   return NULL;
 }
 
-  u32
+  U32
 strtoks_count(const char * const * const toks)
 {
   if (!toks)
     return 0;
-  u32 n = 0;
+  U32 n = 0;
   while (toks[n++]);
   return n;
 }
@@ -2839,8 +2839,8 @@ strtoks_count(const char * const * const toks)
 struct qsbr_ref_real {
 #ifdef QSBR_DEBUG
   pthread_t ptid; // 8
-  u32 status; // 4
-  u32 nbt; // 4 (number of backtrace frames)
+  U32 status; // 4
+  U32 nbt; // 4 (number of backtrace frames)
 #define QSBR_DEBUG_BTNR ((14))
   void * backtrace[QSBR_DEBUG_BTNR];
 #endif
@@ -2854,7 +2854,7 @@ static_assert(sizeof(struct qsbr_ref) == sizeof(struct qsbr_ref_real), "sizeof q
 // Quiescent-State-Based Reclamation RCU
 struct qsbr {
   struct qsbr_ref_real target;
-  u64 padding0[5];
+  U64 padding0[5];
   struct qshard {
     au64 bitmap;
     au64 ptrs[QSBR_STATES_NR];
@@ -2872,13 +2872,13 @@ qsbr_create(void)
   static inline struct qshard *
 qsbr_shard(struct qsbr * const q, void * const ptr)
 {
-  const u32 sid = crc32c_u64(0, (u64)ptr) & QSBR_SHARD_MASK;
+  const U32 sid = crc32c_u64(0, (U64)ptr) & QSBR_SHARD_MASK;
   debug_assert(sid < QSBR_SHARD_NR);
   return &(q->shards[sid]);
 }
 
   static inline void
-qsbr_write_qstate(struct qsbr_ref_real * const ref, const u64 v)
+qsbr_write_qstate(struct qsbr_ref_real * const ref, const U64 v)
 {
   atomic_store_explicit(&ref->qstate, v, MO_RELAXED);
 }
@@ -2891,20 +2891,20 @@ qsbr_register(struct qsbr * const q, struct qsbr_ref * const qref)
   qsbr_write_qstate(ref, 0);
 
   do {
-    u64 bits = atomic_load_explicit(&shard->bitmap, MO_CONSUME);
-    const u32 pos = (u32)__builtin_ctzl(~bits);
+    U64 bits = atomic_load_explicit(&shard->bitmap, MO_CONSUME);
+    const U32 pos = (U32)__builtin_ctzl(~bits);
     if (unlikely(pos >= QSBR_STATES_NR))
       return false;
 
-    const u64 bits1 = bits | (1lu << pos);
+    const U64 bits1 = bits | (1lu << pos);
     if (atomic_compare_exchange_weak_explicit(&shard->bitmap, &bits, bits1, MO_ACQUIRE, MO_RELAXED)) {
-      atomic_store_explicit(&shard->ptrs[pos], (u64)ref, MO_RELAXED);
+      atomic_store_explicit(&shard->ptrs[pos], (U64)ref, MO_RELAXED);
       //shard->ptrs[pos] = ref;
 
       ref->pptr = &(shard->ptrs[pos]);
       ref->park = &q->target;
 #ifdef QSBR_DEBUG
-      ref->ptid = (u64)pthread_self();
+      ref->ptid = (U64)pthread_self();
       ref->tid = 0;
       ref->status = 1;
       ref->nbt = backtrace(ref->backtrace, QSBR_DEBUG_BTNR);
@@ -2919,11 +2919,11 @@ qsbr_unregister(struct qsbr * const q, struct qsbr_ref * const qref)
 {
   struct qsbr_ref_real * const ref = (typeof(ref))qref;
   struct qshard * const shard = qsbr_shard(q, ref);
-  const u32 pos = (u32)(ref->pptr - shard->ptrs);
+  const U32 pos = (U32)(ref->pptr - shard->ptrs);
   debug_assert(pos < QSBR_STATES_NR);
   debug_assert(shard->bitmap & (1lu << pos));
 
-  atomic_store_explicit(&shard->ptrs[pos], (u64)(&q->target), MO_RELAXED);
+  atomic_store_explicit(&shard->ptrs[pos], (U64)(&q->target), MO_RELAXED);
   //shard->ptrs[pos] = &q->target;
   (void)atomic_fetch_and_explicit(&shard->bitmap, ~(1lu << pos), MO_RELEASE);
 #ifdef QSBR_DEBUG
@@ -2939,10 +2939,10 @@ qsbr_unregister(struct qsbr * const q, struct qsbr_ref * const qref)
 }
 
   inline void
-qsbr_update(struct qsbr_ref * const qref, const u64 v)
+qsbr_update(struct qsbr_ref * const qref, const U64 v)
 {
   struct qsbr_ref_real * const ref = (typeof(ref))qref;
-  debug_assert((*ref->pptr) == (u64)ref); // must be unparked
+  debug_assert((*ref->pptr) == (U64)ref); // must be unparked
   // rcu update does not require release or acquire order
   qsbr_write_qstate(ref, v);
 }
@@ -2952,7 +2952,7 @@ qsbr_park(struct qsbr_ref * const qref)
 {
   cpu_cfence();
   struct qsbr_ref_real * const ref = (typeof(ref))qref;
-  atomic_store_explicit(ref->pptr, (u64)ref->park, MO_RELAXED);
+  atomic_store_explicit(ref->pptr, (U64)ref->park, MO_RELAXED);
 #ifdef QSBR_DEBUG
   ref->status = 0xfff; // parked
 #endif
@@ -2962,7 +2962,7 @@ qsbr_park(struct qsbr_ref * const qref)
 qsbr_resume(struct qsbr_ref * const qref)
 {
   struct qsbr_ref_real * const ref = (typeof(ref))qref;
-  atomic_store_explicit(ref->pptr, (u64)ref, MO_RELAXED);
+  atomic_store_explicit(ref->pptr, (U64)ref, MO_RELAXED);
 #ifdef QSBR_DEBUG
   ref->status = 0xf; // resumed
 #endif
@@ -2971,27 +2971,27 @@ qsbr_resume(struct qsbr_ref * const qref)
 
 // waiters needs external synchronization
   void
-qsbr_wait(struct qsbr * const q, const u64 target)
+qsbr_wait(struct qsbr * const q, const U64 target)
 {
   cpu_cfence();
   qsbr_write_qstate(&q->target, target);
-  u64 cbits = 0; // check-bits; each bit corresponds to a shard
-  u64 bms[QSBR_SHARD_NR]; // copy of all bitmap
+  U64 cbits = 0; // check-bits; each bit corresponds to a shard
+  U64 bms[QSBR_SHARD_NR]; // copy of all bitmap
   // take an unsafe snapshot of active users
-  for (u32 i = 0; i < QSBR_SHARD_NR; i++) {
+  for (U32 i = 0; i < QSBR_SHARD_NR; i++) {
     bms[i] = atomic_load_explicit(&q->shards[i].bitmap, MO_CONSUME);
     if (bms[i])
       cbits |= (1lu << i); // set to 1 if [i] has ptrs
   }
 
   while (cbits) {
-    for (u64 ctmp = cbits; ctmp; ctmp &= (ctmp - 1)) {
+    for (U64 ctmp = cbits; ctmp; ctmp &= (ctmp - 1)) {
       // shard id
-      const u32 i = (u32)__builtin_ctzl(ctmp);
+      const U32 i = (U32)__builtin_ctzl(ctmp);
       struct qshard * const shard = &(q->shards[i]);
-      const u64 bits1 = atomic_fetch_or_explicit(&(shard->bitmap), 1lu << 63, MO_ACQUIRE);
-      for (u64 bits = bms[i]; bits; bits &= (bits - 1)) {
-        const u64 bit = bits & -bits; // extract lowest bit
+      const U64 bits1 = atomic_fetch_or_explicit(&(shard->bitmap), 1lu << 63, MO_ACQUIRE);
+      for (U64 bits = bms[i]; bits; bits &= (bits - 1)) {
+        const U64 bit = bits & -bits; // extract lowest bit
         if ((bits1 & bit) == 0) {
           bms[i] &= ~bit;
         } else {

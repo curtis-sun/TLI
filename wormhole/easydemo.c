@@ -32,9 +32,9 @@ main(int argc, char ** argv)
   r = wh_probe(ref, "time_travel", 11);
   printf("wh_probe time_travel %c\n", r?'T':'F');
 
-  u32 klen_out = 0;
+  U32 klen_out = 0;
   char kbuf_out[8] = {};
-  u32 vlen_out = 0;
+  U32 vlen_out = 0;
   char vbuf_out[8] = {};
   r = wh_get(ref, "wormhole", 8, vbuf_out, 8, &vlen_out);
   printf("wh_get wormhole %c %u %.*s\n", r?'T':'F', vlen_out, vlen_out, vbuf_out);

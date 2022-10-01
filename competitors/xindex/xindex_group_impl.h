@@ -27,22 +27,22 @@
 
 namespace xindex {
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-Group<key_t, val_t, seq, max_model_n>::Group() {}
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+Group<key_t, val_t, seq, SearchClass, max_model_n>::Group() {}
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-Group<key_t, val_t, seq, max_model_n>::~Group() {}
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+Group<key_t, val_t, seq, SearchClass, max_model_n>::~Group() {}
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-void Group<key_t, val_t, seq, max_model_n>::init(
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+void Group<key_t, val_t, seq, SearchClass, max_model_n>::init(
     const typename std::vector<key_t>::const_iterator &keys_begin,
     const typename std::vector<val_t>::const_iterator &vals_begin,
     uint32_t array_size) {
   init(keys_begin, vals_begin, 1, array_size);
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-void Group<key_t, val_t, seq, max_model_n>::init(
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+void Group<key_t, val_t, seq, SearchClass, max_model_n>::init(
     const typename std::vector<key_t>::const_iterator &keys_begin,
     const typename std::vector<val_t>::const_iterator &vals_begin,
     uint32_t model_n, uint32_t array_size) {
@@ -66,13 +66,13 @@ void Group<key_t, val_t, seq, max_model_n>::init(
   init_models(model_n);
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-const key_t &Group<key_t, val_t, seq, max_model_n>::get_pivot() {
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+const key_t &Group<key_t, val_t, seq, SearchClass, max_model_n>::get_pivot() {
   return pivot;
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline result_t Group<key_t, val_t, seq, max_model_n>::get(const key_t &key,
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline result_t Group<key_t, val_t, seq, SearchClass, max_model_n>::get(const key_t &key,
                                                            val_t &val) {
   if (get_from_array(key, val)) {
     return result_t::ok;
@@ -86,8 +86,8 @@ inline result_t Group<key_t, val_t, seq, max_model_n>::get(const key_t &key,
   return result_t::failed;
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline result_t Group<key_t, val_t, seq, max_model_n>::put(
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline result_t Group<key_t, val_t, seq, SearchClass, max_model_n>::put(
     const key_t &key, const val_t &val, const uint32_t worker_id) {
 #ifdef DEBUGGING
   assert(is_first || key >= pivot);
@@ -114,8 +114,8 @@ inline result_t Group<key_t, val_t, seq, max_model_n>::put(
   COUT_N_EXIT("put should not fail!");
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline result_t Group<key_t, val_t, seq, max_model_n>::remove(
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline result_t Group<key_t, val_t, seq, SearchClass, max_model_n>::remove(
     const key_t &key) {
   if (remove_from_array(key)) {
     return result_t::ok;
@@ -129,16 +129,16 @@ inline result_t Group<key_t, val_t, seq, max_model_n>::remove(
   return result_t::failed;
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline size_t Group<key_t, val_t, seq, max_model_n>::scan(
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::scan(
     const key_t &begin, const size_t n,
     std::vector<std::pair<key_t, val_t>> &result) {
   return buffer_temp ? scan_3_way(begin, n, key_t::max(), result)
                      : scan_2_way(begin, n, key_t::max(), result);
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline size_t Group<key_t, val_t, seq, max_model_n>::range_scan(
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::range_scan(
     const key_t &begin, const key_t &end,
     std::vector<std::pair<key_t, val_t>> &result) {
   size_t old_size = result.size();
@@ -150,8 +150,8 @@ inline size_t Group<key_t, val_t, seq, max_model_n>::range_scan(
   return result.size() - old_size;
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-double Group<key_t, val_t, seq, max_model_n>::mean_error_est() {
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+double Group<key_t, val_t, seq, SearchClass, max_model_n>::mean_error_est() {
   // we did not disable seq op here so array_size can be changed.
   // however, we only need an estimated error
   uint32_t array_size = this->array_size;
@@ -190,9 +190,9 @@ double Group<key_t, val_t, seq, max_model_n>::mean_error_est() {
   }
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-Group<key_t, val_t, seq, max_model_n>
-    *Group<key_t, val_t, seq, max_model_n>::split_model() {
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+Group<key_t, val_t, seq, SearchClass, max_model_n>
+    *Group<key_t, val_t, seq, SearchClass, max_model_n>::split_model() {
   if (seq) {  // disable seq seq
     disable_seq_insert_opt();
   }
@@ -217,9 +217,9 @@ Group<key_t, val_t, seq, max_model_n>
   return new_group;
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-Group<key_t, val_t, seq, max_model_n>
-    *Group<key_t, val_t, seq, max_model_n>::merge_model() {
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+Group<key_t, val_t, seq, SearchClass, max_model_n>
+    *Group<key_t, val_t, seq, SearchClass, max_model_n>::merge_model() {
   if (seq) {  // disable seq seq
     disable_seq_insert_opt();
   }
@@ -243,9 +243,9 @@ Group<key_t, val_t, seq, max_model_n>
   return new_group;
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-Group<key_t, val_t, seq, max_model_n>
-    *Group<key_t, val_t, seq, max_model_n>::split_group_pt1() {
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+Group<key_t, val_t, seq, SearchClass, max_model_n>
+    *Group<key_t, val_t, seq, SearchClass, max_model_n>::split_group_pt1() {
   if (seq) {  // disable seq seq
     disable_seq_insert_opt();
   }
@@ -283,9 +283,9 @@ Group<key_t, val_t, seq, max_model_n>
   return new_group_1;
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-Group<key_t, val_t, seq, max_model_n>
-    *Group<key_t, val_t, seq, max_model_n>::split_group_pt2() {
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+Group<key_t, val_t, seq, SearchClass, max_model_n>
+    *Group<key_t, val_t, seq, SearchClass, max_model_n>::split_group_pt2() {
   // note that now this->data, this->buffer point to the old group's
   // and are shared with this->next
   Group *new_group_1 = new Group();
@@ -317,10 +317,10 @@ Group<key_t, val_t, seq, max_model_n>
   return new_group_1;
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-Group<key_t, val_t, seq, max_model_n>
-    *Group<key_t, val_t, seq, max_model_n>::merge_group(
-        Group<key_t, val_t, seq, max_model_n> &next_group) {
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+Group<key_t, val_t, seq, SearchClass, max_model_n>
+    *Group<key_t, val_t, seq, SearchClass, max_model_n>::merge_group(
+        Group<key_t, val_t, seq, SearchClass, max_model_n> &next_group) {
   if (seq) {  // disable seq seq
     disable_seq_insert_opt();
     next_group.disable_seq_insert_opt();
@@ -356,9 +356,9 @@ Group<key_t, val_t, seq, max_model_n>
   return new_group;
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-Group<key_t, val_t, seq, max_model_n>
-    *Group<key_t, val_t, seq, max_model_n>::compact_phase_1() {
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+Group<key_t, val_t, seq, SearchClass, max_model_n>
+    *Group<key_t, val_t, seq, SearchClass, max_model_n>::compact_phase_1() {
   if (seq) {  // disable seq seq
     disable_seq_insert_opt();
   }
@@ -386,8 +386,8 @@ Group<key_t, val_t, seq, max_model_n>
   return new_group;
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline void Group<key_t, val_t, seq, max_model_n>::compact_phase_2() {
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline void Group<key_t, val_t, seq, SearchClass, max_model_n>::compact_phase_2() {
   for (size_t rec_i = 0; rec_i < array_size; ++rec_i) {
     data[rec_i].second.replace_pointer();
   }
@@ -398,17 +398,42 @@ inline void Group<key_t, val_t, seq, max_model_n>::compact_phase_2() {
   }
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-void Group<key_t, val_t, seq, max_model_n>::free_data() {
-  delete[] data;
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+void Group<key_t, val_t, seq, SearchClass, max_model_n>::free_data() {
+  if (data){
+    delete[] data;
+    data = nullptr;
+  }
 }
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-void Group<key_t, val_t, seq, max_model_n>::free_buffer() {
-  delete buffer;
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+void Group<key_t, val_t, seq, SearchClass, max_model_n>::free_buffer() {
+  if (buffer){
+    delete buffer;
+    buffer = nullptr;
+  }
+}
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+void Group<key_t, val_t, seq, SearchClass, max_model_n>::free_buffer_temp() {
+  if (buffer_temp){
+    delete buffer_temp;
+    buffer_temp = nullptr;
+  }
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline size_t Group<key_t, val_t, seq, max_model_n>::locate_model(
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+unsigned long long Group<key_t, val_t, seq, SearchClass, max_model_n>::size() const {
+  unsigned long long size = sizeof(*this) + sizeof(record_t) * capacity;
+  if (buffer){
+    size += buffer->size_in_byte();
+  }
+  if (buffer_temp){
+    size += buffer_temp->size_in_byte();
+  }
+  return size;
+}
+
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::locate_model(
     const key_t &key) {
   assert(model_n >= 1);
 
@@ -422,8 +447,8 @@ inline size_t Group<key_t, val_t, seq, max_model_n>::locate_model(
 // semantics: atomically read the value
 // only when the key exists and the record (record_t) is not logical removed,
 // return true on success
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline bool Group<key_t, val_t, seq, max_model_n>::get_from_array(
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline bool Group<key_t, val_t, seq, SearchClass, max_model_n>::get_from_array(
     const key_t &key, val_t &val) {
   size_t pos = get_pos_from_array(key);
   return pos != array_size &&         // position is valid (not out-of-range)
@@ -431,8 +456,8 @@ inline bool Group<key_t, val_t, seq, max_model_n>::get_from_array(
          data[pos].second.read(val);  // value is not removed
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline result_t Group<key_t, val_t, seq, max_model_n>::update_to_array(
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline result_t Group<key_t, val_t, seq, SearchClass, max_model_n>::update_to_array(
     const key_t &key, const val_t &val, const uint32_t worker_id) {
   if (seq) {
     seq_lock();
@@ -488,8 +513,8 @@ inline result_t Group<key_t, val_t, seq, max_model_n>::update_to_array(
   }
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline bool Group<key_t, val_t, seq, max_model_n>::remove_from_array(
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline bool Group<key_t, val_t, seq, SearchClass, max_model_n>::remove_from_array(
     const key_t &key) {
   size_t pos = get_pos_from_array(key);
   return pos != array_size &&        // position is valid (not out-of-range)
@@ -497,16 +522,16 @@ inline bool Group<key_t, val_t, seq, max_model_n>::remove_from_array(
          data[pos].second.remove();  // value is not removed and is updated
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline size_t Group<key_t, val_t, seq, max_model_n>::get_pos_from_array(
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::get_pos_from_array(
     const key_t &key) {
   size_t model_i = locate_model(key);
   size_t pos = models[model_i].model.predict(key);
   return exponential_search_key(key, pos);
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline size_t Group<key_t, val_t, seq, max_model_n>::binary_search_key(
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::binary_search_key(
     const key_t &key, size_t pos, size_t search_begin, size_t search_end) {
   // search within the range
   if (unlikely(search_begin > array_size)) {
@@ -518,83 +543,90 @@ inline size_t Group<key_t, val_t, seq, max_model_n>::binary_search_key(
   size_t mid = pos >= search_begin && pos < search_end
                    ? pos
                    : (search_begin + search_end) / 2;
-  while (search_end != search_begin) {
-    if (data[mid].first < key) {
-      search_begin = mid + 1;
-    } else {
-      search_end = mid;
-    }
-    mid = (search_begin + search_end) / 2;
-  }
-  assert(search_begin == search_end);
-  assert(search_begin == mid);
+  mid = SearchClass::lower_bound(data + search_begin, data + search_end, key, data + mid,
+                           std::function<key_t(record_t *const)>([](record_t *const it)->key_t{ return  it->first; }))
+                           - data;
+  
+  // while (search_end != search_begin) {
+  //   if (data[mid].first < key) {
+  //     search_begin = mid + 1;
+  //   } else {
+  //     search_end = mid;
+  //   }
+  //   mid = (search_begin + search_end) / 2;
+  // }
+  // assert(search_begin == search_end);
+  // assert(search_begin == mid);
 
   return mid;
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline size_t Group<key_t, val_t, seq, max_model_n>::exponential_search_key(
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::exponential_search_key(
     const key_t &key, size_t pos) const {
   return exponential_search_key(data, array_size, key, pos);
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline size_t Group<key_t, val_t, seq, max_model_n>::exponential_search_key(
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::exponential_search_key(
     record_t *const data, uint32_t array_size, const key_t &key,
     size_t pos) const {
   if (array_size == 0) return 0;
   pos = (pos >= array_size ? (array_size - 1) : pos);
   assert(pos < array_size);
+  size_t end_i = SearchClass::lower_bound(data, data + array_size, key, data + pos, 
+                           std::function<key_t(record_t *const)>([](record_t *const it)->key_t{ return  it->first; }))
+                           - data;
 
-  int begin_i = 0, end_i = array_size;
-  size_t step = 1;
+  // int begin_i = 0, end_i = array_size;
+  // size_t step = 1;
 
-  if (data[pos].first <= key) {
-    begin_i = pos;
-    end_i = begin_i + step;
-    while (end_i < (int)array_size && data[end_i].first <= key) {
-      step *= 2;
-      begin_i = end_i;
-      end_i = begin_i + step;
-    }
-    if (end_i >= (int)array_size) {
-      end_i = array_size - 1;
-    }
-  } else {
-    end_i = pos;
-    begin_i = end_i - step;
-    while (begin_i >= 0 && data[begin_i].first > key) {
-      step *= 2;
-      end_i = begin_i;
-      begin_i = end_i - step;
-    }
-    if (begin_i < 0) {
-      begin_i = 0;
-    }
-  }
+  // if (data[pos].first <= key) {
+  //   begin_i = pos;
+  //   end_i = begin_i + step;
+  //   while (end_i < (int)array_size && data[end_i].first <= key) {
+  //     step *= 2;
+  //     begin_i = end_i;
+  //     end_i = begin_i + step;
+  //   }
+  //   if (end_i >= (int)array_size) {
+  //     end_i = array_size - 1;
+  //   }
+  // } else {
+  //   end_i = pos;
+  //   begin_i = end_i - step;
+  //   while (begin_i >= 0 && data[begin_i].first > key) {
+  //     step *= 2;
+  //     end_i = begin_i;
+  //     begin_i = end_i - step;
+  //   }
+  //   if (begin_i < 0) {
+  //     begin_i = 0;
+  //   }
+  // }
 
-  assert(begin_i >= 0);
-  assert(end_i < (int)array_size);
-  assert(begin_i <= end_i);
+  // assert(begin_i >= 0);
+  // assert(end_i < (int)array_size);
+  // assert(begin_i <= end_i);
 
-  // the real range is [begin_i, end_i], both inclusive.
-  // we add 1 to end_i in order to find the insert position when the given key
-  // is not exist
-  end_i++;
-  // find the largest position whose key equal to the given key
-  while (end_i > begin_i) {
-    // here the +1 term is used to avoid the infinte loop
-    // where (end_i = begin_i + 1 && mid = begin_i && data[mid].first <= key)
-    int mid = (begin_i + end_i) >> 1;
-    if (data[mid].first < key) {
-      begin_i = mid + 1;
-    } else {
-      // we should assign end_i with mid (not mid+1) in case infinte loop
-      end_i = mid;
-    }
-  }
+  // // the real range is [begin_i, end_i], both inclusive.
+  // // we add 1 to end_i in order to find the insert position when the given key
+  // // is not exist
+  // end_i++;
+  // // find the largest position whose key equal to the given key
+  // while (end_i > begin_i) {
+  //   // here the +1 term is used to avoid the infinte loop
+  //   // where (end_i = begin_i + 1 && mid = begin_i && data[mid].first <= key)
+  //   int mid = (begin_i + end_i) >> 1;
+  //   if (data[mid].first < key) {
+  //     begin_i = mid + 1;
+  //   } else {
+  //     // we should assign end_i with mid (not mid+1) in case infinte loop
+  //     end_i = mid;
+  //   }
+  // }
 
-  assert(end_i == begin_i);
+  // assert(end_i == begin_i);
   assert(data[end_i].first == key || end_i == 0 || end_i == (int)array_size ||
          (data[end_i - 1].first < key && data[end_i].first > key));
 
@@ -604,32 +636,32 @@ inline size_t Group<key_t, val_t, seq, max_model_n>::exponential_search_key(
 // semantics: atomically read the value
 // only when the key exists and the record (record_t) is not logical removed,
 // return true on success
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline bool Group<key_t, val_t, seq, max_model_n>::get_from_buffer(
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline bool Group<key_t, val_t, seq, SearchClass, max_model_n>::get_from_buffer(
     const key_t &key, val_t &val, buffer_t *buffer) {
   return buffer->get(key, val);
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline bool Group<key_t, val_t, seq, max_model_n>::update_to_buffer(
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline bool Group<key_t, val_t, seq, SearchClass, max_model_n>::update_to_buffer(
     const key_t &key, const val_t &val, buffer_t *buffer) {
   return buffer->update(key, val);
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline void Group<key_t, val_t, seq, max_model_n>::insert_to_buffer(
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline void Group<key_t, val_t, seq, SearchClass, max_model_n>::insert_to_buffer(
     const key_t &key, const val_t &val, buffer_t *buffer) {
   buffer->insert(key, val);
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline bool Group<key_t, val_t, seq, max_model_n>::remove_from_buffer(
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline bool Group<key_t, val_t, seq, SearchClass, max_model_n>::remove_from_buffer(
     const key_t &key, buffer_t *buffer) {
   return buffer->remove(key);
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-void Group<key_t, val_t, seq, max_model_n>::init_models(uint32_t model_n) {
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+void Group<key_t, val_t, seq, SearchClass, max_model_n>::init_models(uint32_t model_n) {
   assert(model_n >= 1);
   this->model_n = model_n;
 
@@ -656,8 +688,8 @@ void Group<key_t, val_t, seq, max_model_n>::init_models(uint32_t model_n) {
   mean_error /= model_n;
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline double Group<key_t, val_t, seq, max_model_n>::train_model(size_t model_i,
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline double Group<key_t, val_t, seq, SearchClass, max_model_n>::train_model(size_t model_i,
                                                                  size_t begin,
                                                                  size_t end) {
   assert(end >= begin);
@@ -676,8 +708,8 @@ inline double Group<key_t, val_t, seq, max_model_n>::train_model(size_t model_i,
   return models[model_i].model.get_error_bound(keys, positions);
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline void Group<key_t, val_t, seq, max_model_n>::seq_lock() {
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline void Group<key_t, val_t, seq, SearchClass, max_model_n>::seq_lock() {
   while (true) {
     uint8_t expected = 0;
     uint8_t desired = 1;
@@ -687,30 +719,30 @@ inline void Group<key_t, val_t, seq, max_model_n>::seq_lock() {
   }
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline void Group<key_t, val_t, seq, max_model_n>::seq_unlock() {
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline void Group<key_t, val_t, seq, SearchClass, max_model_n>::seq_unlock() {
   asm volatile("" : : : "memory");
   lock = 0;
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline void Group<key_t, val_t, seq, max_model_n>::enable_seq_insert_opt() {
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline void Group<key_t, val_t, seq, SearchClass, max_model_n>::enable_seq_insert_opt() {
   seq_lock();
   capacity = -capacity;
   INVARIANT(capacity > 0);
   seq_unlock();
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline void Group<key_t, val_t, seq, max_model_n>::disable_seq_insert_opt() {
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline void Group<key_t, val_t, seq, SearchClass, max_model_n>::disable_seq_insert_opt() {
   seq_lock();
   capacity = -capacity;
   INVARIANT(capacity < 0);
   seq_unlock();
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline void Group<key_t, val_t, seq, max_model_n>::merge_refs(
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline void Group<key_t, val_t, seq, SearchClass, max_model_n>::merge_refs(
     record_t *&new_data, uint32_t &new_array_size,
     int32_t &new_capacity) const {
   size_t est_size = array_size + buffer->size();
@@ -720,8 +752,8 @@ inline void Group<key_t, val_t, seq, max_model_n>::merge_refs(
   assert((int32_t)new_array_size <= new_capacity);
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline void Group<key_t, val_t, seq, max_model_n>::merge_refs_n_split(
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline void Group<key_t, val_t, seq, SearchClass, max_model_n>::merge_refs_n_split(
     record_t *&new_data_1, uint32_t &new_array_size_1, int32_t &new_capacity_1,
     record_t *&new_data_2, uint32_t &new_array_size_2, int32_t &new_capacity_2,
     const key_t &key) const {
@@ -753,8 +785,8 @@ inline void Group<key_t, val_t, seq, max_model_n>::merge_refs_n_split(
   assert((int32_t)new_array_size_2 <= new_capacity_2);
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline void Group<key_t, val_t, seq, max_model_n>::merge_refs_with(
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline void Group<key_t, val_t, seq, SearchClass, max_model_n>::merge_refs_with(
     const Group &next_group, record_t *&new_data, uint32_t &new_array_size,
     int32_t &new_capacity) const {
   size_t est_size = array_size + buffer->size() + next_group.array_size +
@@ -772,8 +804,8 @@ inline void Group<key_t, val_t, seq, max_model_n>::merge_refs_with(
 }
 
 // no workers should insert into buffer (frozen) now, so no lock needed
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline void Group<key_t, val_t, seq, max_model_n>::merge_refs_internal(
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline void Group<key_t, val_t, seq, SearchClass, max_model_n>::merge_refs_internal(
     record_t *new_data, uint32_t &new_array_size) const {
   size_t count = 0;
 
@@ -838,8 +870,8 @@ inline void Group<key_t, val_t, seq, max_model_n>::merge_refs_internal(
   // assert(count > 0);
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline size_t Group<key_t, val_t, seq, max_model_n>::scan_2_way(
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::scan_2_way(
     const key_t &begin, const size_t n, const key_t &end,
     std::vector<std::pair<key_t, val_t>> &result) {
   size_t remaining = n;
@@ -909,8 +941,8 @@ inline size_t Group<key_t, val_t, seq, max_model_n>::scan_2_way(
   return n - remaining;
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-inline size_t Group<key_t, val_t, seq, max_model_n>::scan_3_way(
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::scan_3_way(
     const key_t &begin, const size_t n, const key_t &end,
     std::vector<std::pair<key_t, val_t>> &result) {
   size_t remaining = n;
@@ -1094,13 +1126,13 @@ inline size_t Group<key_t, val_t, seq, max_model_n>::scan_3_way(
   return n - remaining;
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-Group<key_t, val_t, seq, max_model_n>::ArrayDataSource::ArrayDataSource(
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+Group<key_t, val_t, seq, SearchClass, max_model_n>::ArrayDataSource::ArrayDataSource(
     record_t *data, uint32_t array_size, uint32_t pos)
     : array_size(array_size), pos(pos), data(data) {}
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-void Group<key_t, val_t, seq,
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+void Group<key_t, val_t, seq, SearchClass,
            max_model_n>::ArrayDataSource::advance_to_next_valid() {
   while (pos < array_size) {
     if (data[pos].second.read(next_val)) {
@@ -1114,23 +1146,23 @@ void Group<key_t, val_t, seq,
   has_next = false;
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-const key_t &Group<key_t, val_t, seq, max_model_n>::ArrayDataSource::get_key() {
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+const key_t &Group<key_t, val_t, seq, SearchClass, max_model_n>::ArrayDataSource::get_key() {
   return next_key;
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-const val_t &Group<key_t, val_t, seq, max_model_n>::ArrayDataSource::get_val() {
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+const val_t &Group<key_t, val_t, seq, SearchClass, max_model_n>::ArrayDataSource::get_val() {
   return next_val;
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-Group<key_t, val_t, seq, max_model_n>::ArrayRefSource::ArrayRefSource(
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+Group<key_t, val_t, seq, SearchClass, max_model_n>::ArrayRefSource::ArrayRefSource(
     record_t *data, uint32_t array_size)
     : array_size(array_size), pos(0), data(data) {}
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-void Group<key_t, val_t, seq,
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+void Group<key_t, val_t, seq, SearchClass,
            max_model_n>::ArrayRefSource::advance_to_next_valid() {
   while (pos < array_size) {
     val_t temp_val;
@@ -1146,14 +1178,14 @@ void Group<key_t, val_t, seq,
   has_next = false;
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-const key_t &Group<key_t, val_t, seq, max_model_n>::ArrayRefSource::get_key() {
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+const key_t &Group<key_t, val_t, seq, SearchClass, max_model_n>::ArrayRefSource::get_key() {
   return next_key;
 }
 
-template <class key_t, class val_t, bool seq, size_t max_model_n>
-typename Group<key_t, val_t, seq, max_model_n>::atomic_val_t &
-Group<key_t, val_t, seq, max_model_n>::ArrayRefSource::get_val() {
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+typename Group<key_t, val_t, seq, SearchClass, max_model_n>::atomic_val_t &
+Group<key_t, val_t, seq, SearchClass, max_model_n>::ArrayRefSource::get_val() {
   return *next_val_ptr;
 }
 

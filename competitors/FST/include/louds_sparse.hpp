@@ -181,8 +181,8 @@ class LoudsSparse {
                                 LoudsSparse::Iter &iter) const;
 
  private:
-  static const position_t kRankBasicBlockSize = 512;
-  static const position_t kSelectSampleInterval = 64;
+  static const position_t kRankBasicBlockSize;
+  static const position_t kSelectSampleInterval;
 
   std::vector<uint64_t> positions_sparse;
 
@@ -575,6 +575,9 @@ void LoudsSparse::Iter::operator--(int) {
   set(key_len_ - 1, pos);
   return moveToRightMostKey();
 }
+
+const position_t LoudsSparse::kRankBasicBlockSize = 512;
+const position_t LoudsSparse::kSelectSampleInterval = 64;
 
 }  // namespace fst
 

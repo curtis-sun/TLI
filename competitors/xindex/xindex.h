@@ -32,15 +32,15 @@
 
 namespace xindex {
 
-template <class key_t, class val_t, bool seq = false>
+template <class key_t, class val_t, bool seq, class SearchClass>
 class XIndex {
-  typedef Group<key_t, val_t, seq> group_t;
-  typedef Root<key_t, val_t, seq> root_t;
+  typedef Group<key_t, val_t, seq, SearchClass> group_t;
+  typedef Root<key_t, val_t, seq, SearchClass> root_t;
   typedef void iterator_t;
 
  public:
   XIndex(const std::vector<key_t> &keys, const std::vector<val_t> &vals,
-         size_t worker_num, size_t bg_n);
+         size_t worker_num, size_t bg_n, size_t error_bound);
   ~XIndex();
 
   inline bool get(const key_t &key, val_t &val, const uint32_t worker_id);
@@ -52,6 +52,7 @@ class XIndex {
   size_t range_scan(const key_t &begin, const key_t &end,
                     std::vector<std::pair<key_t, val_t>> &result,
                     const uint32_t worker_id);
+  unsigned long long size() const;
  private:
   void start_bg();
   void terminate_bg();

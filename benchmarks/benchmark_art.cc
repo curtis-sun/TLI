@@ -1,27 +1,18 @@
-#include "benchmarks/benchmark_art.h"
+#include "benchmark_art.h"
 
 #include "benchmark.h"
-#include "benchmarks/common.h"
-#include "competitors/art_primary_lb.h"
+#include "common.h"
+#include "competitors/art.h"
 
-template <template <typename> typename Searcher>
-void benchmark_64_art(sosd::Benchmark<uint64_t, Searcher>& benchmark,
-                      bool pareto) {
-  benchmark.template Run<ARTPrimaryLB<1>>();
-  if (pareto) {
-    benchmark.template Run<ARTPrimaryLB<32>>();
-    benchmark.template Run<ARTPrimaryLB<64>>();
-    benchmark.template Run<ARTPrimaryLB<128>>();
-    benchmark.template Run<ARTPrimaryLB<256>>();
-    benchmark.template Run<ARTPrimaryLB<512>>();
+// void benchmark_32_art(sosd::Benchmark<uint32_t>& benchmark,
+//                       bool pareto) {
+//   benchmark.template Run<sosd_art::ART<uint32_t>>();
+// }
 
-    if (benchmark.uses_binary_search()) {
-      benchmark.template Run<ARTPrimaryLB<1024>>();
-      benchmark.template Run<ARTPrimaryLB<2048>>();
-      benchmark.template Run<ARTPrimaryLB<4096>>();
-      benchmark.template Run<ARTPrimaryLB<8192>>();
-    }
-  }
+void benchmark_64_art(sosd::Benchmark<uint64_t>& benchmark) {
+  benchmark.template Run<sosd_art::ART<uint64_t>>();
 }
 
-INSTANTIATE_TEMPLATES(benchmark_64_art, uint64_t);
+void benchmark_string_art(sosd::Benchmark<std::string>& benchmark) {
+  benchmark.template Run<sosd_art::ART<std::string>>();
+}

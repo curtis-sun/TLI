@@ -327,7 +327,8 @@ size_t make_segmentation(size_t n, size_t error, Fin in, Fout out) {
 
 template<typename Fin, typename Fout>
 size_t make_segmentation_par(size_t n, size_t error, Fin in, Fout out) {
-    auto parallelism = std::min<int>(omp_get_max_threads(), 20);
+    // auto parallelism = std::min<int>(omp_get_max_threads(), 20);
+    auto parallelism = 1;
     auto chunk_size = n / parallelism;
     auto c = 0ull;
 

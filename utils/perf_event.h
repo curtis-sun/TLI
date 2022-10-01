@@ -223,10 +223,12 @@ struct PerfEventBlock {
    uint64_t scale;
    BenchmarkParameters parameters;
    bool printHeader;
+   std::vector<std::string>* perf_metrics;
 
-   PerfEventBlock(uint64_t scale = 1, BenchmarkParameters params = {}, bool printHeader = true)
+   PerfEventBlock(uint64_t scale = 1, BenchmarkParameters params = {}, std::vector<std::string>* pm = nullptr, bool printHeader = true)
        : scale(scale),
          parameters(params),
+         perf_metrics(pm),
          printHeader(printHeader) {
      e.startCounters();
    }
@@ -240,7 +242,8 @@ struct PerfEventBlock {
      e.printReport(header, data, scale);
      if (printHeader)
        std::cout << header.str() << std::endl;
-     std::cout << "RESULT: " << data.str() << std::endl;
+     std::cout << data.str() << std::endl;
+     perf_metrics->push_back(data.str());
    }
 };
 

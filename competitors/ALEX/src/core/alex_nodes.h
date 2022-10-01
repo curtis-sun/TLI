@@ -33,7 +33,7 @@
 namespace alex {
 
 // A parent class for both types of ALEX nodes
-template <class T, class P>
+template <class T, class P, class SearchClass>
 class AlexNode {
  public:
   // Whether this node is a leaf (data) node
@@ -64,12 +64,12 @@ class AlexNode {
   virtual long long node_size() const = 0;
 };
 
-template <class T, class P, class Alloc = std::allocator<std::pair<T, P>>>
-class AlexModelNode : public AlexNode<T, P> {
+template <class T, class P, class SearchClass, class Alloc = std::allocator<std::pair<T, P>>>
+class AlexModelNode : public AlexNode<T, P, SearchClass> {
  public:
-  typedef AlexModelNode<T, P, Alloc> self_type;
+  typedef AlexModelNode<T, P, SearchClass, Alloc> self_type;
   typedef typename Alloc::template rebind<self_type>::other alloc_type;
-  typedef typename Alloc::template rebind<AlexNode<T, P>*>::other
+  typedef typename Alloc::template rebind<AlexNode<T, P, SearchClass>*>::other
       pointer_alloc_type;
 
   const Alloc& allocator_;
@@ -78,13 +78,13 @@ class AlexModelNode : public AlexNode<T, P> {
   int num_children_ = 0;
 
   // Array of pointers to children
-  AlexNode<T, P>** children_ = nullptr;
+  AlexNode<T, P, SearchClass>** children_ = nullptr;
 
   explicit AlexModelNode(const Alloc& alloc = Alloc())
-      : AlexNode<T, P>(0, false), allocator_(alloc) {}
+      : AlexNode<T, P, SearchClass>(0, false), allocator_(alloc) {}
 
   explicit AlexModelNode(short level, const Alloc& alloc = Alloc())
-      : AlexNode<T, P>(level, false), allocator_(alloc) {}
+      : AlexNode<T, P, SearchClass>(level, false), allocator_(alloc) {}
 
   ~AlexModelNode() {
     if (children_ == nullptr) {
@@ -94,17 +94,17 @@ class AlexModelNode : public AlexNode<T, P> {
   }
 
   AlexModelNode(const self_type& other)
-      : AlexNode<T, P>(other),
+      : AlexNode<T, P, SearchClass>(other),
         allocator_(other.allocator_),
         num_children_(other.num_children_) {
     children_ = new (pointer_allocator().allocate(other.num_children_))
-        AlexNode<T, P>*[other.num_children_];
+        AlexNode<T, P, SearchClass>*[other.num_children_];
     std::copy(other.children_, other.children_ + other.num_children_,
               children_);
   }
 
   // Given a key, traverses to the child node responsible for that key
-  inline AlexNode<T, P>* get_child_node(const T& key) {
+  inline AlexNode<T, P, SearchClass>* get_child_node(const T& key) {
     int bucketID = this->model_.predict(key);
     bucketID = std::min<int>(std::max<int>(bucketID, 0), num_children_ - 1);
     return children_[bucketID];
@@ -120,10 +120,10 @@ class AlexModelNode : public AlexNode<T, P> {
     int expansion_factor = 1 << log2_expansion_factor;
     int num_new_children = num_children_ * expansion_factor;
     auto new_children = new (pointer_allocator().allocate(num_new_children))
-        AlexNode<T, P>*[num_new_children];
+        AlexNode<T, P, SearchClass>*[num_new_children];
     int cur = 0;
     while (cur < num_children_) {
-      AlexNode<T, P>* cur_child = children_[cur];
+      AlexNode<T, P, SearchClass>* cur_child = children_[cur];
       int cur_child_repeats = 1 << cur_child->duplication_factor_;
       for (int i = expansion_factor * cur;
            i < expansion_factor * (cur + cur_child_repeats); i++) {
@@ -145,7 +145,7 @@ class AlexModelNode : public AlexNode<T, P> {
 
   long long node_size() const override {
     long long size = sizeof(self_type);
-    size += num_children_ * sizeof(AlexNode<T, P>*);  // pointers to children
+    size += num_children_ * sizeof(AlexNode<T, P, SearchClass>*);  // pointers to children
     return size;
   }
 
@@ -182,7 +182,7 @@ class AlexModelNode : public AlexNode<T, P> {
       return false;
     }
 
-    AlexNode<T, P>* cur_child = children_[0];
+    AlexNode<T, P, SearchClass>* cur_child = children_[0];
     int cur_repeats = 1;
     int i;
     for (i = 1; i < num_children_; i++) {
@@ -287,13 +287,13 @@ class AlexModelNode : public AlexNode<T, P> {
 * - Stats
 * - Debugging
 */
-template <class T, class P, class Compare = AlexCompare,
+template <class T, class P, class SearchClass, class Compare = AlexCompare,
           class Alloc = std::allocator<std::pair<T, P>>,
           bool allow_duplicates = true>
-class AlexDataNode : public AlexNode<T, P> {
+class AlexDataNode : public AlexNode<T, P, SearchClass> {
  public:
   typedef std::pair<T, P> V;
-  typedef AlexDataNode<T, P, Compare, Alloc, allow_duplicates> self_type;
+  typedef AlexDataNode<T, P, SearchClass, Compare, Alloc, allow_duplicates> self_type;
   typedef typename Alloc::template rebind<self_type>::other alloc_type;
   typedef typename Alloc::template rebind<T>::other key_alloc_type;
   typedef typename Alloc::template rebind<P>::other payload_alloc_type;
@@ -381,11 +381,11 @@ class AlexDataNode : public AlexNode<T, P> {
 
   explicit AlexDataNode(const Compare& comp = Compare(),
                         const Alloc& alloc = Alloc())
-      : AlexNode<T, P>(0, true), key_less_(comp), allocator_(alloc) {}
+      : AlexNode<T, P, SearchClass>(0, true), key_less_(comp), allocator_(alloc) {}
 
   AlexDataNode(short level, int max_data_node_slots,
                const Compare& comp = Compare(), const Alloc& alloc = Alloc())
-      : AlexNode<T, P>(level, true),
+      : AlexNode<T, P, SearchClass>(level, true),
         key_less_(comp),
         allocator_(alloc),
         max_slots_(max_data_node_slots) {}
@@ -407,7 +407,7 @@ class AlexDataNode : public AlexNode<T, P> {
   }
 
   AlexDataNode(const self_type& other)
-      : AlexNode<T, P>(other),
+      : AlexNode<T, P, SearchClass>(other),
         key_less_(other.key_less_),
         allocator_(other.allocator_),
         next_leaf_(other.next_leaf_),
@@ -1410,7 +1410,8 @@ class AlexDataNode : public AlexNode<T, P> {
       }
       builder.build();
 
-      double rel_change_in_a = std::abs((model->a_ - prev_a) / prev_a);
+      double rel_change_in_a = prev_a == 0 ? (model->a_ != 0) 
+                               : std::abs((model->a_ - prev_a) / prev_a);
       double abs_change_in_b = std::abs(model->b_ - prev_b);
       double rel_change_in_b = std::abs(abs_change_in_b / prev_b);
       if (verbose) {
@@ -1556,28 +1557,30 @@ class AlexDataNode : public AlexNode<T, P> {
   inline int exponential_search_upper_bound(int m, const K& key) {
     // Continue doubling the bound until it contains the upper bound. Then use
     // binary search.
-    int bound = 1;
-    int l, r;  // will do binary search in range [l, r)
-    if (key_greater(ALEX_DATA_NODE_KEY_AT(m), key)) {
-      int size = m;
-      while (bound < size &&
-             key_greater(ALEX_DATA_NODE_KEY_AT(m - bound), key)) {
-        bound *= 2;
-        num_exp_search_iterations_++;
-      }
-      l = m - std::min<int>(bound, size);
-      r = m - bound / 2;
-    } else {
-      int size = data_capacity_ - m;
-      while (bound < size &&
-             key_lessequal(ALEX_DATA_NODE_KEY_AT(m + bound), key)) {
-        bound *= 2;
-        num_exp_search_iterations_++;
-      }
-      l = m + bound / 2;
-      r = m + std::min<int>(bound, size);
-    }
-    return binary_search_upper_bound(l, r, key);
+    // int bound = 1;
+    // int l, r;  // will do binary search in range [l, r)
+    // if (key_greater(ALEX_DATA_NODE_KEY_AT(m), key)) {
+    //   int size = m;
+    //   while (bound < size &&
+    //          key_greater(ALEX_DATA_NODE_KEY_AT(m - bound), key)) {
+    //     bound *= 2;
+    //     num_exp_search_iterations_++;
+    //   }
+    //   l = m - std::min<int>(bound, size);
+    //   r = m - bound / 2;
+    // } else {
+    //   int size = data_capacity_ - m;
+    //   while (bound < size &&
+    //          key_lessequal(ALEX_DATA_NODE_KEY_AT(m + bound), key)) {
+    //     bound *= 2;
+    //     num_exp_search_iterations_++;
+    //   }
+    //   l = m + bound / 2;
+    //   r = m + std::min<int>(bound, size);
+    // }
+    // return binary_search_upper_bound(l, r, key);
+    return SearchClass::upper_bound(key_slots_, key_slots_ + data_capacity_, key, 
+                          key_slots_ + m) - key_slots_;
   }
 
   // Searches for the first position greater than key in range [l, r)
@@ -1613,27 +1616,29 @@ class AlexDataNode : public AlexNode<T, P> {
   inline int exponential_search_lower_bound(int m, const K& key) {
     // Continue doubling the bound until it contains the lower bound. Then use
     // binary search.
-    int bound = 1;
-    int l, r;  // will do binary search in range [l, r)
-    if (key_greaterequal(ALEX_DATA_NODE_KEY_AT(m), key)) {
-      int size = m;
-      while (bound < size &&
-             key_greaterequal(ALEX_DATA_NODE_KEY_AT(m - bound), key)) {
-        bound *= 2;
-        num_exp_search_iterations_++;
-      }
-      l = m - std::min<int>(bound, size);
-      r = m - bound / 2;
-    } else {
-      int size = data_capacity_ - m;
-      while (bound < size && key_less(ALEX_DATA_NODE_KEY_AT(m + bound), key)) {
-        bound *= 2;
-        num_exp_search_iterations_++;
-      }
-      l = m + bound / 2;
-      r = m + std::min<int>(bound, size);
-    }
-    return binary_search_lower_bound(l, r, key);
+    // int bound = 1;
+    // int l, r;  // will do binary search in range [l, r)
+    // if (key_greaterequal(ALEX_DATA_NODE_KEY_AT(m), key)) {
+    //   int size = m;
+    //   while (bound < size &&
+    //          key_greaterequal(ALEX_DATA_NODE_KEY_AT(m - bound), key)) {
+    //     bound *= 2;
+    //     num_exp_search_iterations_++;
+    //   }
+    //   l = m - std::min<int>(bound, size);
+    //   r = m - bound / 2;
+    // } else {
+    //   int size = data_capacity_ - m;
+    //   while (bound < size && key_less(ALEX_DATA_NODE_KEY_AT(m + bound), key)) {
+    //     bound *= 2;
+    //     num_exp_search_iterations_++;
+    //   }
+    //   l = m + bound / 2;
+    //   r = m + std::min<int>(bound, size);
+    // }
+    // return binary_search_lower_bound(l, r, key);
+    return SearchClass::lower_bound(key_slots_, key_slots_ + data_capacity_, key, 
+                          key_slots_ + m) - key_slots_;
   }
 
   // Searches for the first position no less than key in range [l, r)
@@ -1659,14 +1664,14 @@ class AlexDataNode : public AlexNode<T, P> {
   // splitting
   inline bool significant_cost_deviation() const {
     double emp_cost = empirical_cost();
-    return emp_cost > kNodeLookupsWeight && emp_cost > 1.5 * this->cost_;
+    return this->model_.a_ != 0 && emp_cost > kNodeLookupsWeight && emp_cost > 1.5 * this->cost_;
   }
 
   // Returns true if cost is catastrophically high and we want to force a split
   // The heuristic for this is if the number of shifts per insert (expected or
   // empirical) is over 100
   inline bool catastrophic_cost() const {
-    return shifts_per_insert() > 100 || expected_avg_shifts_ > 100;
+    return this->model_.a_ != 0 && (shifts_per_insert() > 100 || expected_avg_shifts_ > 100);
   }
 
   // First value in returned pair is fail flag:

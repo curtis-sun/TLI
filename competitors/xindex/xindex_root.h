@@ -27,12 +27,12 @@
 
 namespace xindex {
 
-template <class key_t, class val_t, bool seq>
+template <class key_t, class val_t, bool seq, class SearchClass>
 class Root {
   typedef LinearModel<key_t> linear_model_t;
-  typedef Group<key_t, val_t, seq, max_model_n> group_t;
+  typedef Group<key_t, val_t, seq, SearchClass, max_model_n> group_t;
 
-  template <class key_tt, class val_tt, bool sequential>
+  template <class key_tt, class val_tt, bool sequential, class sc>
   friend class XIndex;
 
  public:
@@ -51,10 +51,13 @@ class Root {
                      std::vector<std::pair<key_t, val_t>> &result);
   inline size_t range_scan(const key_t &begin, const key_t &end,
                            std::vector<std::pair<key_t, val_t>> &result);
-
+  unsigned long long size() const;
+  
   static void *do_adjustment(void *args);
   Root *create_new_root();
   void trim_root();
+
+  void free_memory();
 
  private:
   void adjust_rmi();

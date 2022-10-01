@@ -12,11 +12,11 @@ extern "C" {
 // crc32c {{{
 #define KV_CRC32C_SEED ((0xDEADBEEFu))
 
-  extern u32
-kv_crc32c(const void * const ptr, u32 len);
+  extern U32
+kv_crc32c(const void * const ptr, U32 len);
 
-  extern u64
-kv_crc32c_extend(const u32 crc32c);
+  extern U64
+kv_crc32c_extend(const U32 crc32c);
 // }}} crc32c
 
 // kv {{{
@@ -25,39 +25,39 @@ kv_crc32c_extend(const u32 crc32c);
 /*
  * Some internal union names can be ignored:
  * struct kv {
- *   u32 klen;
- *   u32 vlen;
- *   u64 hash;
- *   u8 kv[];
+ *   U32 klen;
+ *   U32 vlen;
+ *   U64 hash;
+ *   U8 kv[];
  * };
  */
 struct kv {
-  union { // the first u64
-    u64 kvlen;
+  union { // the first U64
+    U64 kvlen;
     struct {
-      u32 klen;
-      union { u32 vlen; u32 refcnt; };
+      U32 klen;
+      union { U32 vlen; U32 refcnt; };
     };
   };
   union {
-    u64 hash; // hashvalue of the key
-    u64 priv; // can hide a value here if hash is not used
+    U64 hash; // hashvalue of the key
+    U64 priv; // can hide a value here if hash is not used
     void * privptr;
-    struct { u32 hashlo; u32 hashhi; }; // little endian
-    struct { u32 privlo; u32 privhi; };
+    struct { U32 hashlo; U32 hashhi; }; // little endian
+    struct { U32 privlo; U32 privhi; };
   };
-  u8 kv[0];  // len(kv) == klen + vlen
+  U8 kv[0];  // len(kv) == klen + vlen
 } __attribute__((packed));
 
 struct kref {
-  u32 len;
-  union { u32 hash32; u32 priv; };
-  const u8 * ptr;
+  U32 len;
+  union { U32 hash32; U32 priv; };
+  const U8 * ptr;
 } __attribute__((packed));
 
 struct kvref {
-  const u8 * kptr; // read-only
-  const u8 * vptr; // read-only
+  const U8 * kptr; // read-only
+  const U8 * vptr; // read-only
   struct kv hdr; // hdr.kv[] is invalid
 };
 // }}} struct
@@ -69,67 +69,67 @@ typedef int  (*kv_kv_cmp_func)(const struct kv *, const struct kv *);
 kv_size(const struct kv * const kv);
 
   extern size_t
-kv_size_align(const struct kv * const kv, const u64 align);
+kv_size_align(const struct kv * const kv, const U64 align);
 
   extern size_t
 key_size(const struct kv * const key);
 
   extern size_t
-key_size_align(const struct kv * const key, const u64 align);
+key_size_align(const struct kv * const key, const U64 align);
 
   extern void
 kv_update_hash(struct kv * const kv);
 
   extern void
-kv_refill_value(struct kv * const kv, const void * const value, const u32 vlen);
+kv_refill_value(struct kv * const kv, const void * const value, const U32 vlen);
 
   extern void
-kv_refill(struct kv * const kv, const void * const key, const u32 klen,
-    const void * const value, const u32 vlen);
+kv_refill(struct kv * const kv, const void * const key, const U32 klen,
+    const void * const value, const U32 vlen);
 
   extern void
 kv_refill_str(struct kv * const kv, const char * const key,
-    const void * const value, const u32 vlen);
+    const void * const value, const U32 vlen);
 
   extern void
 kv_refill_str_str(struct kv * const kv, const char * const key,
     const char * const value);
 
-// the u64 key is filled in big-endian byte order
+// the U64 key is filled in big-endian byte order
   extern void
-kv_refill_u64(struct kv * const kv, const u64 key, const void * const value, const u32 vlen);
+kv_refill_u64(struct kv * const kv, const U64 key, const void * const value, const U32 vlen);
 
   extern void
-kv_refill_hex32(struct kv * const kv, const u32 hex, const void * const value, const u32 vlen);
+kv_refill_hex32(struct kv * const kv, const U32 hex, const void * const value, const U32 vlen);
 
   extern void
-kv_refill_hex64(struct kv * const kv, const u64 hex, const void * const value, const u32 vlen);
+kv_refill_hex64(struct kv * const kv, const U64 hex, const void * const value, const U32 vlen);
 
   extern void
-kv_refill_hex64_klen(struct kv * const kv, const u64 hex, const u32 klen,
-    const void * const value, const u32 vlen);
+kv_refill_hex64_klen(struct kv * const kv, const U64 hex, const U32 klen,
+    const void * const value, const U32 vlen);
 
   extern void
 kv_refill_kref(struct kv * const kv, const struct kref * const kref);
 
   extern void
 kv_refill_kref_v(struct kv * const kv, const struct kref * const kref,
-    const void * const value, const u32 vlen);
+    const void * const value, const U32 vlen);
 
   extern struct kref
 kv_kref(const struct kv * const key);
 
   extern struct kv *
-kv_create(const void * const key, const u32 klen, const void * const value, const u32 vlen);
+kv_create(const void * const key, const U32 klen, const void * const value, const U32 vlen);
 
   extern struct kv *
-kv_create_str(const char * const key, const void * const value, const u32 vlen);
+kv_create_str(const char * const key, const void * const value, const U32 vlen);
 
   extern struct kv *
 kv_create_str_str(const char * const key, const char * const value);
 
   extern struct kv *
-kv_create_kref(const struct kref * const kref, const void * const value, const u32 vlen);
+kv_create_kref(const struct kref * const kref, const void * const value, const U32 vlen);
 
 // a static kv with klen == 0
   extern const struct kv *
@@ -148,7 +148,7 @@ kv_dup2(const struct kv * const from, struct kv * const to);
 kv_dup2_key(const struct kv * const from, struct kv * const to);
 
   extern struct kv *
-kv_dup2_key_prefix(const struct kv * const from, struct kv * const to, const u32 plen);
+kv_dup2_key_prefix(const struct kv * const from, struct kv * const to, const U32 plen);
 
   extern bool
 kv_match(const struct kv * const key1, const struct kv * const key2);
@@ -160,28 +160,28 @@ kv_match_hash(const struct kv * const key1, const struct kv * const key2);
 kv_match_full(const struct kv * const kv1, const struct kv * const kv2);
 
   extern bool
-kv_match_kv128(const struct kv * const sk, const u8 * const kv128);
+kv_match_kv128(const struct kv * const sk, const U8 * const kv128);
 
   extern int
 kv_compare(const struct kv * const kv1, const struct kv * const kv2);
 
   extern int
-kv_k128_compare(const struct kv * const sk, const u8 * const k128);
+kv_k128_compare(const struct kv * const sk, const U8 * const k128);
 
   extern int
-kv_kv128_compare(const struct kv * const sk, const u8 * const kv128);
+kv_kv128_compare(const struct kv * const sk, const U8 * const kv128);
 
   extern void
 kv_qsort(struct kv ** const kvs, const size_t nr);
 
-  extern u32
+  extern U32
 kv_key_lcp(const struct kv * const key1, const struct kv * const key2);
 
-  extern u32
-kv_key_lcp_skip(const struct kv * const key1, const struct kv * const key2, const u32 lcp0);
+  extern U32
+kv_key_lcp_skip(const struct kv * const key1, const struct kv * const key2, const U32 lcp0);
 
   extern void
-kv_psort(struct kv ** const kvs, const u64 nr, const u64 tlo, const u64 thi);
+kv_psort(struct kv ** const kvs, const U64 nr, const U64 tlo, const U64 thi);
 
   extern void *
 kv_vptr(struct kv * const kv);
@@ -246,11 +246,11 @@ typedef int (*kref_kv_cmp_func)(const struct kref *, const struct kv *);
 
 // ptr and len only
   extern void
-kref_ref_raw(struct kref * const kref, const u8 * const ptr, const u32 len);
+kref_ref_raw(struct kref * const kref, const U8 * const ptr, const U32 len);
 
 // this calculates hash32
   extern void
-kref_ref_hash32(struct kref * const kref, const u8 * const ptr, const u32 len);
+kref_ref_hash32(struct kref * const kref, const U8 * const ptr, const U32 len);
 
   extern void
 kref_update_hash32(struct kref * const kref);
@@ -273,17 +273,17 @@ kref_compare(const struct kref * const kref1, const struct kref * const kref2);
   extern int
 kref_kv_compare(const struct kref * const kref, const struct kv * const k);
 
-  extern u32
+  extern U32
 kref_lcp(const struct kref * const k1, const struct kref * const k2);
 
-  extern u32
+  extern U32
 kref_kv_lcp(const struct kref * const kref, const struct kv * const kv);
 
   extern int
-kref_k128_compare(const struct kref * const sk, const u8 * const k128);
+kref_k128_compare(const struct kref * const sk, const U8 * const k128);
 
   extern int
-kref_kv128_compare(const struct kref * const sk, const u8 * const kv128);
+kref_kv128_compare(const struct kref * const sk, const U8 * const kv128);
 
   extern const struct kref *
 kref_null(void);
@@ -305,14 +305,14 @@ kvref_kv_compare(const struct kvref * const ref, const struct kv * const kv);
   extern size_t
 kv128_estimate_kv(const struct kv * const kv);
 
-  extern u8 *
-kv128_encode_kv(const struct kv * const kv, u8 * const out, size_t * const pesize);
+  extern U8 *
+kv128_encode_kv(const struct kv * const kv, U8 * const out, size_t * const pesize);
 
   extern struct kv *
-kv128_decode_kv(const u8 * const ptr, struct kv * const out, size_t * const pesize);
+kv128_decode_kv(const U8 * const ptr, struct kv * const out, size_t * const pesize);
 
   extern size_t
-kv128_size(const u8 * const ptr);
+kv128_size(const U8 * const ptr);
 // }}} kv128
 
 // }}} kv
@@ -364,7 +364,7 @@ struct kvmap_api {
   // return true if successfull; return false on error
   bool        (* merge)   (void * const ref, const struct kref * const key, kv_merge_func uf, void * const priv);
   // delete-range: delete all keys from start (inclusive) to end (exclusive)
-  u64         (* delr)    (void * const ref, const struct kref * const start, const struct kref * const end);
+  U64         (* delr)    (void * const ref, const struct kref * const start, const struct kref * const end);
   // make everything persist; for persistent maps only
   void        (* sync)    (void * const ref);
 
@@ -387,12 +387,12 @@ struct kvmap_api {
   bool        (* iter_kvref)    (void * const iter, struct kvref * const kvref);
   // iter_retain makes kref or kvref of the current iter remain valid until released
   // the returned opaque pointer should be provided when releasing the hold
-  u64         (* iter_retain)   (void * const iter);
-  void        (* iter_release)  (void * const iter, const u64 opaque);
+  U64         (* iter_retain)   (void * const iter);
+  void        (* iter_release)  (void * const iter, const U64 opaque);
   // skip one element
   void        (* iter_skip1)    (void * const iter);
   // skip nr elements
-  void        (* iter_skip)     (void * const iter, const u32 nr);
+  void        (* iter_skip)     (void * const iter, const U32 nr);
   // iter_next == iter_peek + iter_skip1
   struct kv * (* iter_next)     (void * const iter, struct kv * const out);
   // perform inplace opeation if the current key is valid; return false if no current key
@@ -486,7 +486,7 @@ kvmap_kv_inpw(const struct kvmap_api * const api, void * const ref,
 kvmap_kv_merge(const struct kvmap_api * const api, void * const ref,
     const struct kv * const key, kv_merge_func uf, void * const priv);
 
-  extern u64
+  extern U64
 kvmap_kv_delr(const struct kvmap_api * const api, void * const ref,
     const struct kv * const start, const struct kv * const end);
 
@@ -496,54 +496,54 @@ kvmap_kv_iter_seek(const struct kvmap_api * const api, void * const iter,
 
   extern struct kv *
 kvmap_raw_get(const struct kvmap_api * const api, void * const ref,
-    const u32 len, const u8 * const ptr, struct kv * const out);
+    const U32 len, const U8 * const ptr, struct kv * const out);
 
   extern bool
 kvmap_raw_probe(const struct kvmap_api * const api, void * const ref,
-    const u32 len, const u8 * const ptr);
+    const U32 len, const U8 * const ptr);
 
   extern bool
 kvmap_raw_del(const struct kvmap_api * const api, void * const ref,
-    const u32 len, const u8 * const ptr);
+    const U32 len, const U8 * const ptr);
 
   extern bool
 kvmap_raw_inpr(const struct kvmap_api * const api, void * const ref,
-    const u32 len, const u8 * const ptr, kv_inp_func uf, void * const priv);
+    const U32 len, const U8 * const ptr, kv_inp_func uf, void * const priv);
 
   extern bool
 kvmap_raw_inpw(const struct kvmap_api * const api, void * const ref,
-    const u32 len, const u8 * const ptr, kv_inp_func uf, void * const priv);
+    const U32 len, const U8 * const ptr, kv_inp_func uf, void * const priv);
 
   extern void
 kvmap_raw_iter_seek(const struct kvmap_api * const api, void * const iter,
-    const u32 len, const u8 * const ptr);
+    const U32 len, const U8 * const ptr);
 
-  extern u64
+  extern U64
 kvmap_dump_keys(const struct kvmap_api * const api, void * const map, const int fd);
 
   extern bool
 kvmap_kv64_get(const struct kvmap_api * const api, void * const ref,
-    const u64 key, u64 * const out);
+    const U64 key, U64 * const out);
 
   extern bool
 kvmap_kv64_probe(const struct kvmap_api * const api, void * const ref,
-    const u64 key);
+    const U64 key);
 
   extern bool
 kvmap_kv64_put(const struct kvmap_api * const api, void * const ref,
-    const u64 key, const u64 value);
+    const U64 key, const U64 value);
 
   extern bool
 kvmap_kv64_del(const struct kvmap_api * const api, void * const ref,
-    const u64 key);
+    const U64 key);
 
   extern void
 kvmap_kv64_iter_seek(const struct kvmap_api * const api, void * const iter,
-    const u64 key);
+    const U64 key);
 
   extern bool
 kvmap_kv64_iter_peek(const struct kvmap_api * const api, void * const iter,
-    u64 * const key_out, u64 * const value_out);
+    U64 * const key_out, U64 * const value_out);
 // }}} helpers
 
 // }}} kvmap

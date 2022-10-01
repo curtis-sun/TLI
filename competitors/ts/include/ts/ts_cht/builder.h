@@ -43,11 +43,12 @@ class Builder {
     log_num_bins_ = ComputeLog(static_cast<uint64_t>(num_bins_));
 
     // Compute the logarithm in base 2 of the range.
-    auto lg = ComputeLog(max_key_ - min_key_, true);
+    const KeyType range = max_key_ - min_key_;
+    auto lg = ComputeLog(range, true);
 
     // And also the initial shift for the first node of the tree.
     assert(lg >= log_num_bins_);
-    shift_ = lg - log_num_bins_;
+    shift_ = lg - log_num_bins_ + ((range & (range - 1)) == 0 && (num_bins_ & (num_bins_ - 1)) == 0);
   
     // And build.
     // TODO: build faster (use trick with lcp)!
@@ -341,8 +342,9 @@ class Builder {
     num_shift_bits_ = GetNumShiftBits(max_key_ - min_key_, num_radix_bits_);
     const uint32_t max_prefix = (max_key_ - min_key_) >> num_shift_bits_;
     table_.resize(max_prefix + 2, 0);
-    for (size_t index = 0, limit = table_.size(); index != limit; ++index)
+    for (size_t index = 0, limit = max_prefix + 1; index != limit; ++index)
       table_[index] = (tree_.front().second[index].first & Mask);
+    table_[max_prefix + 1] = tree_.front().second[max_prefix].second;
     shift_ = num_shift_bits_;
   }
 

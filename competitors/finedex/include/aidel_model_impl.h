@@ -6,8 +6,8 @@
 
 namespace aidel{
 
-template<class key_t, class val_t>
-AidelModel<key_t, val_t>::AidelModel(){
+template<class key_t, class val_t, class SearchClass>
+AidelModel<key_t, val_t, SearchClass>::AidelModel(){
     model = nullptr;
     maxErr = 64;
     err = 0;
@@ -16,15 +16,44 @@ AidelModel<key_t, val_t>::AidelModel(){
     capacity = 0;
 }
 
-template<class key_t, class val_t>
-AidelModel<key_t, val_t>::~AidelModel()
+template<class key_t, class val_t, class SearchClass>
+AidelModel<key_t, val_t, SearchClass>::~AidelModel()
 {
     if(model) model=nullptr;
     if(levelbins) levelbins=nullptr;
 }
 
-template<class key_t, class val_t>
-AidelModel<key_t, val_t>::AidelModel(lrmodel_type &lrmodel, 
+template<class key_t, class val_t, class SearchClass>
+void AidelModel<key_t, val_t, SearchClass>::clear()
+{
+    if (levelbins){
+        for (size_t i = 0; i < capacity + 1; ++ i){
+            if (levelbins[i]){
+                delete levelbins[i];
+            }
+            if (mobs[i]){
+                if(mobs[i]->isbin){
+                    delete mobs[i]->mob.lb;
+                }else {
+                    mobs[i]->mob.ai->clear();
+                    delete mobs[i]->mob.ai;
+                }
+                delete mobs[i];
+            }
+        }
+        free(mobs);
+        free(levelbins);
+    }
+    if (model){
+        free(keys);
+        free(vals);
+        free(valid_flag);
+        delete model;
+    }
+}
+
+template<class key_t, class val_t, class SearchClass>
+AidelModel<key_t, val_t, SearchClass>::AidelModel(lrmodel_type &lrmodel, 
                                      const typename std::vector<key_t>::const_iterator &keys_begin, 
                                      const typename std::vector<val_t>::const_iterator &vals_begin, 
                                      size_t size, size_t _maxErr) : maxErr(_maxErr), capacity(size)
@@ -48,23 +77,41 @@ AidelModel<key_t, val_t>::AidelModel(lrmodel_type &lrmodel,
     }
 }
 
-template<class key_t, class val_t>
-inline size_t AidelModel<key_t, val_t>::get_capacity()
+template<class key_t, class val_t, class SearchClass>
+inline size_t AidelModel<key_t, val_t, SearchClass>::get_capacity()
 {
     return capacity;
 }
 
+template<class key_t, class val_t, class SearchClass>
+size_t AidelModel<key_t, val_t, SearchClass>::size() const{
+    size_t size = sizeof(*this) + sizeof(lrmodel_type) + (sizeof(key_t) + sizeof(val_t) + sizeof(bool)) * capacity + (sizeof(levelbin_type*) + sizeof(model_or_bin_t*)) * (capacity + 1);
+    for (size_t i = 0; i < capacity + 1; ++ i){
+        if (levelbins[i]){
+            size += levelbins[i]->size();
+        }
+        if (mobs[i]){
+            if(mobs[i]->isbin){
+                size += mobs[i]->mob.lb->size();
+            }else {
+                size += mobs[i]->mob.ai->size();
+            }
+        }
+    }
+    return size;
+}
+
 // =====================  print =====================
-template<class key_t, class val_t>
-inline void AidelModel<key_t, val_t>::print_model()
+template<class key_t, class val_t, class SearchClass>
+inline void AidelModel<key_t, val_t, SearchClass>::print_model()
 {
     std::cout<<" capacity:"<<capacity<<" -->";
     model->print_weights();
     print_keys();
 }
 
-template<class key_t, class val_t>
-void AidelModel<key_t, val_t>::print_keys()
+template<class key_t, class val_t, class SearchClass>
+void AidelModel<key_t, val_t, SearchClass>::print_keys()
 {
     if(levelbins[0]) levelbins[0]->print(std::cout);
     for(size_t i=0; i<capacity; i++){
@@ -73,8 +120,8 @@ void AidelModel<key_t, val_t>::print_keys()
     }
 }
 
-template<class key_t, class val_t>
-void AidelModel<key_t, val_t>::print_model_retrain()
+template<class key_t, class val_t, class SearchClass>
+void AidelModel<key_t, val_t, SearchClass>::print_model_retrain()
 {
     std::cout<<"[print aimodel] capacity:"<<capacity<<" -->";
     model->print_weights();
@@ -97,8 +144,8 @@ void AidelModel<key_t, val_t>::print_model_retrain()
     }
 }
 
-template<class key_t, class val_t>
-void AidelModel<key_t, val_t>::self_check()
+template<class key_t, class val_t, class SearchClass>
+void AidelModel<key_t, val_t, SearchClass>::self_check()
 {
     if(levelbins[0]) levelbins[0]->self_check();
     for(size_t i=1; i<capacity; i++){
@@ -108,8 +155,8 @@ void AidelModel<key_t, val_t>::self_check()
     if(levelbins[capacity]) levelbins[capacity]->self_check();
 }
 
-template<class key_t, class val_t>
-void AidelModel<key_t, val_t>::self_check_retrain()
+template<class key_t, class val_t, class SearchClass>
+void AidelModel<key_t, val_t, SearchClass>::self_check_retrain()
 {
     for(size_t i=1; i<capacity; i++){
         assert(keys[i]>keys[i-1]);
@@ -131,8 +178,8 @@ void AidelModel<key_t, val_t>::self_check_retrain()
 
 
 // ============================ search =====================
-template<class key_t, class val_t>
-bool AidelModel<key_t, val_t>::find(const key_t &key, val_t &val)
+template<class key_t, class val_t, class SearchClass>
+bool AidelModel<key_t, val_t, SearchClass>::find(const key_t &key, val_t &val)
 {
     size_t pos = predict(key);
     //pos = find_lower(key, pos);
@@ -154,8 +201,8 @@ bool AidelModel<key_t, val_t>::find(const key_t &key, val_t &val)
     return false;
 }
 
-template<class key_t, class val_t>
-bool AidelModel<key_t, val_t>::con_find(const key_t &key, val_t &val)
+template<class key_t, class val_t, class SearchClass>
+bool AidelModel<key_t, val_t, SearchClass>::con_find(const key_t &key, val_t &val)
 {
     size_t pos = predict(key);
     //pos = find_lower(key, pos);
@@ -172,8 +219,8 @@ bool AidelModel<key_t, val_t>::con_find(const key_t &key, val_t &val)
     return levelbins[bin_pos]->con_find(key, val);
 }
 
-template<class key_t, class val_t>
-result_t AidelModel<key_t, val_t>::con_find_retrain(const key_t &key, val_t &val)
+template<class key_t, class val_t, class SearchClass>
+result_t AidelModel<key_t, val_t, SearchClass>::con_find_retrain(const key_t &key, val_t &val)
 {
     size_t pos = predict(key);
     pos = locate_in_levelbin(key, pos);
@@ -208,15 +255,15 @@ result_t AidelModel<key_t, val_t>::con_find_retrain(const key_t &key, val_t &val
 }
 
 
-template<class key_t, class val_t>
-inline size_t AidelModel<key_t, val_t>::predict(const key_t &key) {
+template<class key_t, class val_t, class SearchClass>
+inline size_t AidelModel<key_t, val_t, SearchClass>::predict(const key_t &key) {
     size_t index_pos = model->predict(key);
     return index_pos < capacity? index_pos:capacity-1;
 }
 
 
-/*template<class key_t, class val_t>
-inline size_t AidelModel<key_t, val_t>::find_lower(const key_t &key, const size_t pos){
+/*template<class key_t, class val_t, class SearchClass>
+inline size_t AidelModel<key_t, val_t, SearchClass>::find_lower(const key_t &key, const size_t pos){
     // predict
     //size_t index_pos = model->predict(key);
     //index_pos = index_pos < capacity? index_pos:capacity-1;
@@ -258,8 +305,8 @@ inline size_t AidelModel<key_t, val_t>::find_lower(const key_t &key, const size_
     }
 }
 
-template<class key_t, class val_t>
-inline size_t AidelModel<key_t, val_t>::linear_search(const key_t *arr, int n, key_t key) {
+template<class key_t, class val_t, class SearchClass>
+inline size_t AidelModel<key_t, val_t, SearchClass>::linear_search(const key_t *arr, int n, key_t key) {
     intptr_t i = 0;
     while (i < n) {
         if (arr[i] >= key)
@@ -269,8 +316,8 @@ inline size_t AidelModel<key_t, val_t>::linear_search(const key_t *arr, int n, k
     return i;
 }
 
-template<class key_t, class val_t>
-inline size_t AidelModel<key_t, val_t>::find_lower_avx(const int *arr, int n, int key){
+template<class key_t, class val_t, class SearchClass>
+inline size_t AidelModel<key_t, val_t, SearchClass>::find_lower_avx(const int *arr, int n, int key){
     __m256i vkey = _mm256_set1_epi32(key);
     __m256i cnt = _mm256_setzero_si256();
     for (int i = 0; i < n; i += 8) {
@@ -284,8 +331,8 @@ inline size_t AidelModel<key_t, val_t>::find_lower_avx(const int *arr, int n, in
     return _mm_cvtsi128_si32(xcnt);
 }
 
-template<class key_t, class val_t>
-inline size_t AidelModel<key_t, val_t>::find_lower_avx(const int64_t *arr, int n, int64_t key) {
+template<class key_t, class val_t, class SearchClass>
+inline size_t AidelModel<key_t, val_t, SearchClass>::find_lower_avx(const int64_t *arr, int n, int64_t key) {
     __m256i vkey = _mm256_set1_epi64x(key);
     __m256i cnt = _mm256_setzero_si256();
     for (int i = 0; i < n; i += 8) {
@@ -299,8 +346,8 @@ inline size_t AidelModel<key_t, val_t>::find_lower_avx(const int64_t *arr, int n
     return _mm_cvtsi128_si32(xcnt);
 }*/
 
-template<class key_t, class val_t>
-inline size_t AidelModel<key_t, val_t>::locate_in_levelbin(const key_t &key, const size_t pos)
+template<class key_t, class val_t, class SearchClass>
+inline size_t AidelModel<key_t, val_t, SearchClass>::locate_in_levelbin(const key_t &key, const size_t pos)
 {
     // predict
     //size_t index_pos = model->predict(key);
@@ -317,24 +364,26 @@ inline size_t AidelModel<key_t, val_t>::locate_in_levelbin(const key_t &key, con
         end = index_pos;
         begin = end>maxErr? (end-maxErr):0;
     }
+    begin = SearchClass::upper_bound(keys + begin, keys + end + 1, key, keys + index_pos + 1) - keys;
+    return begin >= 1 ? begin - 1 : 0;
     
-    assert(begin<=end);
-    while(begin != end){
-        mid = (end + begin+2) / 2;
-        if(keys[mid]<=key) {
-            begin = mid;
-        } else
-            end = mid-1;
-    }
-    return begin;
+    // assert(begin<=end);
+    // while(begin != end){
+    //     mid = (end + begin+2) / 2;
+    //     if(keys[mid]<=key) {
+    //         begin = mid;
+    //     } else
+    //         end = mid-1;
+    // }
+    // return begin;
 }
 
 
 
 
 // ======================= update =========================
-template<class key_t, class val_t>
-result_t AidelModel<key_t, val_t>::update(const key_t &key, const val_t &val)
+template<class key_t, class val_t, class SearchClass>
+result_t AidelModel<key_t, val_t, SearchClass>::update(const key_t &key, const val_t &val)
 {
     size_t pos = predict(key);
     pos = locate_in_levelbin(key, pos);
@@ -372,8 +421,8 @@ result_t AidelModel<key_t, val_t>::update(const key_t &key, const val_t &val)
 
 
 // =============================== insert =======================
-template<class key_t, class val_t>
-inline bool AidelModel<key_t, val_t>::con_insert(const key_t &key, const val_t &val)
+template<class key_t, class val_t, class SearchClass>
+inline bool AidelModel<key_t, val_t, SearchClass>::con_insert(const key_t &key, const val_t &val)
 {
     size_t pos = predict(key);
     pos = locate_in_levelbin(key, pos);
@@ -402,8 +451,8 @@ inline bool AidelModel<key_t, val_t>::con_insert(const key_t &key, const val_t &
     return levelbins[bin_pos]->con_insert(key, val);
 }
 
-template<class key_t, class val_t>
-result_t AidelModel<key_t, val_t>::con_insert_retrain(const key_t &key, const val_t &val)
+template<class key_t, class val_t, class SearchClass>
+result_t AidelModel<key_t, val_t, SearchClass>::con_insert_retrain(const key_t &key, const val_t &val)
 {
     size_t pos = predict(key);
     pos = locate_in_levelbin(key, pos);
@@ -423,8 +472,8 @@ result_t AidelModel<key_t, val_t>::con_insert_retrain(const key_t &key, const va
 }
 
 
-template<class key_t, class val_t>
-result_t AidelModel<key_t, val_t>::insert_model_or_bin(const key_t &key, const val_t &val, size_t bin_pos)
+template<class key_t, class val_t, class SearchClass>
+result_t AidelModel<key_t, val_t, SearchClass>::insert_model_or_bin(const key_t &key, const val_t &val, size_t bin_pos)
 {
     // insert bin or model
     model_or_bin_t *mob = mobs[bin_pos];
@@ -478,8 +527,8 @@ result_t AidelModel<key_t, val_t>::insert_model_or_bin(const key_t &key, const v
 
 
 // ========================== remove =====================
-template<class key_t, class val_t>
-result_t AidelModel<key_t, val_t>::remove(const key_t &key)
+template<class key_t, class val_t, class SearchClass>
+result_t AidelModel<key_t, val_t, SearchClass>::remove(const key_t &key)
 {
     size_t pos = predict(key);
     pos = locate_in_levelbin(key, pos);
@@ -494,8 +543,8 @@ result_t AidelModel<key_t, val_t>::remove(const key_t &key)
     return remove_model_or_bin(key, bin_pos);
 }
 
-template<class key_t, class val_t>
-result_t AidelModel<key_t, val_t>::remove_model_or_bin(const key_t &key, const int bin_pos)
+template<class key_t, class val_t, class SearchClass>
+result_t AidelModel<key_t, val_t, SearchClass>::remove_model_or_bin(const key_t &key, const int bin_pos)
 {
     memory_fence();
     model_or_bin_t* mob = mobs[bin_pos];
@@ -515,8 +564,8 @@ result_t AidelModel<key_t, val_t>::remove_model_or_bin(const key_t &key, const i
 
 
 // ========================== scan ===================
-template<class key_t, class val_t>
-int AidelModel<key_t, val_t>::scan(const key_t &key, const size_t n, std::vector<std::pair<key_t, val_t>> &result)
+template<class key_t, class val_t, class SearchClass>
+int AidelModel<key_t, val_t, SearchClass>::scan(const key_t &key, const size_t n, std::vector<std::pair<key_t, val_t>> &result)
 {
     size_t remaining = n;
 
@@ -541,11 +590,44 @@ int AidelModel<key_t, val_t>::scan(const key_t &key, const size_t n, std::vector
     return remaining;
 }
 
-
+template<class key_t, class val_t, class SearchClass>
+bool AidelModel<key_t, val_t, SearchClass>::range_scan(const key_t &lkey, const key_t &rkey, std::vector<std::pair<key_t, val_t>> &result){
+    size_t pos = 0;
+    if (lkey >= keys[0]){
+        pos = predict(lkey);
+        pos = locate_in_levelbin(lkey, pos);
+    }
+    bool is_end = false;
+    if(keys[pos] <= lkey){
+        if (keys[pos] == lkey){
+            result.push_back(std::pair<key_t, val_t>(keys[pos], vals[pos]));
+        }
+        ++ pos;
+    }
+    while(!is_end && pos <= capacity) {
+        if(mobs[pos] != nullptr){
+            model_or_bin_t* mob = mobs[pos];
+            if(mob->isbin){
+                is_end = mob->mob.lb->range_scan(lkey, rkey, result);
+            } else {
+                is_end = mob->mob.ai->range_scan(lkey, rkey, result);
+            }
+        }
+        if(!is_end && pos < capacity){
+            if (keys[pos] > rkey){
+                is_end = true;
+                break;
+            }
+            result.push_back(std::pair<key_t, val_t>(keys[pos], vals[pos]));
+        }
+        ++ pos;
+    }
+    return is_end;
+}
 
 // ======================== resort data for retraining ===================
-template<class key_t, class val_t>
-void AidelModel<key_t, val_t>::resort(std::vector<key_t> &keys, std::vector<val_t> &vals)
+template<class key_t, class val_t, class SearchClass>
+void AidelModel<key_t, val_t, SearchClass>::resort(std::vector<key_t> &keys, std::vector<val_t> &vals)
 {
     typename levelbin_type::iterator it;
     for(size_t i=0; i<=capacity; i++){

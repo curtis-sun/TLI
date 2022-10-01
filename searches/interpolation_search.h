@@ -1,55 +1,143 @@
 #pragma once
-#include "searches/search.h"
+#include "search.h"
+#include "linear_search.h"
 
-template <typename KeyType>
-class InterpolationSearch : public Search<KeyType> {
+template <int record>
+class InterpolationSearch : public Search<record> {
  public:
-  uint64_t search(const std::vector<Row<KeyType>>& data,
-                  const KeyType lookup_key, size_t* num_qualifying,
-                  size_t start, size_t end) const {
-    *num_qualifying = 0;
-
-    auto start_it = data.begin() + start;
-    auto end_it = data.begin() + end;
-
-    while (start_it < end_it) {
-      if (std::distance(start_it, end_it) < 64) break;
-
-      KeyType start_key = start_it->key;
-      KeyType end_key = end_it->key;
-      double rel_position =
-          (double)(lookup_key - start_key) / (double)(end_key - start_key);
-      size_t mid_offset =
-          (size_t)(rel_position * (double)std::distance(start_it, end_it));
-
-      auto mid = start_it + mid_offset;
-      if (mid == start_it) break;
-
-      KeyType mid_key = mid->key;
-
-      if (lookup_key < mid_key) {
-        end_it = mid;
-      } else if (lookup_key > mid_key) {
-        start_it = mid;
-      } else {
-        start_it = mid;
-        end_it = mid + 1;
-
-        // scroll back to the first occurrence
-        while (start_it != data.begin() && (start_it - 1)->key == lookup_key)
-          start_it--;
-
-        break;
+  template<typename Iterator, typename KeyType>
+  static forceinline Iterator lower_bound(
+    Iterator first, Iterator last,
+		const KeyType& lookup_key, Iterator start,
+    std::function<KeyType(Iterator)> at = [](Iterator it)->KeyType{
+      return static_cast<KeyType>(*it);
+    },
+    std::function<bool(const KeyType&, const KeyType&)> less = [](const KeyType& key1, const KeyType& key2)->bool{
+      return key1 < key2;
+    }) {
+      record_start();
+      Iterator it;
+      
+      // if (last - first < 1024) {
+      //   it = BranchingBinarySearch<0>::lower_bound(first, last, lookup_key, start, at);
+      //   record_end(start, it);
+      //   return it;
+      // }
+      if (start != last && at(start) < lookup_key){
+        Iterator mid = start;
+        ++mid;
+        it = lower_bound_(mid, last, lookup_key, at);
       }
+      else{
+        it = lower_bound_(first, start, lookup_key, at);
+      }
+      record_end(start, it);
+      return it;
     }
 
-    return bbs.search(data, lookup_key, num_qualifying,
-                      std::distance(data.begin(), start_it),
-                      std::distance(data.begin(), end_it));
-  }
+  template<typename Iterator, typename KeyType>
+  static forceinline Iterator upper_bound(
+    Iterator first, Iterator last,
+		const KeyType& lookup_key, Iterator start, 
+    std::function<KeyType(Iterator)> at = [](Iterator it)->KeyType{
+      return static_cast<KeyType>(*it);
+    },
+    std::function<bool(const KeyType&, const KeyType&)> less = [](const KeyType& key1, const KeyType& key2)->bool{
+      return key1 < key2;
+    }) {
+      record_start();
+      Iterator it;
 
-  std::string name() const { return "InterpolationSearch"; }
+      if (start == last || lookup_key < at(start)){
+        it = upper_bound_(first, start, lookup_key, at);
+      }
+      else{
+        Iterator mid = start;
+        ++mid;
+        it = upper_bound_(mid, last, lookup_key, at);
+      }
+      record_end(start, it);
+      return it;
+    }
 
- private:
-  BranchingBinarySearch<KeyType> bbs;
+  static std::string name() { return "InterpolationSearch"; }
+
+private:
+  template<typename Iterator, typename KeyType>
+  static forceinline Iterator lower_bound_(
+    Iterator first, Iterator last,
+		const KeyType& lookup_key, std::function<KeyType(Iterator)> at) {
+      if (first == last) {
+        return first;
+      }
+
+      --last;
+      while(at(first) < at(last) && at(first) < lookup_key && !(at(last) < lookup_key)){
+        double rel_position =
+          (double)(lookup_key - at(first)) / (double)(at(last) - at(first));
+        size_t mid_offset = rel_position * std::distance(first, last);
+        Iterator mid = first;
+        std::advance(mid, mid_offset);
+
+        if (at(mid) < lookup_key){
+          first = ++mid;
+        } else if (lookup_key < at(mid)){
+          last = --mid;
+        }
+        else {
+          while (mid != first && at(mid) == lookup_key){
+            --mid;
+          }
+          if (at(mid) < lookup_key){
+            ++mid;
+          }
+          return mid;
+        }
+      }
+
+      if (!(at(first) < lookup_key)){
+        return first;
+      }
+      ++last;
+
+      return last;
+    }
+
+  template<typename Iterator, typename KeyType>
+  static forceinline Iterator upper_bound_(
+    Iterator first, Iterator last,
+		const KeyType& lookup_key, std::function<KeyType(Iterator)> at) {
+      if (first == last) {
+        return first;
+      }
+
+      --last;
+      while(at(first) < at(last) && !(lookup_key < at(first)) && lookup_key < at(last)){
+        double rel_position =
+          (double)(lookup_key - at(first)) / (double)(at(last) - at(first));
+        size_t mid_offset = rel_position * std::distance(first, last);
+        Iterator mid = first;
+        std::advance(mid, mid_offset);
+
+        if (at(mid) < lookup_key){
+          first = ++mid;
+        } else if (lookup_key < at(mid)){
+          last = --mid;
+        }
+        else {
+          ++last;
+          while (mid != last && at(mid) == lookup_key){
+            ++mid;
+          }
+          return mid;
+        }
+      }
+
+      if (lookup_key < at(first)){
+        return first;
+      }
+      ++last;
+
+      return last;
+    }
 };

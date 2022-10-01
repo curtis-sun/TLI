@@ -27,7 +27,7 @@
 
 namespace sindex {
 
-template <class key_t, class val_t, bool seq, size_t max_model_n = 4>
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n = 4>
 class alignas(CACHELINE_SIZE) Group {
   typedef AtomicVal<val_t> atomic_val_t;
   typedef atomic_val_t wrapped_val_t;
@@ -35,9 +35,9 @@ class alignas(CACHELINE_SIZE) Group {
   typedef uint64_t version_t;
   typedef std::pair<key_t, wrapped_val_t> record_t;
 
-  template <class key_tt, class val_tt, bool sequential>
+  template <class key_tt, class val_tt, bool sequential, class sc>
   friend class SIndex;
-  template <class key_tt, class val_tt, bool sequential>
+  template <class key_tt, class val_tt, bool sequential, class sc>
   friend class Root;
 
   struct ArrayDataSource {
@@ -97,6 +97,9 @@ class alignas(CACHELINE_SIZE) Group {
 
   void free_data();
   void free_buffer();
+  void free_buffer_temp();
+
+  unsigned long long size() const;
 
  private:
   inline size_t locate_model(const key_t &key);

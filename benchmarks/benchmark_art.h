@@ -1,6 +1,9 @@
 #pragma once
 #include "benchmark.h"
 
-template <template <typename> typename Searcher>
-void benchmark_64_art(sosd::Benchmark<uint64_t, Searcher>& benchmark,
-                      bool pareto);
+// void benchmark_32_art(sosd::Benchmark<uint32_t>& benchmark,
+//                       bool pareto);
+
+void benchmark_64_art(sosd::Benchmark<uint64_t>& benchmark);
+
+void benchmark_string_art(sosd::Benchmark<std::string>& benchmark);

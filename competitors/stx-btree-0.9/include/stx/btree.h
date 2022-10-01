@@ -153,7 +153,7 @@ struct btree_default_map_traits
  * This class is specialized into btree_set, btree_multiset, btree_map and
  * btree_multimap using default template parameters and facade functions.
  */
-template <typename _Key, typename _Data,
+template <typename _Key, typename _Data, typename SearchClass,
           typename _Value = std::pair<_Key, _Data>,
           typename _Compare = std::less<_Key>,
           typename _Traits = btree_default_map_traits<_Key, _Data>,
@@ -209,7 +209,7 @@ public:
     // *** Constructed Types
 
     /// Typedef of our own type
-    typedef btree<key_type, data_type, value_type, key_compare,
+    typedef btree<key_type, data_type, SearchClass, value_type, key_compare,
                   traits, allow_duplicates, allocator_type, used_as_set> btree_self;
 
     /// Size type used to count keys
@@ -479,7 +479,7 @@ public:
 
         /// Also friendly to the base btree class, because erase_iter() needs
         /// to read the currnode and currslot values directly.
-        friend class btree<key_type, data_type, value_type, key_compare,
+        friend class btree<key_type, data_type, SearchClass, value_type, key_compare,
                            traits, allow_duplicates, allocator_type, used_as_set>;
 
         /// Evil! A temporary value_type to STL-correctly deliver operator* and
@@ -1380,7 +1380,7 @@ public:
         { }
 
         /// Friendly to the btree class so it may call the constructor
-        friend class btree<key_type, data_type, value_type, key_compare,
+        friend class btree<key_type, data_type, SearchClass, value_type, key_compare,
                            traits, allow_duplicates, allocator_type, used_as_set>;
 
     public:
@@ -1634,44 +1634,45 @@ private:
     template <typename node_type>
     inline int find_lower(const node_type *n, const key_type& key) const
     {
-        if ( 0 && sizeof(n->slotkey) > traits::binsearch_threshold )
-        {
-            if (n->slotuse == 0) return 0;
+        // if ( 0 && sizeof(n->slotkey) > traits::binsearch_threshold )
+        // {
+        //     if (n->slotuse == 0) return 0;
 
-            int lo = 0, hi = n->slotuse;
+        //     int lo = 0, hi = n->slotuse;
 
-            while (lo < hi)
-            {
-                int mid = (lo + hi) >> 1;
+        //     while (lo < hi)
+        //     {
+        //         int mid = (lo + hi) >> 1;
 
-                if (key_lessequal(key, n->slotkey[mid])) {
-                    hi = mid; // key <= mid
-                }
-                else {
-                    lo = mid + 1; // key > mid
-                }
-            }
+        //         if (key_lessequal(key, n->slotkey[mid])) {
+        //             hi = mid; // key <= mid
+        //         }
+        //         else {
+        //             lo = mid + 1; // key > mid
+        //         }
+        //     }
 
-            BTREE_PRINT("btree::find_lower: on " << n << " key " << key << " -> " << lo << " / " << hi);
+        //     BTREE_PRINT("btree::find_lower: on " << n << " key " << key << " -> " << lo << " / " << hi);
 
-            // verify result using simple linear search
-            if (selfverify)
-            {
-                int i = 0;
-                while (i < n->slotuse && key_less(n->slotkey[i],key)) ++i;
+        //     // verify result using simple linear search
+        //     if (selfverify)
+        //     {
+        //         int i = 0;
+        //         while (i < n->slotuse && key_less(n->slotkey[i],key)) ++i;
 
-                BTREE_PRINT("btree::find_lower: testfind: " << i);
-                BTREE_ASSERT(i == lo);
-            }
+        //         BTREE_PRINT("btree::find_lower: testfind: " << i);
+        //         BTREE_ASSERT(i == lo);
+        //     }
 
-            return lo;
-        }
-        else // for nodes <= binsearch_threshold do linear search.
-        {
-            int lo = 0;
-            while (lo < n->slotuse && key_less(n->slotkey[lo],key)) ++lo;
-            return lo;
-        }
+        //     return lo;
+        // }
+        // else // for nodes <= binsearch_threshold do linear search.
+        // {
+        //     int lo = 0;
+        //     while (lo < n->slotuse && key_less(n->slotkey[lo],key)) ++lo;
+        //     return lo;
+        // }
+        return SearchClass::lower_bound(n->slotkey, n->slotkey + n->slotuse, key, n->slotkey) - n->slotkey;
     }
 
     /// Searches for the first key in the node n greater than key. Uses binary
@@ -1681,44 +1682,45 @@ private:
     template <typename node_type>
     inline int find_upper(const node_type *n, const key_type& key) const
     {
-        if ( 0 && sizeof(n->slotkey) > traits::binsearch_threshold )
-        {
-            if (n->slotuse == 0) return 0;
+        // if ( 0 && sizeof(n->slotkey) > traits::binsearch_threshold )
+        // {
+        //     if (n->slotuse == 0) return 0;
 
-            int lo = 0, hi = n->slotuse;
+        //     int lo = 0, hi = n->slotuse;
 
-            while (lo < hi)
-            {
-                int mid = (lo + hi) >> 1;
+        //     while (lo < hi)
+        //     {
+        //         int mid = (lo + hi) >> 1;
 
-                if (key_less(key, n->slotkey[mid])) {
-                    hi = mid; // key < mid
-                }
-                else {
-                    lo = mid + 1; // key >= mid
-                }
-            }
+        //         if (key_less(key, n->slotkey[mid])) {
+        //             hi = mid; // key < mid
+        //         }
+        //         else {
+        //             lo = mid + 1; // key >= mid
+        //         }
+        //     }
 
-            BTREE_PRINT("btree::find_upper: on " << n << " key " << key << " -> " << lo << " / " << hi);
+        //     BTREE_PRINT("btree::find_upper: on " << n << " key " << key << " -> " << lo << " / " << hi);
 
-            // verify result using simple linear search
-            if (selfverify)
-            {
-                int i = 0;
-                while (i < n->slotuse && key_lessequal(n->slotkey[i],key)) ++i;
+        //     // verify result using simple linear search
+        //     if (selfverify)
+        //     {
+        //         int i = 0;
+        //         while (i < n->slotuse && key_lessequal(n->slotkey[i],key)) ++i;
 
-                BTREE_PRINT("btree::find_upper testfind: " << i);
-                BTREE_ASSERT(i == hi);
-            }
+        //         BTREE_PRINT("btree::find_upper testfind: " << i);
+        //         BTREE_ASSERT(i == hi);
+        //     }
 
-            return lo;
-        }
-        else // for nodes <= binsearch_threshold do linear search.
-        {
-            int lo = 0;
-            while (lo < n->slotuse && key_lessequal(n->slotkey[lo],key)) ++lo;
-            return lo;
-        }
+        //     return lo;
+        // }
+        // else // for nodes <= binsearch_threshold do linear search.
+        // {
+        //     int lo = 0;
+        //     while (lo < n->slotuse && key_lessequal(n->slotkey[lo],key)) ++lo;
+        //     return lo;
+        // }
+        return SearchClass::upper_bound(n->slotkey, n->slotkey + n->slotuse, key, n->slotkey) - n->slotkey;
     }
 
 public:

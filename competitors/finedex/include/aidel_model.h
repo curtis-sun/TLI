@@ -8,12 +8,12 @@
 
 namespace aidel{
 
-template<class key_t, class val_t>
+template<class key_t, class val_t, class SearchClass>
 class AidelModel {
 public:
     typedef LinearRegressionModel<key_t> lrmodel_type;
     typedef aidel::LevelBinCon<key_t, val_t> levelbin_type;
-    typedef aidel::AidelModel<key_t, val_t> aidelmodel_type;
+    typedef aidel::AidelModel<key_t, val_t, SearchClass> aidelmodel_type;
 
     typedef struct model_or_bin {
         typedef union pointer{
@@ -58,6 +58,11 @@ public:
     int scan(const key_t &key, const size_t n, std::vector<std::pair<key_t, val_t>> &result);
 
     void resort(std::vector<key_t> &keys, std::vector<val_t> &vals);
+
+    bool range_scan(const key_t &lkey, const key_t &rkey, std::vector<std::pair<key_t, val_t>> &result);
+    size_t size() const;
+
+    void clear();
 
 private:
     inline size_t predict(const key_t &key);

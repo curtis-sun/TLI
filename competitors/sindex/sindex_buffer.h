@@ -30,7 +30,7 @@ const uint8_t node_capacity = alt_buf_fanout - 1;
 
 template <class key_t, class val_t>
 class AltBtreeBuffer {
-  template <class key_t_, class val_t_, bool optt, size_t max_model_n>
+  template <class key_t_, class val_t_, bool optt, class sc, size_t max_model_n>
   friend class Group;
   class Node;
   class Internal;
@@ -144,6 +144,8 @@ class AltBtreeBuffer {
                          std::vector<std::pair<key_t, val_t>> &result);
 
   inline uint32_t size();
+
+  unsigned long long size_in_byte() const;
 
  private:
   leaf_t *locate_leaf(key_t key, uint64_t &version);

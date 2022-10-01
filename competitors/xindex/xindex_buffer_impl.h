@@ -146,6 +146,11 @@ inline uint32_t AltBtreeBuffer<key_t, val_t>::size() {
 }
 
 template <class key_t, class val_t>
+unsigned long long AltBtreeBuffer<key_t, val_t>::size_in_byte() const{
+  return allocated_blocks.size() * node_n_per_block * node_size;
+}
+
+template <class key_t, class val_t>
 inline typename AltBtreeBuffer<key_t, val_t>::leaf_t *
 AltBtreeBuffer<key_t, val_t>::locate_leaf(key_t key, uint64_t &leaf_ver) {
 retry:

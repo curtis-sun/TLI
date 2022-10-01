@@ -23,6 +23,7 @@
 #include <cstdlib>
 #include <memory>
 #include <mutex>
+#include <vector>
 
 #if !defined(SINDEX_UTIL_H)
 #define SINDEX_UTIL_H

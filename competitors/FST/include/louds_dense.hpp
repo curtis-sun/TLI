@@ -178,8 +178,8 @@ class LoudsDense {
   position_t getPrevPos(position_t pos, bool *is_out_of_bound) const;
 
  private:
-  static const position_t kNodeFanout = 256;
-  static const position_t kRankBasicBlockSize = 512;
+  static const position_t kNodeFanout;
+  static const position_t kRankBasicBlockSize;
 
   std::vector<uint64_t> keys_values_dense_;
 
@@ -561,6 +561,9 @@ void LoudsDense::Iter::operator--(int) {
   set(key_len_ - 1, prev_pos);
   return moveToRightMostKey();
 }
+
+const position_t LoudsDense::kNodeFanout = 256;
+const position_t LoudsDense::kRankBasicBlockSize = 512;
 
 }  // namespace fst
 

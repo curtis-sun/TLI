@@ -14,17 +14,17 @@
 // }}} headers
 
 // crc32c {{{
-  inline u32
-kv_crc32c(const void * const ptr, u32 len)
+  inline U32
+kv_crc32c(const void * const ptr, U32 len)
 {
-  return crc32c_inc((const u8 *)ptr, len, KV_CRC32C_SEED);
+  return crc32c_inc((const U8 *)ptr, len, KV_CRC32C_SEED);
 }
 
-  inline u64
-kv_crc32c_extend(const u32 lo)
+  inline U64
+kv_crc32c_extend(const U32 lo)
 {
-  const u64 hi = (u64)(~lo);
-  return (hi << 32) | ((u64)lo);
+  const U64 hi = (U64)(~lo);
+  return (hi << 32) | ((U64)lo);
 }
 // }}} crc32c
 
@@ -38,7 +38,7 @@ kv_size(const struct kv * const kv)
 }
 
   inline size_t
-kv_size_align(const struct kv * const kv, const u64 align)
+kv_size_align(const struct kv * const kv, const U64 align)
 {
   debug_assert(align && ((align & (align - 1)) == 0));
   return (sizeof(*kv) + kv->klen + kv->vlen + (align - 1)) & (~(align - 1));
@@ -51,7 +51,7 @@ key_size(const struct kv *const key)
 }
 
   inline size_t
-key_size_align(const struct kv *const key, const u64 align)
+key_size_align(const struct kv *const key, const U64 align)
 {
   debug_assert(align && ((align & (align - 1)) == 0));
   return (sizeof(*key) + key->klen + (align - 1)) & (~(align - 1));
@@ -62,12 +62,12 @@ key_size_align(const struct kv *const key, const u64 align)
   inline void
 kv_update_hash(struct kv * const kv)
 {
-  const u32 lo = kv_crc32c((const void *)kv->kv, kv->klen);
+  const U32 lo = kv_crc32c((const void *)kv->kv, kv->klen);
   kv->hash = kv_crc32c_extend(lo);
 }
 
   inline void
-kv_refill_value(struct kv * const kv, const void * const value, const u32 vlen)
+kv_refill_value(struct kv * const kv, const void * const value, const U32 vlen)
 {
   debug_assert((vlen == 0) || value);
   memcpy(&(kv->kv[kv->klen]), value, vlen);
@@ -75,8 +75,8 @@ kv_refill_value(struct kv * const kv, const void * const value, const u32 vlen)
 }
 
   inline void
-kv_refill(struct kv * const kv, const void * const key, const u32 klen,
-    const void * const value, const u32 vlen)
+kv_refill(struct kv * const kv, const void * const key, const U32 klen,
+    const void * const value, const U32 vlen)
 {
   debug_assert(kv);
   kv->klen = klen;
@@ -87,30 +87,30 @@ kv_refill(struct kv * const kv, const void * const key, const u32 klen,
 
   inline void
 kv_refill_str(struct kv * const kv, const char * const key,
-    const void * const value, const u32 vlen)
+    const void * const value, const U32 vlen)
 {
-  kv_refill(kv, key, (u32)strlen(key), value, vlen);
+  kv_refill(kv, key, (U32)strlen(key), value, vlen);
 }
 
   inline void
 kv_refill_str_str(struct kv * const kv, const char * const key,
     const char * const value)
 {
-  kv_refill(kv, key, (u32)strlen(key), value, (u32)strlen(value));
+  kv_refill(kv, key, (U32)strlen(key), value, (U32)strlen(value));
 }
 
-// the u64 key is filled in big-endian byte order for correct ordering
+// the U64 key is filled in big-endian byte order for correct ordering
   inline void
-kv_refill_u64(struct kv * const kv, const u64 key, const void * const value, const u32 vlen)
+kv_refill_u64(struct kv * const kv, const U64 key, const void * const value, const U32 vlen)
 {
-  kv->klen = sizeof(u64);
-  *(u64 *)(kv->kv) = __builtin_bswap64(key); // bswap on little endian
+  kv->klen = sizeof(U64);
+  *(U64 *)(kv->kv) = __builtin_bswap64(key); // bswap on little endian
   kv_refill_value(kv, value, vlen);
   kv_update_hash(kv);
 }
 
   inline void
-kv_refill_hex32(struct kv * const kv, const u32 hex, const void * const value, const u32 vlen)
+kv_refill_hex32(struct kv * const kv, const U32 hex, const void * const value, const U32 vlen)
 {
   kv->klen = 8;
   strhex_32(kv->kv, hex);
@@ -119,7 +119,7 @@ kv_refill_hex32(struct kv * const kv, const u32 hex, const void * const value, c
 }
 
   inline void
-kv_refill_hex64(struct kv * const kv, const u64 hex, const void * const value, const u32 vlen)
+kv_refill_hex64(struct kv * const kv, const U64 hex, const void * const value, const U32 vlen)
 {
   kv->klen = 16;
   strhex_64(kv->kv, hex);
@@ -128,8 +128,8 @@ kv_refill_hex64(struct kv * const kv, const u64 hex, const void * const value, c
 }
 
   inline void
-kv_refill_hex64_klen(struct kv * const kv, const u64 hex,
-    const u32 klen, const void * const value, const u32 vlen)
+kv_refill_hex64_klen(struct kv * const kv, const U64 hex,
+    const U32 klen, const void * const value, const U32 vlen)
 {
   strhex_64(kv->kv, hex);
   if (klen > 16) {
@@ -153,7 +153,7 @@ kv_refill_kref(struct kv * const kv, const struct kref * const kref)
 
   inline void
 kv_refill_kref_v(struct kv * const kv, const struct kref * const kref,
-    const void * const value, const u32 vlen)
+    const void * const value, const U32 vlen)
 {
   kv->klen = kref->len;
   kv->vlen = vlen;
@@ -169,7 +169,7 @@ kv_kref(const struct kv * const key)
 }
 
   inline struct kv *
-kv_create(const void * const key, const u32 klen, const void * const value, const u32 vlen)
+kv_create(const void * const key, const U32 klen, const void * const value, const U32 vlen)
 {
   struct kv * const kv = malloc(sizeof(*kv) + klen + vlen);
   if (kv)
@@ -178,19 +178,19 @@ kv_create(const void * const key, const u32 klen, const void * const value, cons
 }
 
   inline struct kv *
-kv_create_str(const char * const key, const void * const value, const u32 vlen)
+kv_create_str(const char * const key, const void * const value, const U32 vlen)
 {
-  return kv_create(key, (u32)strlen(key), value, vlen);
+  return kv_create(key, (U32)strlen(key), value, vlen);
 }
 
   inline struct kv *
 kv_create_str_str(const char * const key, const char * const value)
 {
-  return kv_create(key, (u32)strlen(key), value, (u32)strlen(value));
+  return kv_create(key, (U32)strlen(key), value, (U32)strlen(value));
 }
 
   inline struct kv *
-kv_create_kref(const struct kref * const kref, const void * const value, const u32 vlen)
+kv_create_kref(const struct kref * const kref, const void * const value, const U32 vlen)
 {
   return kv_create(kref->ptr, kref->len, value, vlen);
 }
@@ -267,7 +267,7 @@ kv_dup2_key(const struct kv * const from, struct kv * const to)
 }
 
   inline struct kv *
-kv_dup2_key_prefix(const struct kv * const from, struct kv * const to, const u32 plen)
+kv_dup2_key_prefix(const struct kv * const from, struct kv * const to, const U32 plen)
 {
   if (from == NULL)
     return NULL;
@@ -286,7 +286,7 @@ kv_dup2_key_prefix(const struct kv * const from, struct kv * const to, const u32
 
 // compare {{{
   static inline int
-klen_compare(const u32 len1, const u32 len2)
+klen_compare(const U32 len1, const U32 len2)
 {
   if (len1 < len2)
     return -1;
@@ -301,7 +301,7 @@ klen_compare(const u32 len1, const u32 len2)
   inline bool
 kv_match(const struct kv * const key1, const struct kv * const key2)
 {
-  //cpu_prefetch0(((u8 *)key2) + 64);
+  //cpu_prefetch0(((U8 *)key2) + 64);
   //return (key1->hash == key2->hash)
   //  && (key1->klen == key2->klen)
   //  && (!memcmp(key1->kv, key2->kv, key1->klen));
@@ -327,14 +327,14 @@ kv_match_full(const struct kv * const kv1, const struct kv * const kv2)
 }
 
   bool
-kv_match_kv128(const struct kv * const sk, const u8 * const kv128)
+kv_match_kv128(const struct kv * const sk, const U8 * const kv128)
 {
   debug_assert(sk);
   debug_assert(kv128);
 
-  u32 klen128 = 0;
-  u32 vlen128 = 0;
-  const u8 * const pdata = vi128_decode_u32(vi128_decode_u32(kv128, &klen128), &vlen128);
+  U32 klen128 = 0;
+  U32 vlen128 = 0;
+  const U8 * const pdata = vi128_decode_u32(vi128_decode_u32(kv128, &klen128), &vlen128);
   (void)vlen128;
   return (sk->klen == klen128) && (!memcmp(sk->kv, pdata, klen128));
 }
@@ -342,7 +342,7 @@ kv_match_kv128(const struct kv * const sk, const u8 * const kv128)
   inline int
 kv_compare(const struct kv * const kv1, const struct kv * const kv2)
 {
-  const u32 len = kv1->klen < kv2->klen ? kv1->klen : kv2->klen;
+  const U32 len = kv1->klen < kv2->klen ? kv1->klen : kv2->klen;
   const int cmp = memcmp(kv1->kv, kv2->kv, (size_t)len);
   return cmp ? cmp : klen_compare(kv1->klen, kv2->klen);
 }
@@ -357,27 +357,27 @@ kv_compare_ptrs(const void * const p1, const void * const p2)
 }
 
   int
-kv_k128_compare(const struct kv * const sk, const u8 * const k128)
+kv_k128_compare(const struct kv * const sk, const U8 * const k128)
 {
   debug_assert(sk);
-  const u32 klen1 = sk->klen;
-  u32 klen2 = 0;
-  const u8 * const ptr2 = vi128_decode_u32(k128, &klen2);
+  const U32 klen1 = sk->klen;
+  U32 klen2 = 0;
+  const U8 * const ptr2 = vi128_decode_u32(k128, &klen2);
   debug_assert(ptr2);
-  const u32 len = (klen1 < klen2) ? klen1 : klen2;
+  const U32 len = (klen1 < klen2) ? klen1 : klen2;
   const int cmp = memcmp(sk->kv, ptr2, len);
   return cmp ? cmp : klen_compare(klen1, klen2);
 }
 
   int
-kv_kv128_compare(const struct kv * const sk, const u8 * const kv128)
+kv_kv128_compare(const struct kv * const sk, const U8 * const kv128)
 {
   debug_assert(sk);
-  const u32 klen1 = sk->klen;
-  u32 klen2 = 0;
-  u32 vlen2 = 0;
-  const u8 * const ptr2 = vi128_decode_u32(vi128_decode_u32(kv128, &klen2), &vlen2);
-  const u32 len = (klen1 < klen2) ? klen1 : klen2;
+  const U32 klen1 = sk->klen;
+  U32 klen2 = 0;
+  U32 vlen2 = 0;
+  const U8 * const ptr2 = vi128_decode_u32(vi128_decode_u32(kv128, &klen2), &vlen2);
+  const U32 len = (klen1 < klen2) ? klen1 : klen2;
   const int cmp = memcmp(sk->kv, ptr2, len);
   return cmp ? cmp : klen_compare(klen1, klen2);
 }
@@ -389,18 +389,18 @@ kv_qsort(struct kv ** const kvs, const size_t nr)
 }
 
 // return the length of longest common prefix of the two keys
-  inline u32
+  inline U32
 kv_key_lcp(const struct kv * const key1, const struct kv * const key2)
 {
-  const u32 max = (key1->klen < key2->klen) ? key1->klen : key2->klen;
+  const U32 max = (key1->klen < key2->klen) ? key1->klen : key2->klen;
   return memlcp(key1->kv, key2->kv, max);
 }
 
 // return the length of longest common prefix of the two keys with a known lcp0
-  inline u32
-kv_key_lcp_skip(const struct kv * const key1, const struct kv * const key2, const u32 lcp0)
+  inline U32
+kv_key_lcp_skip(const struct kv * const key1, const struct kv * const key2, const U32 lcp0)
 {
-  const u32 max = (key1->klen < key2->klen) ? key1->klen : key2->klen;
+  const U32 max = (key1->klen < key2->klen) ? key1->klen : key2->klen;
   debug_assert(max >= lcp0);
   return lcp0 + memlcp(key1->kv+lcp0, key2->kv+lcp0, max-lcp0);
 }
@@ -408,7 +408,7 @@ kv_key_lcp_skip(const struct kv * const key1, const struct kv * const key2, cons
 
 // psort {{{
   static inline void
-kv_psort_exchange(struct kv ** const kvs, const u64 i, const u64 j)
+kv_psort_exchange(struct kv ** const kvs, const U64 i, const U64 j)
 {
   if (i != j) {
     struct kv * const tmp = kvs[i];
@@ -417,16 +417,16 @@ kv_psort_exchange(struct kv ** const kvs, const u64 i, const u64 j)
   }
 }
 
-  static u64
-kv_psort_partition(struct kv ** const kvs, const u64 lo, const u64 hi)
+  static U64
+kv_psort_partition(struct kv ** const kvs, const U64 lo, const U64 hi)
 {
   if (lo >= hi)
     return lo;
 
-  const u64 p = (lo+hi) >> 1;
+  const U64 p = (lo+hi) >> 1;
   kv_psort_exchange(kvs, lo, p);
-  u64 i = lo;
-  u64 j = hi + 1;
+  U64 i = lo;
+  U64 j = hi + 1;
   do {
     while (kv_compare(kvs[++i], kvs[lo]) < 0 && i < hi);
     while (kv_compare(kvs[--j], kvs[lo]) > 0);
@@ -439,11 +439,11 @@ kv_psort_partition(struct kv ** const kvs, const u64 lo, const u64 hi)
 }
 
   static void
-kv_psort_rec(struct kv ** const kvs, const u64 lo, const u64 hi, const u64 tlo, const u64 thi)
+kv_psort_rec(struct kv ** const kvs, const U64 lo, const U64 hi, const U64 tlo, const U64 thi)
 {
   if (lo >= hi)
     return;
-  const u64 c = kv_psort_partition(kvs, lo, hi);
+  const U64 c = kv_psort_partition(kvs, lo, hi);
 
   if (c > tlo) // go left
     kv_psort_rec(kvs, lo, c-1, tlo, thi);
@@ -453,7 +453,7 @@ kv_psort_rec(struct kv ** const kvs, const u64 lo, const u64 hi, const u64 tlo, 
 }
 
   inline void
-kv_psort(struct kv ** const kvs, const u64 nr, const u64 tlo, const u64 thi)
+kv_psort(struct kv ** const kvs, const U64 nr, const U64 tlo, const U64 thi)
 {
   debug_assert(tlo <= thi);
   debug_assert(thi < nr);
@@ -494,7 +494,7 @@ kv_kptr_c(const struct kv * const kv)
 kv_print(const struct kv * const kv, const char * const cmd, FILE * const out)
 {
   debug_assert(cmd);
-  const u32 klen = kv->klen;
+  const U32 klen = kv->klen;
   fprintf(out, "#%016lx k[%3u]", kv->hash, klen);
 
   switch(cmd[0]) {
@@ -504,7 +504,7 @@ kv_print(const struct kv * const kv, const char * const cmd, FILE * const out)
   default: break;
   }
 
-  const u32 vlen = kv->vlen;
+  const U32 vlen = kv->vlen;
   switch (cmd[1]) {
   case 's': fprintf(out, "  v[%4u] %.*s", vlen, vlen, kv->kv+klen); break;
   case 'x': fprintf(out, "  v[%4u]", vlen); str_print_hex(out, kv->kv+klen, vlen); break;
@@ -579,7 +579,7 @@ const struct kvmap_mm kvmap_mm_ndf = {
 
 // kref {{{
   inline void
-kref_ref_raw(struct kref * const kref, const u8 * const ptr, const u32 len)
+kref_ref_raw(struct kref * const kref, const U8 * const ptr, const U32 len)
 {
   kref->ptr = ptr;
   kref->len = len;
@@ -587,7 +587,7 @@ kref_ref_raw(struct kref * const kref, const u8 * const ptr, const u32 len)
 }
 
   inline void
-kref_ref_hash32(struct kref * const kref, const u8 * const ptr, const u32 len)
+kref_ref_hash32(struct kref * const kref, const U8 * const ptr, const U32 len)
 {
   kref->ptr = ptr;
   kref->len = len;
@@ -632,7 +632,7 @@ kref_kv_match(const struct kref * const kref, const struct kv * const k)
   inline int
 kref_compare(const struct kref * const kref1, const struct kref * const kref2)
 {
-  const u32 len = kref1->len < kref2->len ? kref1->len : kref2->len;
+  const U32 len = kref1->len < kref2->len ? kref1->len : kref2->len;
   const int cmp = memcmp(kref1->ptr, kref2->ptr, (size_t)len);
   return cmp ? cmp : klen_compare(kref1->len, kref2->len);
 }
@@ -643,49 +643,49 @@ kref_kv_compare(const struct kref * const kref, const struct kv * const k)
 {
   debug_assert(kref);
   debug_assert(k);
-  const u32 len = kref->len < k->klen ? kref->len : k->klen;
+  const U32 len = kref->len < k->klen ? kref->len : k->klen;
   const int cmp = memcmp(kref->ptr, k->kv, (size_t)len);
   return cmp ? cmp : klen_compare(kref->len, k->klen);
 }
 
-  inline u32
+  inline U32
 kref_lcp(const struct kref * const k1, const struct kref * const k2)
 {
-  const u32 max = (k1->len < k2->len) ? k1->len : k2->len;
+  const U32 max = (k1->len < k2->len) ? k1->len : k2->len;
   return memlcp(k1->ptr, k2->ptr, max);
 }
 
-  inline u32
+  inline U32
 kref_kv_lcp(const struct kref * const kref, const struct kv * const kv)
 {
-  const u32 max = (kref->len < kv->klen) ? kref->len : kv->klen;
+  const U32 max = (kref->len < kv->klen) ? kref->len : kv->klen;
   return memlcp(kref->ptr, kv->kv, max);
 }
 
 // klen, key, ...
   inline int
-kref_k128_compare(const struct kref * const sk, const u8 * const k128)
+kref_k128_compare(const struct kref * const sk, const U8 * const k128)
 {
   debug_assert(sk);
-  const u32 klen1 = sk->len;
-  u32 klen2 = 0;
-  const u8 * const ptr2 = vi128_decode_u32(k128, &klen2);
+  const U32 klen1 = sk->len;
+  U32 klen2 = 0;
+  const U8 * const ptr2 = vi128_decode_u32(k128, &klen2);
   debug_assert(ptr2);
-  const u32 len = (klen1 < klen2) ? klen1 : klen2;
+  const U32 len = (klen1 < klen2) ? klen1 : klen2;
   const int cmp = memcmp(sk->ptr, ptr2, len);
   return cmp ? cmp : klen_compare(klen1, klen2);
 }
 
 // klen, vlen, key, ...
   inline int
-kref_kv128_compare(const struct kref * const sk, const u8 * const kv128)
+kref_kv128_compare(const struct kref * const sk, const U8 * const kv128)
 {
   debug_assert(sk);
-  const u32 klen1 = sk->len;
-  u32 klen2 = 0;
-  u32 vlen2 = 0;
-  const u8 * const ptr2 = vi128_decode_u32(vi128_decode_u32(kv128, &klen2), &vlen2);
-  const u32 len = (klen1 < klen2) ? klen1 : klen2;
+  const U32 klen1 = sk->len;
+  U32 klen2 = 0;
+  U32 vlen2 = 0;
+  const U8 * const ptr2 = vi128_decode_u32(vi128_decode_u32(kv128, &klen2), &vlen2);
+  const U32 len = (klen1 < klen2) ? klen1 : klen2;
   const int cmp = memcmp(sk->ptr, ptr2, len);
   return cmp ? cmp : klen_compare(klen1, klen2);
 }
@@ -742,7 +742,7 @@ kvref_dup2_key(struct kvref * const ref, struct kv * const to)
   int
 kvref_kv_compare(const struct kvref * const ref, const struct kv * const kv)
 {
-  const u32 len = ref->hdr.klen < kv->klen ? ref->hdr.klen : kv->klen;
+  const U32 len = ref->hdr.klen < kv->klen ? ref->hdr.klen : kv->klen;
   const int cmp = memcmp(ref->kptr, kv->kv, (size_t)len);
   return cmp ? cmp : klen_compare(ref->hdr.klen, kv->klen);
 }
@@ -757,14 +757,14 @@ kv128_estimate_kv(const struct kv * const kv)
 }
 
 // create a kv128 from kv
-  u8 *
-kv128_encode_kv(const struct kv * const kv, u8 * const out, size_t * const pesize)
+  U8 *
+kv128_encode_kv(const struct kv * const kv, U8 * const out, size_t * const pesize)
 {
-  u8 * const ptr = out ? out : malloc(kv128_estimate_kv(kv));
+  U8 * const ptr = out ? out : malloc(kv128_estimate_kv(kv));
   if (!ptr)
     return NULL;
 
-  u8 * const pdata = vi128_encode_u32(vi128_encode_u32(ptr, kv->klen), kv->vlen);
+  U8 * const pdata = vi128_encode_u32(vi128_encode_u32(ptr, kv->klen), kv->vlen);
   memcpy(pdata, kv->kv, kv->klen + kv->vlen);
 
   if (pesize)
@@ -774,10 +774,10 @@ kv128_encode_kv(const struct kv * const kv, u8 * const out, size_t * const pesiz
 
 // dup kv128 to a kv
   struct kv *
-kv128_decode_kv(const u8 * const ptr, struct kv * const out, size_t * const pesize)
+kv128_decode_kv(const U8 * const ptr, struct kv * const out, size_t * const pesize)
 {
-  u32 klen, vlen;
-  const u8 * const pdata = vi128_decode_u32(vi128_decode_u32(ptr, &klen), &vlen);
+  U32 klen, vlen;
+  const U8 * const pdata = vi128_decode_u32(vi128_decode_u32(ptr, &klen), &vlen);
   struct kv * const ret = out ? out : malloc(sizeof(struct kv) + klen + vlen);
   if (ret)
     kv_refill(ret, pdata, klen, pdata + klen, vlen);
@@ -788,10 +788,10 @@ kv128_decode_kv(const u8 * const ptr, struct kv * const out, size_t * const pesi
 }
 
   inline size_t
-kv128_size(const u8 * const ptr)
+kv128_size(const U8 * const ptr)
 {
-  u32 klen, vlen;
-  const u8 * const pdata = vi128_decode_u32(vi128_decode_u32(ptr, &klen), &vlen);
+  U32 klen, vlen;
+  const U8 * const pdata = vi128_decode_u32(vi128_decode_u32(ptr, &klen), &vlen);
   return ((size_t)(pdata - ptr)) + klen + vlen;
 }
 // }}} kv128
@@ -804,7 +804,7 @@ kv128_size(const u8 * const ptr)
 // increase MAX if need more
 #define KVMAP_API_MAX ((32))
 static struct kvmap_api_reg kvmap_api_regs[KVMAP_API_MAX];
-static u64 kvmap_api_regs_nr = 0;
+static U64 kvmap_api_regs_nr = 0;
 
   void
 kvmap_api_register(const int nargs, const char * const name, const char * const args_msg,
@@ -825,7 +825,7 @@ kvmap_api_register(const int nargs, const char * const name, const char * const 
 kvmap_api_helper_message(void)
 {
   fprintf(stderr, "%s Usage: api <map-type> <param1> ...\n", __func__);
-  for (u64 i = 0; i < kvmap_api_regs_nr; i++) {
+  for (U64 i = 0; i < kvmap_api_regs_nr; i++) {
     fprintf(stderr, "%s example: api %s %s\n", __func__,
         kvmap_api_regs[i].name, kvmap_api_regs[i].args_msg);
   }
@@ -839,7 +839,7 @@ kvmap_api_helper(int argc, char ** const argv, const struct kvmap_mm * const mm,
   if (argc < 2 || strcmp(argv[0], "api") != 0)
     return -1;
 
-  for (u64 i = 0; i < kvmap_api_regs_nr; i++) {
+  for (U64 i = 0; i < kvmap_api_regs_nr; i++) {
     const struct kvmap_api_reg * const reg = &kvmap_api_regs[i];
     if (0 != strcmp(argv[1], reg->name))
       continue;
@@ -941,7 +941,7 @@ kvmap_kv_merge(const struct kvmap_api * const api, void * const ref,
   return api->merge(ref, &kref, uf, priv);
 }
 
-  inline u64
+  inline U64
 kvmap_kv_delr(const struct kvmap_api * const api, void * const ref,
     const struct kv * const start, const struct kv * const end)
 {
@@ -966,7 +966,7 @@ kvmap_kv_iter_seek(const struct kvmap_api * const api, void * const iter,
 // kvmap_raw_op {{{
   inline struct kv *
 kvmap_raw_get(const struct kvmap_api * const api, void * const ref,
-    const u32 len, const u8 * const ptr, struct kv * const out)
+    const U32 len, const U8 * const ptr, struct kv * const out)
 {
   const struct kref kref = {.ptr = ptr, .len = len,
     .hash32 = api->hashkey ? kv_crc32c(ptr, len) : 0};
@@ -975,7 +975,7 @@ kvmap_raw_get(const struct kvmap_api * const api, void * const ref,
 
   inline bool
 kvmap_raw_probe(const struct kvmap_api * const api, void * const ref,
-    const u32 len, const u8 * const ptr)
+    const U32 len, const U8 * const ptr)
 {
   const struct kref kref = {.ptr = ptr, .len = len,
     .hash32 = api->hashkey ? kv_crc32c(ptr, len) : 0};
@@ -984,7 +984,7 @@ kvmap_raw_probe(const struct kvmap_api * const api, void * const ref,
 
   inline bool
 kvmap_raw_del(const struct kvmap_api * const api, void * const ref,
-    const u32 len, const u8 * const ptr)
+    const U32 len, const U8 * const ptr)
 {
   const struct kref kref = {.ptr = ptr, .len = len,
     .hash32 = api->hashkey ? kv_crc32c(ptr, len) : 0};
@@ -993,7 +993,7 @@ kvmap_raw_del(const struct kvmap_api * const api, void * const ref,
 
   inline bool
 kvmap_raw_inpr(const struct kvmap_api * const api, void * const ref,
-    const u32 len, const u8 * const ptr, kv_inp_func uf, void * const priv)
+    const U32 len, const U8 * const ptr, kv_inp_func uf, void * const priv)
 {
   const struct kref kref = {.ptr = ptr, .len = len,
     .hash32 = api->hashkey ? kv_crc32c(ptr, len) : 0};
@@ -1002,7 +1002,7 @@ kvmap_raw_inpr(const struct kvmap_api * const api, void * const ref,
 
   inline bool
 kvmap_raw_inpw(const struct kvmap_api * const api, void * const ref,
-    const u32 len, const u8 * const ptr, kv_inp_func uf, void * const priv)
+    const U32 len, const U8 * const ptr, kv_inp_func uf, void * const priv)
 {
   const struct kref kref = {.ptr = ptr, .len = len,
     .hash32 = api->hashkey ? kv_crc32c(ptr, len) : 0};
@@ -1011,7 +1011,7 @@ kvmap_raw_inpw(const struct kvmap_api * const api, void * const ref,
 
   inline void
 kvmap_raw_iter_seek(const struct kvmap_api * const api, void * const iter,
-    const u32 len, const u8 * const ptr)
+    const U32 len, const U8 * const ptr)
 {
   const struct kref kref = {.ptr = ptr, .len = len,
     .hash32 = api->hashkey ? kv_crc32c(ptr, len) : 0};
@@ -1020,13 +1020,13 @@ kvmap_raw_iter_seek(const struct kvmap_api * const api, void * const iter,
 // }}}} kvmap_raw_op
 
 // dump {{{
-  u64
+  U64
 kvmap_dump_keys(const struct kvmap_api * const api, void * const map, const int fd)
 {
   void * const ref = kvmap_ref(api, map);
   void * const iter = api->iter_create(ref);
   api->iter_seek(iter, kref_null());
-  u64 i = 0;
+  U64 i = 0;
   while (api->iter_valid(iter)) {
     struct kvref kvref;
     api->iter_kvref(iter, &kvref);
@@ -1043,13 +1043,13 @@ kvmap_dump_keys(const struct kvmap_api * const api, void * const map, const int 
 // kv64 {{{
 struct kv64 { // internal only
   struct kv kv;
-  u64 key_be; // must be in big endian
-  u64 value;
+  U64 key_be; // must be in big endian
+  U64 value;
 };
 
   inline bool
 kvmap_kv64_get(const struct kvmap_api * const api, void * const ref,
-    const u64 key, u64 * const out)
+    const U64 key, U64 * const out)
 {
   struct kv64 keybuf, kvout;
   struct kref kref;
@@ -1066,7 +1066,7 @@ kvmap_kv64_get(const struct kvmap_api * const api, void * const ref,
 
   inline bool
 kvmap_kv64_probe(const struct kvmap_api * const api, void * const ref,
-    const u64 key)
+    const U64 key)
 {
   struct kv64 keybuf;
   struct kref kref;
@@ -1077,7 +1077,7 @@ kvmap_kv64_probe(const struct kvmap_api * const api, void * const ref,
 
   inline bool
 kvmap_kv64_put(const struct kvmap_api * const api, void * const ref,
-    const u64 key, const u64 value)
+    const U64 key, const U64 value)
 {
   struct kv64 kv;
   kv.key_be = __builtin_bswap64(key);
@@ -1092,7 +1092,7 @@ kvmap_kv64_put(const struct kvmap_api * const api, void * const ref,
 
   inline bool
 kvmap_kv64_del(const struct kvmap_api * const api, void * const ref,
-    const u64 key)
+    const U64 key)
 {
   struct kv64 keybuf;
   struct kref kref;
@@ -1103,7 +1103,7 @@ kvmap_kv64_del(const struct kvmap_api * const api, void * const ref,
 
   inline void
 kvmap_kv64_iter_seek(const struct kvmap_api * const api, void * const iter,
-    const u64 key)
+    const U64 key)
 {
   struct kv64 keybuf;
   struct kref kref;
@@ -1114,7 +1114,7 @@ kvmap_kv64_iter_seek(const struct kvmap_api * const api, void * const iter,
 
   inline bool
 kvmap_kv64_iter_peek(const struct kvmap_api * const api, void * const iter,
-    u64 * const key_out, u64 * const value_out)
+    U64 * const key_out, U64 * const value_out)
 {
   struct kv64 kvout;
   struct kv * const ret = api->iter_peek(iter, &kvout.kv);

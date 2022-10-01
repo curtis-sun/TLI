@@ -329,56 +329,56 @@ auto make_segmentation(RandomIt first, RandomIt last, size_t epsilon) {
 }
 
 
-template<typename Fin, typename Fout, typename lrmodel_type>
-size_t make_segmentation_data(size_t n, size_t epsilon, Fin in, Fout out, lrmodel_type* lrmodel) {
-    if (n == 0)
-        return 0;
+// template<typename Fin, typename Fout, typename lrmodel_type>
+// size_t make_segmentation_data(size_t n, size_t epsilon, Fin in, Fout out, lrmodel_type* lrmodel) {
+//     if (n == 0)
+//         return 0;
 
-    using X = typename std::invoke_result_t<Fin, size_t>::first_type;
-    using Y = typename std::invoke_result_t<Fin, size_t>::second_type;
-    using canonical_segment = typename OptimalPiecewiseLinearModel<key_type, size_t>::CanonicalSegment;
-    size_t c = 0;
-    size_t start = 0;
-    auto p = in(0);
+//     using X = typename std::invoke_result_t<Fin, size_t>::first_type;
+//     using Y = typename std::invoke_result_t<Fin, size_t>::second_type;
+//     using canonical_segment = typename OptimalPiecewiseLinearModel<key_type, size_t>::CanonicalSegment;
+//     size_t c = 0;
+//     size_t start = 0;
+//     auto p = in(0);
 
-    OptimalPiecewiseLinearModel<X, Y> opt(epsilon);
-    opt.add_point(p.first, p.second);
-    std::vector<X> keys;
-    keys.push_back(p.first);
+//     OptimalPiecewiseLinearModel<X, Y> opt(epsilon);
+//     opt.add_point(p.first, p.second);
+//     std::vector<X> keys;
+//     keys.push_back(p.first);
 
-    for (size_t i = 1; i < n; ++i) {
-        auto next_p = in(i);
-        if (i != start && next_p.first == p.first)
-            continue;
-        p = next_p;
+//     for (size_t i = 1; i < n; ++i) {
+//         auto next_p = in(i);
+//         if (i != start && next_p.first == p.first)
+//             continue;
+//         p = next_p;
 
-        bool add_success = opt.add_point(p.first, p.second-start);  // alwayse start from 0 for each segment
-        if(add_success) keys.push_back(p.first);
-        else {
-            canonical_segment cs = opt.get_segment();
-            auto[cs_slope, cs_intercept] = cs.get_floating_point_segment(cs.get_first_x());
-            lrmodel_type model(cs_slope, cs_intercept);
-            out(model, keys.begin(), keys.begin(), keys.size(), epsilon);
-            // alwayse start from 0 for each segment
-            std::vector<X>().swap(keys);
-            assert(keys.size()==0);
-            start = p.second;
-            opt.add_point(p.first, p.second-start);
-            keys.push_back(p.first);
-            ++c;           
-        }
-        /*if (!opt.add_point(p.first, p.second)) {
-            out(start, i, opt.get_segment());
-            start = i;
-            --i;
-            ++c;
-        }*/
-    }
+//         bool add_success = opt.add_point(p.first, p.second-start);  // alwayse start from 0 for each segment
+//         if(add_success) keys.push_back(p.first);
+//         else {
+//             canonical_segment cs = opt.get_segment();
+//             auto[cs_slope, cs_intercept] = cs.get_floating_point_segment(cs.get_first_x());
+//             lrmodel_type model(cs_slope, cs_intercept);
+//             out(model, keys.begin(), keys.begin(), keys.size(), epsilon);
+//             // alwayse start from 0 for each segment
+//             std::vector<X>().swap(keys);
+//             assert(keys.size()==0);
+//             start = p.second;
+//             opt.add_point(p.first, p.second-start);
+//             keys.push_back(p.first);
+//             ++c;           
+//         }
+//         /*if (!opt.add_point(p.first, p.second)) {
+//             out(start, i, opt.get_segment());
+//             start = i;
+//             --i;
+//             ++c;
+//         }*/
+//     }
 
-    //out(start, n, opt.get_segment());
-    canonical_segment cs = opt.get_segment();
-    auto[cs_slope, cs_intercept] = cs.get_floating_point_segment(cs.get_first_x());
-    lrmodel_type model(cs_slope, cs_intercept);
-    out(model, keys.begin(), keys.begin(), keys.size(), epsilon);
-    return ++c;
-}
+//     //out(start, n, opt.get_segment());
+//     canonical_segment cs = opt.get_segment();
+//     auto[cs_slope, cs_intercept] = cs.get_floating_point_segment(cs.get_first_x());
+//     lrmodel_type model(cs_slope, cs_intercept);
+//     out(model, keys.begin(), keys.begin(), keys.size(), epsilon);
+//     return ++c;
+// }

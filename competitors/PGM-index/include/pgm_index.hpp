@@ -55,7 +55,7 @@ struct ApproxPos {
  * @tparam RecursiveError the maximum error allowed in the upper levels of the index
  * @tparam Floating the floating-point type to use for slopes
  */
-template<typename K, size_t Error = 64, size_t RecursiveError = 16, typename Floating = double>
+template<typename K, typename SearchClass, size_t Error = 64, size_t RecursiveError = 16, typename Floating = double>
 class PGMIndex {
     static_assert(Error > 0);
     struct Segment;
@@ -72,6 +72,7 @@ class PGMIndex {
      * @return an iterator to the segment responsible for the given key
      */
     auto segment_for_key(const K &key) const {
+        typedef typename std::vector<Segment>::const_iterator Iterator;
         if (RecursiveError == 0) {
             auto it = std::upper_bound(segments.begin(), segments.begin() + levels_sizes[0], key);
             return it == segments.begin() ? it : std::prev(it);
@@ -84,16 +85,17 @@ class PGMIndex {
             auto pos = std::min<size_t>((*it)(key), std::next(it)->intercept);
             auto lo = level_begin + SUB_ERR(pos, RecursiveError + 1);
 
-            static constexpr size_t linear_search_threshold = 8 * 64 / sizeof(Segment);
-            if constexpr (RecursiveError <= linear_search_threshold) {
-                for (; std::next(lo)->key <= key; ++lo);
-                it = lo;
-            } else {
+            // static constexpr size_t linear_search_threshold = 8 * 64 / sizeof(Segment);
+            // if constexpr (RecursiveError <= linear_search_threshold) {
+            //     for (; std::next(lo)->key <= key; ++lo);
+            //     it = lo;
+            // } else {
                 auto level_size = levels_sizes[l];
                 auto hi = level_begin + ADD_ERR(pos, RecursiveError + 2, level_size);
-                it = std::upper_bound(lo, hi, key);
+                it = SearchClass::upper_bound(lo, hi, key, lo, std::function<K(Iterator)>([](Iterator it)->K{
+                                                                               return  it->key; }));
                 it = it == level_begin ? it : std::prev(it);
-            }
+            // }
         }
         return it;
     }
@@ -211,8 +213,8 @@ public:
 
 #pragma pack(push, 1)
 
-template<typename K, size_t Error, size_t RecursiveError, typename Floating>
-struct PGMIndex<K, Error, RecursiveError, Floating>::Segment {
+template<typename K, typename SearchClass, size_t Error, size_t RecursiveError, typename Floating>
+struct PGMIndex<K, SearchClass, Error, RecursiveError, Floating>::Segment {
     K key;             ///< The first key that the segment indexes.
     Floating slope;    ///< The slope of the segment.
     int32_t intercept; ///< The intercept of the segment.
@@ -267,5 +269,5 @@ struct PGMIndex<K, Error, RecursiveError, Floating>::Segment {
  * @tparam Error the maximum allowed error in the last level of the index
  * @tparam Floating the floating-point type to use for slopes
  */
-template<typename K, size_t Error, typename Floating = double>
-using BinarySearchBasedPGMIndex = PGMIndex<K, Error, 0, Floating>;
+template<typename K, typename SearchClass, size_t Error, typename Floating = double>
+using BinarySearchBasedPGMIndex = PGMIndex<K, SearchClass, Error, 0, Floating>;

@@ -78,19 +78,20 @@ public:
 
     LIPP(double BUILD_LR_REMAIN = 0, bool QUIET = true)
         : BUILD_LR_REMAIN(BUILD_LR_REMAIN), QUIET(QUIET) {
-        {
-            std::vector<Node*> nodes;
-            for (int _ = 0; _ < 1e7; _ ++) {
-                Node* node = build_tree_two(T(0), P(), T(1), P());
-                nodes.push_back(node);
-            }
-            for (auto node : nodes) {
-                destroy_tree(node);
-            }
-            if (!QUIET) {
-                printf("initial memory pool size = %lu\n", pending_two.size());
-            }
-        }
+        // Curtis: unfair competition
+        // {
+        //     std::vector<Node*> nodes;
+        //     for (int _ = 0; _ < 1e7; _ ++) {
+        //         Node* node = build_tree_two(T(0), P(), T(1), P());
+        //         nodes.push_back(node);
+        //     }
+        //     for (auto node : nodes) {
+        //         destroy_tree(node);
+        //     }
+        //     if (!QUIET) {
+        //         printf("initial memory pool size = %lu\n", pending_two.size());
+        //     }
+        // }
         if (USE_FMCD && !QUIET) {
             printf("enable FMCD\n");
         }
@@ -122,7 +123,7 @@ public:
                 } else {
                     if (BITMAP_GET(node->none_bitmap, pos) == 1) {
                         RT_ASSERT(false);
-                    } else if (BITMAP_GET(node->child_bitmap, pos) == 0) {
+                    } else {
                         RT_ASSERT(node->items[pos].comp.data.key == key);
                         return node->items[pos].comp.data.value;
                     }
@@ -186,7 +187,7 @@ public:
         while (!s.empty()) {
             Node* node = s.top(); s.pop();
 
-            printf("Node(%p, a = %lf, b = %lf, num_items = %d)", node, node->model.a, node->model.b, node->num_items);
+            printf("Node(%p, a = %lf, b = %Lf, num_items = %d)", node, node->model.a, node->model.b, node->num_items);
             printf("[");
             int first = 1;
             for (int i = 0; i < node->num_items; i ++) {
@@ -412,7 +413,9 @@ private:
         const double mid1_target = node->num_items / 3;
         const double mid2_target = node->num_items * 2 / 3;
 
-        node->model.a = (mid2_target - mid1_target) / (mid2_key - mid1_key);
+        // Curtis: avoid accuracy loss
+        // node->model.a = (mid2_target - mid1_target) / (mid2_key - mid1_key);
+        node->model.a = (mid2_target - mid1_target) / (key2 - key1);
         node->model.b = mid1_target - node->model.a * mid1_key;
         RT_ASSERT(isfinite(node->model.a));
         RT_ASSERT(isfinite(node->model.b));
@@ -872,6 +875,105 @@ private:
 
         return path[0];
     }
+
+// Curtis begin
+// reimplement find, add lower_bound
+public:
+    bool find(const T& key, P& value) const {
+        Node* node = root;
+
+        while (true) {
+            int pos = PREDICT_POS(node, key);
+            if (BITMAP_GET(node->child_bitmap, pos) == 1) {
+                node = node->items[pos].comp.child;
+            } else {
+                if (BITMAP_GET(node->none_bitmap, pos) == 0 && node->items[pos].comp.data.key == key){
+                    value = node->items[pos].comp.data.value;
+                    return true;
+                }
+                return false;
+            }
+        }
+    }
+
+    class LIPPIterator {
+        using stack_pair = std::pair<Node*, int>;
+        using lipp_type = LIPP<T, P, USE_FMCD>;
+
+        void advance_stack() {
+            while(!stack.empty()){
+                auto[tmp_it, i] = stack.top();
+                stack.pop();
+                for (int new_i = i + 1; new_i < tmp_it->num_items; ++ new_i){
+                    if (BITMAP_GET(tmp_it->none_bitmap, new_i) == 1){
+                        continue;
+                    }
+                    stack.push(std::make_pair(tmp_it, new_i));
+                    if (BITMAP_GET(tmp_it->child_bitmap, new_i) == 0){
+                        it = tmp_it->items + new_i;
+                        return;
+                    }
+                    stack.push(std::make_pair(tmp_it->items[new_i].comp.child, -1));
+                    break;
+                }       
+            }
+            it = nullptr;
+        }
+    public:
+        using pointer = const Item *;
+        using reference = const Item &;
+
+        std::stack<stack_pair> stack;
+        Item* it;
+
+        LIPPIterator &operator++() {
+            advance_stack();
+            return *this;
+        }
+
+        LIPPIterator operator++(int) {
+            LIPPIterator i(it);
+            ++i;
+            return i;
+        }
+
+        reference operator*() const { return *it; }
+        pointer operator->() const { return &*it; };
+        bool operator==(const LIPPIterator &rhs) const { return it == rhs.it; }
+        bool operator!=(const LIPPIterator &rhs) const { return it != rhs.it; }
+    };
+    using iterator = LIPPIterator;
+
+    iterator lower_bound(const T& key) const {
+        iterator it;
+        Node* node = root;
+
+        while (true) {
+            int pos = PREDICT_POS(node, key);
+            it.stack.push(std::make_pair(node, pos));
+            if (BITMAP_GET(node->child_bitmap, pos) == 1) {
+                node = node->items[pos].comp.child;
+            } else {
+                if (BITMAP_GET(node->none_bitmap, pos) == 0 && node->items[pos].comp.data.key >= key) {
+                    it.it = node->items + pos;
+                }
+                else{
+                    ++it;
+                }
+                return it;
+            }
+        }
+        
+        return end();
+    }
+
+    iterator end() const { 
+        iterator it;
+        it.it = nullptr;
+        return it;
+    }
+// Curtis end
 };
+
 
 #endif // __LIPP_H__

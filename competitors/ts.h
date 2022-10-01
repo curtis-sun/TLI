@@ -5,71 +5,72 @@
 #include "ts/builder.h"
 #include "ts/ts.h"
 
-template <class KeyType, int size_scale>
-class TS : public Competitor {
+template <class KeyType, class SearchClass>
+class TS : public Competitor<KeyType, SearchClass> {
  public:
-  uint64_t Build(const std::vector<KeyValue<KeyType>>& data) {
-    if (!parameters_set_) util::fail("TS parameters not set.");
+  TS(const std::vector<int>& params): spline_max_error(params[0]){}
+  uint64_t Build(const std::vector<KeyValue<KeyType>>& data, const size_t num_threads) {
+    auto min = std::numeric_limits<KeyType>::min();
+    auto max = std::numeric_limits<KeyType>::max();
+    if (data.size() > 0) {
+      min = data.front().key;
+      max = data.back().key;
+    }
 
     return util::timing([&] {
-      auto min = std::numeric_limits<KeyType>::min();
-      auto max = std::numeric_limits<KeyType>::max();
-      if (data.size() > 0) {
-        min = data.front().key;
-        max = data.back().key;
-      }
-      ts::Builder<KeyType> tsb(min, max, spline_max_error_);
+      data_ = data;
+      
+      ts::Builder<KeyType, SearchClass> tsb(min, max, spline_max_error);
       for (const auto& key_and_value : data) tsb.AddKey(key_and_value.key);
       ts_ = tsb.Finalize();
     });
   }
 
-  SearchBound EqualityLookup(const KeyType lookup_key) const {
+  size_t EqualityLookup(const KeyType lookup_key, uint32_t thread_id) const {
     const ts::SearchBound sb = ts_.GetSearchBound(lookup_key);
-    return {sb.begin, sb.end};
+    typedef typename std::vector<KeyValue<KeyType>>::const_iterator Iterator;
+    auto it = SearchClass::lower_bound(data_.begin() + sb.begin, data_.begin() + sb.end, lookup_key,  
+                      data_.begin() + sb.begin, std::function<KeyType(Iterator)>([](Iterator it)->KeyType {
+                                                      return it->key; }));
+    if (it == data_.end() || it->key != lookup_key){
+      return util::OVERFLOW;
+    }
+    return it - data_.begin();
+  }
+
+  uint64_t RangeQuery(const KeyType lower_key, const KeyType upper_key, uint32_t thread_id) const {
+    const ts::SearchBound sb = ts_.GetSearchBound(lower_key);
+    typedef typename std::vector<KeyValue<KeyType>>::const_iterator Iterator;
+    auto it = SearchClass::lower_bound(data_.begin() + sb.begin, data_.begin() + sb.end, lower_key,  
+                      data_.begin() + sb.begin, std::function<KeyType(Iterator)>([](Iterator it)->KeyType {
+                                                      return it->key; }));
+    uint64_t result = 0;
+    while(it != data_.end() && it->key <= upper_key){
+      result += it->value;
+      ++it;
+    }
+    return result;
+  }
+
+  bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& data_filename) const {
+    std::string name = SearchClass::name();
+    return !insert && name != "LinearAVX" && !multithread;
+  }
+
+  std::vector<std::string> variants() const { 
+    std::vector<std::string> vec;
+    vec.push_back(SearchClass::name());
+    vec.push_back(std::to_string(spline_max_error));
+    return vec;
   }
 
   std::string name() const { return "TS"; }
 
-  std::size_t size() const { return ts_.GetSize(); }
-
-  bool applicable(bool _unique, const std::string& data_filename) {
-    // Remove prefix from filename.
-    static constexpr const char* prefix = "data/";
-    std::string dataset = data_filename.data();
-    dataset.erase(dataset.begin(),
-                  dataset.begin() + dataset.find(prefix) + strlen(prefix));
-
-    // Set parameters based on the dataset.
-    return SetParameters(dataset);
-  }
-
-  int variant() const { return size_scale; }
+  std::size_t size() const { return ts_.GetSize() + (sizeof(KeyType) + sizeof(uint64_t)) * data_.size(); }
 
  private:
-  bool SetParameters(const std::string& dataset) {
-    assert(size_scale >= 1 && size_scale <= 10);
-    std::vector<size_t> configs;
 
-    if (dataset == "books_200M_uint64") {
-      configs = {500, 200, 150, 60, 50, 25, 25, 4, 2, 1};
-    } else if (dataset == "fb_200M_uint64") {
-      configs = {225, 225, 225, 225, 100, 32, 16, 8, 8, 2};
-    } else if (dataset == "osm_cellids_200M_uint64") {
-      configs = {150, 150, 150, 150, 80, 25, 8, 8, 4, 1};
-    } else if (dataset == "wiki_ts_200M_uint64") {
-      configs = {175, 175, 90, 32, 25, 16, 16, 4, 2, 1};
-    } else {
-      // No config.
-      return false;
-    }
-
-    spline_max_error_ = configs[size_scale - 1];
-    parameters_set_ = true;
-    return true;
-  }
-
-  ts::TrieSpline<KeyType> ts_;
-  size_t spline_max_error_;
-  bool parameters_set_ = false;
+  ts::TrieSpline<KeyType, SearchClass> ts_;
+  std::vector<KeyValue<KeyType>> data_;
+  size_t spline_max_error;
 };

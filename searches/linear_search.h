@@ -1,43 +1,88 @@
 #pragma once
-#include "searches/search.h"
+#include "search.h"
 
-template <typename KeyType>
-class LinearSearch : public Search<KeyType> {
+template<int record>
+class LinearSearch: public Search<record> {
  public:
-  uint64_t search(const std::vector<Row<KeyType>>& data,
-                  const KeyType lookup_key, size_t* num_qualifying,
-                  size_t start, size_t end) const {
-    *num_qualifying = 0;
-    auto it = std::find_if(data.begin() + start, data.begin() + end,
-                           [lookup_key](const Row<KeyType>& lhs) {
-                             return lhs.key == lookup_key;
-                           });
+  template<typename Iterator, typename KeyType>
+  static forceinline Iterator lower_bound(
+    Iterator first, Iterator last,
+		const KeyType& lookup_key, Iterator start,
+    std::function<KeyType(Iterator)> at = [](Iterator it)->KeyType{
+      return static_cast<KeyType>(*it);
+    },
+    std::function<bool(const KeyType&, const KeyType&)> less = [](const KeyType& key1, const KeyType& key2)->bool{
+      return key1 < key2;
+    }) {
+      record_start();
+      if (first == last) {
+        record_end(first, first);
+        return first;
+      }
 
-    if (it == data.end() || it->key != lookup_key) {
-      std::cerr << "key " << lookup_key << " not found between " << start
-                << " and " << end << "\n";
+      Iterator it = start;
+      if (start != last && less(at(start), lookup_key)){
+        ++it;
+        while(it != last && less(at(it), lookup_key)) {
+          ++it;
+        }
+      }
+      else{
+        while(it != first){
+          --it;
+          if (less(at(it), lookup_key)){
+            break;
+          }
+        }
+        if (less(at(it), lookup_key)){
+          ++it;
+        }
+      }
 
-      auto corr = std::lower_bound(
-          data.begin(), data.end(), lookup_key,
-          [](const Row<KeyType>& lhs, const KeyType lookup_key) {
-            return lhs.key < lookup_key;
-          });
-      std::cerr << "correct index: " << std::distance(data.begin(), corr)
-                << "\n";
-
-      return 0;
+      record_end(start, it);
+      return it;
     }
 
-    // Sum over all values with that key.
-    uint64_t result = it->data[0];
-    ++(*num_qualifying);
+  template<typename Iterator, typename KeyType>
+  static forceinline Iterator upper_bound(
+    Iterator first, Iterator last,
+		const KeyType& lookup_key, Iterator start, 
+    std::function<KeyType(Iterator)> at = [](Iterator it)->KeyType{
+      return static_cast<KeyType>(*it);
+    },
+    std::function<bool(const KeyType&, const KeyType&)> less = [](const KeyType& key1, const KeyType& key2)->bool{
+      return key1 < key2;
+    }) {
+      record_start();
+      if (first == last) {
+        record_end(first, first);
+        return first;
+      }
 
-    while (++it != data.end() && it->key == lookup_key) {
-      result += it->data[0];
-      ++(*num_qualifying);
+      Iterator it = start;
+      if (start == last || less(lookup_key, at(start))){
+        while(it != first){
+          --it;
+          if (!(less(lookup_key, at(it)))){
+            break;
+          }
+        }
+        if (!(less(lookup_key, at(it)))){
+          ++it;
+        }
+      }
+      else{
+        ++it;
+        while(it != last && !(less(lookup_key, at(it)))) {
+          ++it;
+        }
+      }
+
+      record_end(start, it);
+      return it;
     }
-    return result;
+
+  static std::string name() {
+      return "LinearSearch";
   }
-
-  std::string name() const { return "LinearSearch"; }
 };

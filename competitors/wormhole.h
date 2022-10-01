@@ -3,113 +3,112 @@
 #include <type_traits>
 
 #include "base.h"
+#include "wormhole/lib.h"
+#include "wormhole/kv.h"
 #include "wormhole/wh.h"
 
-struct kv* kv_dup_in_count(const struct kv* const kv, void* const priv) {
+static struct kv* kv_dup_in_count(struct kv* kv, void* priv) {
   int64_t current_usage = *((int64_t*)priv);
   *((int64_t*)priv) = current_usage + kv_size(kv);
   return kv_dup(kv);
 }
 
-struct kv* kv_dup_out_count(const struct kv* const kv, struct kv* const out) {
+static struct kv* kv_dup_out_count(struct kv* kv, struct kv* out) {
   return kv_dup2(kv, out);
 }
 
-void kv_free_count(struct kv* const kv, void* const priv) {
+static void kv_free_count(struct kv* kv, void* priv) {
   int64_t current_usage = *((int64_t*)priv);
   *((int64_t*)priv) = current_usage - kv_size(kv);
   free(kv);
 }
 
-template <class KeyType, int size_scale>
-class Wormhole : public Competitor {
+template <class KeyType>
+class Wormhole : public Base<KeyType> {
  public:
-  uint64_t Build(const std::vector<KeyValue<KeyType>>& data) {
-    data_size_ = data.size();
+  Wormhole(const std::vector<int>& params){}
+  ~Wormhole(){
+    if (index){
+      for (size_t i = 0; i < num_threads_; i++) {
+        free(in[i]);
+        free(out[i]);
+        wormhole_unref(refs[i].instance);
+      }
+      delete[] refs;
+      delete[] in;
+      delete[] out;
+      wormhole_destroy(index);
+    }
+  }
+  uint64_t Build(const std::vector<KeyValue<KeyType>>& data, const size_t num_threads) {
+    std::vector<std::string> keys;
+    keys.reserve(data.size());
+    for (const KeyValue<KeyType>& kv : data) {
+      keys.push_back(util::convertToString(kv.key));
+    }
 
     kvmap_mm allocator = (kvmap_mm){kv_dup_in_count, kv_dup_out_count,
                                     kv_free_count, (void*)&usage_};
-    index = wormhole_create(&allocator);
-
-    size_t key_length =
-        (std::is_same<KeyType, std::uint64_t>::value ? sizeof(uint64_t)
-                                                     : sizeof(uint32_t));
-
-    // wormhole seek finds the first key that's >= the search key.
-    // we need to find the last key that's <= the search key.
-    // unfortunately, we cannot move the wormhole iterator backwards,
-    // so instead we will "shift" the value array up one:
-    // the value associated with each key will be the index of *previous*
-    // key.
-
-    __in = kv_create(NULL, key_length, NULL, sizeof(uint64_t));
-    __out = kv_create(NULL, key_length, NULL, sizeof(uint64_t));
-
-    std::vector<uint64_t> keys;
-    std::vector<uint64_t> values;
-
-    for (unsigned int i = 0; i < data.size(); i++) {
-      if (size_scale > 1 && i % size_scale != 0) continue;
-
-      keys.push_back(data[i].key);
-      values.push_back(data[i].value);
+    num_threads_ = num_threads;
+    refs = new struct wormref_align[num_threads];
+    in = new struct kv*[num_threads];
+    out = new struct kv*[num_threads];
+    for (size_t i = 0; i < num_threads; ++ i){
+      in[i] = static_cast<struct kv*>(malloc(sizeof(struct kv) + 1024 + sizeof(uint64_t)));
+      out[i] = static_cast<struct kv*>(malloc(sizeof(struct kv) + 1024 + sizeof(uint64_t)));
     }
 
-    for (unsigned int i = 1; i < keys.size(); i++) {
-      if (std::is_same<KeyType, std::uint64_t>::value) {
-        uint64_t swappedKey = __builtin_bswap64(keys[i]);
-        *(uint64_t*)kv_kptr(__in) = swappedKey;
-      } else {
-        uint64_t swappedKey = __builtin_bswap32(keys[i]);
-        *(uint32_t*)kv_kptr(__in) = swappedKey;
+    uint64_t timing = util::timing([&] {
+      index = wormhole_create(&allocator);
+      struct wormref * ref = wormhole_ref(index);
+      for (size_t i = 0; i < data.size(); i++) {
+        kv_refill(in[0], keys[i].c_str(), keys[i].length(), reinterpret_cast<const char* const>(&data[i].value), sizeof(uint64_t));
+        wormhole_put(ref, in[0]);
       }
-
-      uint64_t value = values[i - 1];
-      *(uint64_t*)kv_vptr(__in) = value;
-      kv_update_hash(__in);
-      whunsafe_set(index, __in);
-      max_key_ = keys[i];
-      last_index_ = values[i];
-    }
-
-    return util::timing([&] {
-      auto iter = whunsafe_iter_create(index);
-      whunsafe_iter_peek(iter, __out);
-      if (std::is_same<KeyType, std::uint64_t>::value) {
-        min_key_ = __builtin_bswap64(*(uint64_t*)kv_kptr(__out));
-      } else {
-        min_key_ = __builtin_bswap32(*(uint32_t*)kv_kptr(__out));
-      }
-      whunsafe_iter_destroy(iter);
+      wormhole_unref(ref);
     });
+
+    for (size_t i = 0; i < num_threads; ++ i){
+      refs[i].instance = whsafe_ref(index);
+    }
+
+    return timing;
   }
 
-  SearchBound EqualityLookup(const KeyType lookup_key) const {
-    if (std::is_same<KeyType, std::uint64_t>::value) {
-      *(uint64_t*)kv_kptr(__in) = __builtin_bswap64(lookup_key - 1);
-    } else {
-      *(uint32_t*)kv_kptr(__in) = __builtin_bswap32(lookup_key - 1);
+  size_t EqualityLookup(const KeyType& lookup_key, uint32_t thread_id) const {
+    std::string key = util::convertToString(lookup_key);
+    kv_refill(in[thread_id], key.c_str(), key.length(), NULL, 0);
+    kref kref = kv_kref(in[thread_id]);
+    if (whsafe_get(refs[thread_id].instance, &kref, out[thread_id])){
+      auto result = *(uint64_t*)kv_vptr(out[thread_id]);
+      return result;
     }
+    return util::OVERFLOW;
+  }
 
-    kv_update_hash(__in);
+  uint64_t RangeQuery(const KeyType lower_key, const KeyType upper_key, uint32_t thread_id) const {
+    auto iter = wormhole_iter_create(refs[thread_id].instance);
+    std::string lkey = util::convertToString(lower_key), ukey = util::convertToString(upper_key);
+    kv_refill(in[thread_id], lkey.c_str(), lkey.length(), NULL, 0);
+    kref kref = kv_kref(in[thread_id]);
+    whsafe_iter_seek(iter, &kref);
 
-    auto iter = whunsafe_iter_create(index);
-    whunsafe_iter_seek(iter, __in);
-
-    if (!whunsafe_iter_peek(iter, __out)) {
-      // past the last key
-      whunsafe_iter_destroy(iter);
-      return (SearchBound){last_index_, data_size_};
+    uint64_t result = 0;
+    while (wormhole_iter_next(iter, out[thread_id])){
+      if (std::string((char*)kv_kptr(out[thread_id]), out[thread_id]->klen) > ukey){
+        break;
+      }
+      result += *(uint64_t*)kv_vptr(out[thread_id]);
     }
-    uint64_t start = *(uint64_t*)kv_vptr(__out);
-
-    whunsafe_iter_next(iter, __out);
-    whunsafe_iter_peek(iter, __out);
-    uint64_t stop = *(uint64_t*)kv_vptr(__out);
-
-    stop = (start == stop ? data_size_ - 1 : stop);
-    whunsafe_iter_destroy(iter);
-    return (SearchBound){start, stop + 1};
+    
+    whsafe_iter_destroy(iter);
+    return result;
+  }
+  
+  void Insert(const KeyValue<KeyType>& data, uint32_t thread_id) {
+    std::string key = util::convertToString(data.key);
+    kv_refill(in[thread_id], key.c_str(), key.length(), reinterpret_cast<const char* const>(&data.value), sizeof(uint64_t));
+    whsafe_put(refs[thread_id].instance, in[thread_id]);
   }
 
   std::string name() const { return "Wormhole"; }
@@ -119,29 +118,70 @@ class Wormhole : public Competitor {
     if (usage_ < 0) {
       util::fail("Wormhole memory usage was negative!");
     }
-
     return usage_;
   }
 
-  bool applicable(bool unique, const std::string& data_filename) {
+  static void * background(void * param) {
+    WormholeParam &thread_param = *(WormholeParam *)param;
+    thread_fork_join(thread_param.num_threads, thread_param.func, true, (void **)thread_param.params);
+    return nullptr;
+  }
+
+  uint64_t runMultithread(void *(* func)(void *), FGParam *params) {
+    FGParam** params_ = new FGParam*[num_threads_];
+    for (size_t worker_i = 0; worker_i < num_threads_; worker_i++) {
+      params_[worker_i] = &params[worker_i];
+    }
+    pthread_t thread;
+    WormholeParam param;
+    param.func = func;
+    param.params = params_;
+    param.num_threads = num_threads_;
+
+    int ret = pthread_create(&thread, nullptr, background,
+                              (void *)&param);
+    if (ret) {
+      std::cout << "Error: " << ret << std::endl;
+    }
+
+    std::cout << "[micro] prepare data ...\n";
+    while (util::ready_threads < num_threads_) sleep(1);
+    util::running = true;
+
+    uint64_t timing = util::timing([&] {
+      while (util::running)
+        ;
+    });
+
+    void *status;
+    int rc = pthread_join(thread, &status);
+    if (rc) {
+      std::cout << "Error:unable to join, " << rc << std::endl;
+    }
+
+    delete[] params_;
+    return timing;
+  }
+
+  bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& data_filename) {
     // only supports unique keys.
     return unique;
   }
 
-  int variant() const { return size_scale; }
-
-  ~Wormhole() {
-    if (index) wormhole_destroy(index);
-  }
-
  private:
-  struct wormhole* index = NULL;
-  struct kv* __in;
-  struct kv* __out;
+  struct alignas(CACHELINE_SIZE) wormref_align {
+    struct wormref *instance;
+  };
+  struct alignas(CACHELINE_SIZE) WormholeParam{
+    void *(* func)(void *); 
+    FGParam** params;
+    size_t num_threads;
+  };
 
-  uint64_t data_size_;
-  KeyType min_key_;
-  KeyType max_key_;
-  uint64_t last_index_;
+  struct wormhole* index = NULL;
+  struct wormref_align* refs = NULL;
   int64_t usage_ = 0;
+  size_t num_threads_;
+  struct kv ** in = NULL;
+  struct kv ** out = NULL;
 };

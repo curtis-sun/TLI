@@ -7,49 +7,95 @@
 #include <stdlib.h>    // malloc, free
 #include <string.h>    // memset, memcpy
 #include <sys/time.h>  // gettime
+#include <type_traits>
 
 #include <algorithm>  // std::random_shuffle
+#include <utility>
+#include <vector>
+#include <string>
+#include <stack>
 
 #include "../util.h"
 #include "base.h"
 
-class ART : public Competitor {
+// Contains a version of ART that supports lower & upper bound lookups.
+
+// Uses ART as a non-clustered primary index that stores <key, offset> pairs.
+// At lookup time, we retrieve a key's offset from ART and lookup its value in
+// the data array.
+namespace sosd_art{
+
+template<class KeyType>
+class ART : public Base<KeyType> {
  public:
+  ART(const std::vector<int>& params){}
   ~ART() { destructTree(tree_); }
 
-  void Build(const std::vector<KeyValue<uint64_t>>& data) {
+  uint64_t Build(const std::vector<KeyValue<KeyType>>& data, size_t num_threads) {
     allocated_byte_count = 0;
-    data_ = &data;
 
-    for (const auto& key_value : *data_) {
-      const uint64_t data_key = key_value.key;
-      const uint64_t data_value = key_value.value;
-
-      // Check whether most significant bit of value (TID) is set.
-      if (data_value >> 63)
-        util::fail(
-            "ART doesn't support values with the most significant bit set.");
-
-      uint8_t key[8];
-      swapBytes(data_key, key);
-      insert(tree_, &tree_, key, 0, data_value, 8);
+    if constexpr (std::is_same<KeyType, std::string>::value){
+      data_size_ = sizeof(uint64_t) * data.size();
     }
+    else{
+      data_size_ = (sizeof(KeyType) + sizeof(uint64_t)) * data.size();
+    }
+    std::vector<KeyValue<std::string>> transform_data(data.size());
+    for (size_t i = 0; i < data.size(); ++i) {
+      transform_data[i].value = data[i].value;
+      transform_data[i].key = std::move(util::convertToString(data[i].key));
+      if constexpr (std::is_same<KeyType, std::string>::value){
+        data_size_ += transform_data[i].key.length();
+      }
+    }
+
+    return util::timing([&] {
+      data_ = transform_data;
+      bulk_insert(&tree_, 0, data_.size(), 0);
+    });
   }
 
-  uint64_t EqualityLookup(const uint64_t lookup_key) {
-    uint8_t key[8];
-    swapBytes(lookup_key, key);
-    Node* leaf = lookup(tree_, key, 8, 0, 8);
-    if (!isLeaf(leaf)) util::fail("ART: search ended in inner node");
-    return getLeafValue(leaf);
+  size_t EqualityLookup(const KeyType& lookup_key, uint32_t thread_id) const {
+    std::string key = std::move(util::convertToString(lookup_key));
+
+    Node* node = lookup(tree_, static_cast<const uint8_t*>(static_cast<const void*>(key.c_str())), key.length(), 0);
+    if (node){
+      return data_[getLeafValue(node)].value;
+    }
+    return util::NOT_FOUND;
+  }
+
+  uint64_t RangeQuery(const KeyType& lower_key, const KeyType& upper_key, uint32_t thread_id) const {
+    std::string lkey = std::move(util::convertToString(lower_key)), 
+                ukey = std::move(util::convertToString(upper_key));
+
+    Iterator it;
+    uint64_t result = 0;
+    if (bound(tree_, static_cast<const uint8_t*>(static_cast<const void*>(lkey.c_str())), lkey.length(), it, true)){
+      do{
+        result += data_[it.value].value;
+      } while(iteratorNext(it) && !(ukey < data_[it.value].key));
+    }
+    return result;
+  }
+  
+  void Insert(const KeyValue<KeyType>& data, uint32_t thread_id) {
+    KeyValue<std::string> entry;
+    entry.value = data.value;
+    std::string key = std::move(util::convertToString(data.key));
+    data_size_ += key.length() + sizeof(uint64_t);
+    entry.key = key;
+    data_.push_back(std::move(entry));
+
+    insert(tree_, &tree_, static_cast<const uint8_t*>(static_cast<const void*>(key.c_str())), key.length(), 0, data_.size() - 1);
   }
 
   std::string name() const { return "ART"; }
 
-  std::size_t size() const { return sizeof(*this) + allocated_byte_count; }
+  std::size_t size() const { return allocated_byte_count + data_size_; }
 
-  bool applicable(bool unique, const std::string& _data_filename) const {
-    return unique;
+  bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& _data_filename) const {
+    return unique && !multithread;
   }
 
  private:
@@ -70,7 +116,7 @@ class ART : public Competitor {
   // The maximum prefix length for compressed paths stored in the
   // header, if the path is longer it is loaded from the database on
   // demand
-  static const unsigned maxPrefixLength = 9;
+  static const unsigned maxPrefixLength = 8;
 
   // Shared header of all inner nodes
   struct Node {
@@ -155,40 +201,36 @@ class ART : public Competitor {
     }
   };
 
+  __m128i static forceinline _mm_cmpge_epu8(__m128i a, __m128i b) {
+    return _mm_cmpeq_epi8(_mm_max_epu8(a, b), a);
+  }
+
   inline Node* makeLeaf(uintptr_t tid) {
     // Create a pseudo-leaf
     return reinterpret_cast<Node*>((tid << 1) | 1);
   }
 
-  inline uintptr_t getLeafValue(Node* node) {
-    // The the value stored in the pseudo-leaf
-    return reinterpret_cast<uintptr_t>(node) >> 1;
-  }
-
-  inline bool isLeaf(Node* node) {
+  inline bool isLeaf(Node* node) const {
     // Is the node a leaf?
     return reinterpret_cast<uintptr_t>(node) & 1;
   }
 
-  uint8_t flipSign(uint8_t keyByte) {
-    // Flip the sign bit, enables signed SSE comparison of unsigned values, used
-    // by Node16
-    return keyByte ^ 128;
+  inline uintptr_t getLeafValue(Node* node) const {
+    // The the value stored in the pseudo-leaf
+    return reinterpret_cast<uintptr_t>(node) >> 1;
   }
 
-  void swapBytes(uint64_t org_key, uint8_t key[]) {
-    reinterpret_cast<uint64_t*>(key)[0] = __builtin_bswap64(org_key);
-  }
+  struct IteratorEntry {
+    Node* node;
+    int pos;
+  };
 
-  void loadKey(uintptr_t tid, uint8_t key[]) {
-    // Store the key of the tuple into the key vector
-    // Implementation is database specific
-    const uint64_t org_key = (*data_)[tid].key;
-    swapBytes(org_key, key);
-  }
-
-  // This address is used to communicate that search failed
-  Node* nullNode = NULL;
+  struct Iterator {
+    /// The current value, valid if stack is not empty
+    uint64_t value;
+    /// Stack, actually the size is determined at runtime
+    std::stack<IteratorEntry> stack;
+  };
 
   static inline unsigned ctz(uint16_t x) {
     // Count trailing zeros, only defined for x>0
@@ -213,7 +255,9 @@ class ART : public Competitor {
 #endif
   }
 
-  Node** findChild(Node* n, uint8_t keyByte) {
+  Node** findChild(Node* n, uint8_t keyByte) const {
+    // This address is used to communicate that search failed
+    static Node* nullNode = NULL;
     // Find the next child for the keyByte
     switch (n->type) {
       case NodeType4: {
@@ -225,7 +269,7 @@ class ART : public Competitor {
       case NodeType16: {
         Node16* node = static_cast<Node16*>(n);
         __m128i cmp = _mm_cmpeq_epi8(
-            _mm_set1_epi8(flipSign(keyByte)),
+            _mm_set1_epi8(keyByte),
             _mm_loadu_si128(reinterpret_cast<__m128i*>(node->key)));
         unsigned bitfield = _mm_movemask_epi8(cmp) & ((1 << node->count) - 1);
         if (bitfield)
@@ -248,7 +292,67 @@ class ART : public Competitor {
     throw;  // Unreachable
   }
 
-  Node* minimum(Node* node) {
+  bool iteratorNext(Iterator& iter) const {
+    // Skip leaf
+    if (!iter.stack.empty() && (isLeaf(iter.stack.top().node))) iter.stack.pop();
+
+    // Look for next leaf
+    while (!iter.stack.empty()) {
+      auto entry = iter.stack.top();
+      Node* node = entry.node;
+
+      // Leaf found
+      if (isLeaf(node)) {
+        iter.value = getLeafValue(node);
+        return true;
+      }
+
+      // Find next node
+      iter.stack.pop();
+      Node* next = nullptr;
+      switch (node->type) {
+        case NodeType4: {
+          Node4* n = static_cast<Node4*>(node);
+          if (entry.pos < node->count)
+            next = n->child[entry.pos++];
+          break;
+        }
+        case NodeType16: {
+          Node16* n = static_cast<Node16*>(node);
+          if (entry.pos < node->count)
+            next = n->child[entry.pos++];
+          break;
+        }
+        case NodeType48: {
+          Node48* n = static_cast<Node48*>(node);
+          for (; entry.pos < 256; entry.pos++)
+            if (n->childIndex[entry.pos] != emptyMarker) {
+              next = n->child[n->childIndex[entry.pos++]];
+              break;
+            }
+          break;
+        }
+        case NodeType256: {
+          Node256* n = static_cast<Node256*>(node);
+          for (; entry.pos < 256; entry.pos++)
+            if (n->child[entry.pos]) {
+              next = n->child[entry.pos++];
+              break;
+            }
+          break;
+        }
+      }
+
+      if (next) {
+        iter.stack.push(entry);
+        iter.stack.push({next, 0});
+      }
+    }
+
+    return false;
+  }
+
+  Node* minimum(Node* node) const {
     // Find the leaf with smallest key
     if (!node) return NULL;
 
@@ -310,63 +414,202 @@ class ART : public Competitor {
     throw;  // Unreachable
   }
 
-  bool leafMatches(Node* leaf, uint8_t key[], unsigned keyLength,
-                   unsigned depth, unsigned maxKeyLength) {
+  bool leafMatches(Node* leaf, const uint8_t key[], unsigned keyLength,
+                   unsigned depth) const {
     // Check if the key of the leaf is equal to the searched key
-    if (depth != keyLength) {
-      uint8_t leafKey[maxKeyLength];
-      loadKey(getLeafValue(leaf), leafKey);
-      for (unsigned i = depth; i < keyLength; i++)
-        if (leafKey[i] != key[i]) return false;
+    const std::string& leafKey = data_[getLeafValue(leaf)].key;
+    if (leafKey.length() != keyLength || memcmp(leafKey.c_str() + depth, key + depth, keyLength - depth)){
+      return false;
     }
     return true;
   }
 
-  unsigned prefixMismatch(Node* node, uint8_t key[], unsigned depth,
-                          unsigned maxKeyLength) {
-    // Compare the key with the prefix of the node, return the number matching
-    // bytes
+  bool leafPrefixMatches(Node* leaf, const uint8_t key[], unsigned keyLength,
+                   unsigned depth) const {
+    // Check if the key of the leaf is equal to the searched key
+    const std::string& leafKey = data_[getLeafValue(leaf)].key;
+    if (leafKey.length() < keyLength || memcmp(leafKey.c_str() + depth, key + depth, keyLength - depth)){
+      return false;
+    }
+    return true;
+  }
+
+  unsigned prefixMismatch(const uint8_t key1[], unsigned l1, 
+                          const uint8_t key2[], unsigned l2,
+                          unsigned depth) const {
+    unsigned compBytes = std::min(l1, l2) - depth;
     unsigned pos;
-    if (node->prefixLength > maxPrefixLength) {
-      for (pos = 0; pos < maxPrefixLength; pos++)
+    for (pos=0; pos < compBytes; pos++) {
+      if (key1[depth + pos] != key2[depth + pos])
+        return pos;
+    }
+    return pos;
+  }
+
+  unsigned prefixMismatch(Node* node, const uint8_t key[], unsigned keyLength,
+                          unsigned depth) const
+  // Compare the the key with the prefix, return the number matching bytes
+  {
+    unsigned compBytes = std::min(keyLength - depth, node->prefixLength);
+    unsigned pos = 0;
+    if (compBytes > maxPrefixLength) {
+      for (; pos < maxPrefixLength; pos++)
         if (key[depth + pos] != node->prefix[pos]) return pos;
-      uint8_t minKey[maxKeyLength];
-      loadKey(getLeafValue(minimum(node)), minKey);
-      for (; pos < node->prefixLength; pos++)
-        if (key[depth + pos] != minKey[depth + pos]) return pos;
+
+      // Load key from database
+      Node* minNode = minimum(node);
+      const std::string& minKey = data_[getLeafValue(minNode)].key;
+      for (; pos < compBytes; pos++)
+        if (key[depth + pos] != (uint8_t)minKey[depth + pos]) return pos;
     } else {
-      for (pos = 0; pos < node->prefixLength; pos++)
+      for (; pos < compBytes; pos++)
         if (key[depth + pos] != node->prefix[pos]) return pos;
     }
     return pos;
   }
 
-  Node* lookup(Node* node, uint8_t key[], unsigned keyLength, unsigned depth,
-               unsigned maxKeyLength) {
+  bool bound(Node* n, const uint8_t key[], unsigned keyLength, Iterator& iterator,
+             bool lower = true) const {
+    iterator.stack = std::stack<IteratorEntry>();
+    if (!n) return false;
+
+    unsigned depth = 0;
+    while (true) {
+      IteratorEntry entry;
+      entry.node = n;
+
+      if (isLeaf(n)) {
+        iterator.stack.push(entry);
+        iterator.value = getLeafValue(n);
+
+        const std::string& leafKey = data_[getLeafValue(n)].key;
+        unsigned i;
+        for (i = depth; i < min(keyLength, leafKey.length()); i++){
+          if ((uint8_t)leafKey[i] != key[i]) {
+            if ((uint8_t)leafKey[i] < key[i]) {
+              // Less
+              return iteratorNext(iterator);
+            }
+            // Greater
+            return true;
+          }
+        }
+        // Equal
+        // Curtis: keys must not be prefixes of other keys
+        if (lower)
+          return true;
+        else
+          return iteratorNext(iterator);
+      }
+
+      if (n->prefixLength) {
+        unsigned mismatchPos = prefixMismatch(n, key, keyLength, depth);
+        if (mismatchPos != n->prefixLength) {
+          uint8_t keyByte;
+          if (mismatchPos < maxPrefixLength){
+            keyByte = n->prefix[mismatchPos];
+          }
+          else{
+            const std::string& minKey = data_[getLeafValue(minimum(n))].key;
+            keyByte = minKey[depth + mismatchPos];
+          }
+          if (keyByte < key[depth + mismatchPos]) {
+            // Less
+            return iteratorNext(iterator);
+          }
+          // Greater
+          entry.pos = 0;
+          iterator.stack.push(entry);
+          return iteratorNext(iterator);
+        }
+        depth += n->prefixLength;
+      }
+      uint8_t keyByte = key[depth];
+
+      Node* next = nullptr;
+      switch (n->type) {
+        case NodeType4: {
+          Node4* node = static_cast<Node4*>(n);
+          for (entry.pos = 0; entry.pos < node->count; entry.pos++){
+            if (node->key[entry.pos] == keyByte) {
+              next = node->child[entry.pos++];
+              break;
+            } else if (node->key[entry.pos] > keyByte)
+              break;
+          }
+          break;
+        }
+        case NodeType16: {
+          Node16* node = static_cast<Node16*>(n);
+          __m128i cmp = _mm_cmpge_epu8(
+              _mm_loadu_si128(reinterpret_cast<__m128i*>(node->key)), _mm_set1_epi8(keyByte));
+          unsigned bitfield = (_mm_movemask_epi8(cmp) & ((1 << node->count) - 1));
+          if (bitfield){
+            entry.pos = ctz(bitfield);
+            if (node->key[entry.pos] == keyByte){
+              next = node->child[entry.pos++];
+            }
+          }
+          else{
+            entry.pos = node->count;
+          }
+          break;
+        }
+        case NodeType48: {
+          Node48* node = static_cast<Node48*>(n);
+          entry.pos = keyByte;
+          if (node->childIndex[entry.pos++] != emptyMarker) {
+            next = node->child[node->childIndex[keyByte]];
+            break;
+          }
+          break;
+        }
+        case NodeType256: {
+          Node256* node = static_cast<Node256*>(n);
+          entry.pos = keyByte;
+          next = node->child[entry.pos++];
+          break;
+        }
+      }
+
+      if (!next){ 
+        iterator.stack.push(entry);
+        return iteratorNext(iterator);
+      }
+
+      iterator.stack.push(entry);
+      n = next;
+      ++depth;
+    }
+  }
+
+  Node* lookup(Node* node, const uint8_t key[], unsigned keyLength, unsigned depth) const {
     // Find the node with a matching key, optimistic version
 
     bool skippedPrefix =
         false;  // Did we optimistically skip some prefix without checking it?
 
-    while (node != NULL) {
+    while (node) {
       if (isLeaf(node)) {
-        if (!skippedPrefix && depth == keyLength)  // No check required
-          return node;
-
-        if (depth != keyLength) {
-          // Check leaf
-          uint8_t leafKey[maxKeyLength];
-          loadKey(getLeafValue(node), leafKey);
-          for (unsigned i = (skippedPrefix ? 0 : depth); i < keyLength; i++)
-            if (leafKey[i] != key[i]) return NULL;
+        // Check leaf
+        if (skippedPrefix){
+          if (!leafMatches(node, key, keyLength, 0)){
+            return NULL;
+          }
+        }
+        else{
+          if (!leafMatches(node, key, keyLength, depth)){
+            return NULL;
+          }
         }
         return node;
       }
 
       if (node->prefixLength) {
-        if (node->prefixLength < maxPrefixLength) {
-          for (unsigned pos = 0; pos < node->prefixLength; pos++)
-            if (key[depth + pos] != node->prefix[pos]) return NULL;
+        if (node->prefixLength <= maxPrefixLength) {
+          if (prefixMismatch(node, key, keyLength, depth) != node->prefixLength){
+            return NULL;
+          }
         } else
           skippedPrefix = true;
         depth += node->prefixLength;
@@ -379,20 +622,21 @@ class ART : public Competitor {
     return NULL;
   }
 
-  Node* lookupPessimistic(Node* node, uint8_t key[], unsigned keyLength,
-                          unsigned depth, unsigned maxKeyLength) {
+  Node* lookupPessimistic(Node* node, const uint8_t key[], unsigned keyLength,
+                          unsigned depth) {
     // Find the node with a matching key, alternative pessimistic version
 
     while (node != NULL) {
       if (isLeaf(node)) {
-        if (leafMatches(node, key, keyLength, depth, maxKeyLength)) return node;
+        if (leafMatches(node, key, keyLength, depth)) return node;
         return NULL;
       }
 
-      if (prefixMismatch(node, key, depth, maxKeyLength) != node->prefixLength)
-        return NULL;
-      else
+      if (node->prefixLength){
+        if (prefixMismatch(node, key, keyLength, depth) != node->prefixLength)
+          return NULL;
         depth += node->prefixLength;
+      }
 
       node = *findChild(node, key[depth]);
       depth++;
@@ -401,16 +645,62 @@ class ART : public Competitor {
     return NULL;
   }
 
-  // Forward references
-  //  void insertNode4(Node4* node, Node** nodeRef, uint8_t keyByte, Node*
-  //  child); void insertNode16(Node16* node, Node** nodeRef, uint8_t keyByte,
-  //  Node* child); void insertNode48(Node48* node, Node** nodeRef, uint8_t
-  //  keyByte, Node* child); void insertNode256(Node256* node,
-  //                     Node** nodeRef,
-  //                     uint8_t keyByte,
-  //                     Node* child);
+  Node* lookupPrefix(Node* node, const uint8_t* key, uint32_t keyLength,
+                     unsigned depth) const {
+    while(node){
+      if (depth == keyLength){
+        return node;
+      }
 
-  unsigned min(unsigned a, unsigned b) {
+      if (isLeaf(node)) {
+        // Check if it matches
+        if (!leafPrefixMatches(node, key, keyLength, depth)){
+          return nullptr;
+        }
+        return node;
+      }
+
+      if (node->prefixLength){
+        unsigned misMatchPos = prefixMismatch(node, key, keyLength, depth);
+        if (depth + misMatchPos == keyLength){
+          return node;
+        }
+        if (misMatchPos != node->prefixLength){
+          return nullptr;
+        }
+        depth += node->prefixLength;
+      }
+      node = *findChild(node, key[depth]);
+      ++depth;
+    }
+    return nullptr;
+  }
+
+  bool lookupPrefixMin(Node* root, const uint8_t* key, uint32_t keyLength,
+                       Iterator& iterator) {
+    Node* node = lookupPrefix(root, key, keyLength, 0);
+
+    if (node) {
+      iterator.stack = std::stack<IteratorEntry>();
+      iterator.stack.push({node, 0});
+      // Descend to first leaf if necessary
+      if (isLeaf(node))
+        iterator.value = getLeafValue(node);
+      else
+        return iteratorNext(iterator);  // xxx
+      return true;
+    } else
+      return false;
+  }
+
+  // Forward references
+  // void insertNode4(Node4* node, Node** nodeRef, uint8_t keyByte, Node*
+  // child); void insertNode16(Node16* node, Node** nodeRef, uint8_t keyByte,
+  // Node* child); void insertNode48(Node48* node, Node** nodeRef, uint8_t
+  // keyByte, Node* child); void insertNode256(Node256* node, Node** nodeRef,
+  // uint8_t keyByte, Node* child);
+
+  unsigned min(unsigned a, unsigned b) const {
     // Helper function
     return (a < b) ? a : b;
   }
@@ -422,8 +712,8 @@ class ART : public Competitor {
     memcpy(dst->prefix, src->prefix, min(src->prefixLength, maxPrefixLength));
   }
 
-  void insert(Node* node, Node** nodeRef, uint8_t key[], unsigned depth,
-              uintptr_t value, unsigned maxKeyLength) {
+  void insert(Node* node, Node** nodeRef, const uint8_t key[], unsigned keyLength, unsigned depth,
+              uintptr_t value) {
     // Insert the leaf value into the tree
 
     if (node == NULL) {
@@ -433,12 +723,8 @@ class ART : public Competitor {
 
     if (isLeaf(node)) {
       // Replace leaf with Node4 and store both leaves in it
-      uint8_t existingKey[maxKeyLength];
-      loadKey(getLeafValue(node), existingKey);
-      unsigned newPrefixLength = 0;
-      while (existingKey[depth + newPrefixLength] ==
-             key[depth + newPrefixLength])
-        newPrefixLength++;
+      const std::string& existingKey = data_[getLeafValue(node)].key;
+      unsigned newPrefixLength = prefixMismatch(static_cast<const uint8_t*>(static_cast<const void*>(existingKey.c_str())), existingKey.length(), key, keyLength, depth);
 
       Node4* newNode = new Node4();
       newNode->prefixLength = newPrefixLength;
@@ -454,7 +740,7 @@ class ART : public Competitor {
 
     // Handle prefix of inner node
     if (node->prefixLength) {
-      unsigned mismatchPos = prefixMismatch(node, key, depth, maxKeyLength);
+      unsigned mismatchPos = prefixMismatch(node, key, keyLength, depth);
       if (mismatchPos != node->prefixLength) {
         // Prefix differs, create new node
         Node4* newNode = new Node4();
@@ -470,10 +756,9 @@ class ART : public Competitor {
                   min(node->prefixLength, maxPrefixLength));
         } else {
           node->prefixLength -= (mismatchPos + 1);
-          uint8_t minKey[maxKeyLength];
-          loadKey(getLeafValue(minimum(node)), minKey);
+          const std::string& minKey = data_[getLeafValue(minimum(node))].key;
           insertNode4(newNode, nodeRef, minKey[depth + mismatchPos], node);
-          memmove(node->prefix, minKey + depth + mismatchPos + 1,
+          memcpy(node->prefix, minKey.c_str() + depth + mismatchPos + 1,
                   min(node->prefixLength, maxPrefixLength));
         }
         insertNode4(newNode, nodeRef, key[depth + mismatchPos],
@@ -486,7 +771,7 @@ class ART : public Competitor {
     // Recurse
     Node** child = findChild(node, key[depth]);
     if (*child) {
-      insert(*child, child, key, depth + 1, value, maxKeyLength);
+      insert(*child, child, key, keyLength, depth + 1, value);
       return;
     }
 
@@ -528,7 +813,7 @@ class ART : public Competitor {
       *nodeRef = newNode;
       newNode->count = 4;
       copyPrefix(node, newNode);
-      for (unsigned i = 0; i < 4; i++) newNode->key[i] = flipSign(node->key[i]);
+      memcpy(newNode->key, node->key, node->count * sizeof(uint8_t));
       memcpy(newNode->child, node->child, node->count * sizeof(uintptr_t));
       delete node;
       return insertNode16(newNode, nodeRef, keyByte, child);
@@ -539,18 +824,21 @@ class ART : public Competitor {
                     Node* child) {
     // Insert leaf into inner node
     if (node->count < 16) {
+      __m128i cmp = _mm_cmpge_epu8(
+          _mm_loadu_si128(reinterpret_cast<__m128i*>(node->key)), _mm_set1_epi8(keyByte));
+      unsigned bitfield = (_mm_movemask_epi8(cmp) & ((1 << node->count) - 1));
       // Insert element
-      uint8_t keyByteFlipped = flipSign(keyByte);
-      __m128i cmp = _mm_cmplt_epi8(
-          _mm_set1_epi8(keyByteFlipped),
-          _mm_loadu_si128(reinterpret_cast<__m128i*>(node->key)));
-      uint16_t bitfield =
-          _mm_movemask_epi8(cmp) & (0xFFFF >> (16 - node->count));
-      unsigned pos = bitfield ? ctz(bitfield) : node->count;
+      unsigned pos;
+      if (bitfield){
+        pos = ctz(bitfield);
+      }
+      else{
+        pos = node->count;
+      }
       memmove(node->key + pos + 1, node->key + pos, node->count - pos);
       memmove(node->child + pos + 1, node->child + pos,
               (node->count - pos) * sizeof(uintptr_t));
-      node->key[pos] = keyByteFlipped;
+      node->key[pos] = keyByte;
       node->child[pos] = child;
       node->count++;
     } else {
@@ -559,7 +847,7 @@ class ART : public Competitor {
       *nodeRef = newNode;
       memcpy(newNode->child, node->child, node->count * sizeof(uintptr_t));
       for (unsigned i = 0; i < node->count; i++)
-        newNode->childIndex[flipSign(node->key[i])] = i;
+        newNode->childIndex[node->key[i]] = i;
       copyPrefix(node, newNode);
       newNode->count = node->count;
       delete node;
@@ -600,35 +888,105 @@ class ART : public Competitor {
     node->child[keyByte] = child;
   }
 
-  // Forward references
-  //  void eraseNode4(Node4* node, Node** nodeRef, Node** leafPlace);
-  //  void eraseNode16(Node16* node, Node** nodeRef, Node** leafPlace);
-  //  void eraseNode48(Node48* node, Node** nodeRef, uint8_t keyByte);
-  //  void eraseNode256(Node256* node, Node** nodeRef, uint8_t keyByte);
+  void bulk_insert(Node** nodeRef, size_t first, size_t end, unsigned depth) {
+    // Bulk insert leaf values into the tree
 
-  void erase(Node* node, Node** nodeRef, uint8_t key[], unsigned keyLength,
-             unsigned depth, unsigned maxKeyLength) {
+    // Empty array
+    if (first == end) {
+      *nodeRef = nullptr;
+      return;
+    }
+    // Allocate new leaf
+    if (end - first == 1){
+      *nodeRef = makeLeaf(first);
+      return;
+    }
+
+    unsigned curDepth = depth;
+    while(true){
+      // Partition by the byte curDepth
+      std::vector<size_t> vec = {first};
+      size_t cur = first;
+      while(cur != end){
+        size_t found = std::upper_bound(data_.begin() + cur + 1, data_.begin() + end, (uint8_t)(data_[cur].key[curDepth]), [&](uint8_t c, const KeyValue<std::string>& e) {
+                            return c < (uint8_t)(e.key[curDepth]);
+                          }) - data_.begin();
+        vec.push_back(found);
+        cur = found;
+      }
+
+      size_t count = vec.size() - 1;
+      // Longer common prefix
+      if (count == 1){
+        ++curDepth;
+        continue;
+      }
+      // Determine type of new node
+      Node* newNode;
+      if (count <= 4){
+        newNode = new Node4();
+        for (size_t i = 0; i < count; i ++){
+          ((Node4*)newNode)->key[i] = data_[vec[i]].key[curDepth];
+          bulk_insert(&((Node4*)newNode)->child[i], vec[i], vec[i + 1], curDepth + 1);
+        }
+      }
+      else if (count <= 16){
+        newNode = new Node16();
+        for (size_t i = 0; i < count; i ++){
+          ((Node16*)newNode)->key[i] = data_[vec[i]].key[curDepth];
+          bulk_insert(&((Node16*)newNode)->child[i], vec[i], vec[i + 1], curDepth + 1);
+        }
+      }
+      else if (count <= 48){
+        newNode = new Node48();
+        for (size_t i = 0; i < count; i ++){
+          ((Node48*)newNode)->childIndex[(uint8_t)(data_[vec[i]].key[curDepth])] = i;
+          bulk_insert(&((Node48*)newNode)->child[i], vec[i], vec[i + 1], curDepth + 1);
+        }
+      }
+      else {
+        newNode = new Node256();
+        for (unsigned i = 0; i < count; i++){
+          bulk_insert(&((Node256*)newNode)->child[(uint8_t)(data_[vec[i]].key[curDepth])], vec[i], vec[i + 1], curDepth + 1);
+        }
+      }
+      *nodeRef = newNode;
+      newNode->count = count;
+      newNode->prefixLength = curDepth - depth;
+      memcpy(newNode->prefix, data_[first].key.c_str() + depth, min(curDepth - depth, maxPrefixLength));
+      break;
+    }
+  }
+
+  // Forward references
+  // void eraseNode4(Node4* node, Node** nodeRef, Node** leafPlace);
+  // void eraseNode16(Node16* node, Node** nodeRef, Node** leafPlace);
+  // void eraseNode48(Node48* node, Node** nodeRef, uint8_t keyByte);
+  // void eraseNode256(Node256* node, Node** nodeRef, uint8_t keyByte);
+
+  void erase(Node* node, Node** nodeRef, const uint8_t key[], unsigned keyLength,
+             unsigned depth) {
     // Delete a leaf from a tree
 
     if (!node) return;
 
     if (isLeaf(node)) {
       // Make sure we have the right leaf
-      if (leafMatches(node, key, keyLength, depth, maxKeyLength))
+      if (leafMatches(node, key, keyLength, depth))
         *nodeRef = NULL;
       return;
     }
 
     // Handle prefix
     if (node->prefixLength) {
-      if (prefixMismatch(node, key, depth, maxKeyLength) != node->prefixLength)
+      if (prefixMismatch(node, key, keyLength, depth) != node->prefixLength)
         return;
       depth += node->prefixLength;
     }
 
     Node** child = findChild(node, key[depth]);
     if (isLeaf(*child) &&
-        leafMatches(*child, key, keyLength, depth, maxKeyLength)) {
+        leafMatches(*child, key, keyLength, depth)) {
       // Leaf found, delete it in inner node
       switch (node->type) {
         case NodeType4:
@@ -646,7 +1004,7 @@ class ART : public Competitor {
       }
     } else {
       // Recurse
-      erase(*child, child, key, keyLength, depth + 1, maxKeyLength);
+      erase(*child, child, key, keyLength, depth + 1);
     }
   }
 
@@ -693,9 +1051,9 @@ class ART : public Competitor {
     if (node->count == 3) {
       // Shrink to Node4
       Node4* newNode = new Node4();
-      newNode->count = node->count;
+      newNode->count = 4;
       copyPrefix(node, newNode);
-      for (unsigned i = 0; i < 4; i++) newNode->key[i] = flipSign(node->key[i]);
+      for (unsigned i = 0; i < 4; i++) newNode->key[i] = node->key[i];
       memcpy(newNode->child, node->child, sizeof(uintptr_t) * 4);
       *nodeRef = newNode;
       delete node;
@@ -715,7 +1073,7 @@ class ART : public Competitor {
       copyPrefix(node, newNode);
       for (unsigned b = 0; b < 256; b++) {
         if (node->childIndex[b] != emptyMarker) {
-          newNode->key[newNode->count] = flipSign(b);
+          newNode->key[newNode->count] = b;
           newNode->child[newNode->count] = node->child[node->childIndex[b]];
           newNode->count++;
         }
@@ -794,7 +1152,13 @@ class ART : public Competitor {
   }
 
   Node* tree_ = NULL;
-  const std::vector<KeyValue<uint64_t>>* data_;
+  // Store the key of the tuple into the key vector
+  // Implementation is database specific
+  std::vector<KeyValue<std::string>> data_;
+  uint64_t data_size_;
 };
 
-uint64_t ART::allocated_byte_count;
+template<class KeyType>
+uint64_t ART<KeyType>::allocated_byte_count;
+
+};

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(SOSD)
+project(WOSD)
 
 if(UNIX AND NOT APPLE)
     set(LINUX TRUE)
@@ -18,6 +18,10 @@ set(CMAKE_CXX_STANDARD 17)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
+find_package(Boost REQUIRED COMPONENTS chrono)
+
+set(MKLROOT "/home/zhaoyan/intel/oneapi/mkl/2022.1.0")
+set(TBBROOT "/home/zhaoyan/intel/oneapi/tbb/2021.6.0")
 
 add_subdirectory(dtl)
 
@@ -25,31 +29,24 @@ if (${APPLE})
     include_directories(/usr/local/include/) # required by Mac OS to find boost
 endif ()
 
+include_directories(${MKLROOT}/include)
+link_directories(${TBBROOT}/lib/intel64/gcc4.8)
+
 set(SOURCE_FILES util.h)
 file(GLOB_RECURSE RMI_SOURCES "competitors/rmi/*.cpp")
 file(GLOB_RECURSE BENCH_SOURCES "benchmarks/*.cc")
-
-if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)
-    # FIXME cannot link with g++-9
-    add_definitions(-DDISABLE_FST=1)
-    list(REMOVE_ITEM BENCH_SOURCES "${CMAKE_SOURCE_DIR}/benchmarks/benchmark_fst.cc")
-endif ()
+file(GLOB_RECURSE SEARCH_SOURCES "searches/*.h" "searches/search.cpp")
 
 if (${APPLE})
     # Certain headers (e.g., byteswap) not supported under Mac OS.
     list(REMOVE_ITEM BENCH_SOURCES "${CMAKE_SOURCE_DIR}/benchmarks/benchmark_wormhole.cc")
 endif ()
 
+add_executable(searches searches.cpp ${SOURCE_FILES} ${SEARCH_SOURCES})
 add_executable(generate generate.cc ${SOURCE_FILES})
+target_include_directories(generate
+        PRIVATE "competitors/finedex/include")
 target_link_libraries(generate Threads::Threads)
-
-add_subdirectory(robin-map)
-
-add_custom_target(
-        libfast64
-        COMMAND cargo build --release
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/fast64/
-)
 
 if (${LINUX})
     add_custom_target(
@@ -59,7 +56,10 @@ if (${LINUX})
     )
 endif ()
 
-add_executable(benchmark benchmark.cc ${SOURCE_FILES} ${RMI_SOURCES} ${BENCH_SOURCES})
+add_executable(benchmark benchmark.cc ${SOURCE_FILES} ${RMI_SOURCES} ${BENCH_SOURCES} ${SEARCH_SOURCES})
+
+target_compile_definitions(benchmark PRIVATE NDEBUGGING)
+
 target_include_directories(benchmark
         PRIVATE "competitors/CHT/include"
         PRIVATE "competitors/FST/include"
@@ -67,8 +67,7 @@ target_include_directories(benchmark
         PRIVATE "competitors/rs/include"
         PRIVATE "competitors/stx-btree-0.9/include"
         PRIVATE "competitors/ts/include"
-        PRIVATE "fast64")
-add_dependencies(benchmark libfast64)
+        PRIVATE ${Boost_INCLUDE_DIRS})                
 
 if (${LINUX})
     target_include_directories(benchmark PRIVATE "wormhole")
@@ -77,7 +76,11 @@ if (${LINUX})
 endif ()
 
 target_link_libraries(benchmark
-        PRIVATE ${CMAKE_SOURCE_DIR}/fast64/target/release/libfast64.a
-        PRIVATE tsl::robin_map
         PRIVATE Threads::Threads dtl
-        PRIVATE dl)
+        PRIVATE ${Boost_LIBRARIES})
+
+set(MKL_LIBRARIES ${MKLROOT}/lib/intel64/libmkl_intel_lp64.a ${MKLROOT}/lib/intel64/libmkl_tbb_thread.a ${MKLROOT}/lib/intel64/libmkl_core.a)
+target_link_libraries(benchmark
+        PRIVATE -Wl,--start-group ${MKL_LIBRARIES} -Wl,--end-group
+        PRIVATE dl
+        -ltbb)

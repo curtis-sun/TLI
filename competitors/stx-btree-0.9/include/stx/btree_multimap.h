@@ -53,7 +53,7 @@ namespace stx {
  * values. This design directly generates many problems in implementing the
  * iterator's operator's which return value_type composition pairs.
  */
-template <typename _Key, typename _Data,
+template <typename _Key, typename _Data, typename SearchClass,
           typename _Compare = std::less<_Key>,
           typename _Traits = btree_default_map_traits<_Key, _Data>,
           typename _Alloc = std::allocator<std::pair<_Key, _Data> > >
@@ -89,14 +89,14 @@ public:
     // *** Constructed Types
 
     /// Typedef of our own type
-    typedef btree_multimap<key_type, data_type, key_compare, traits, allocator_type>    self;
+    typedef btree_multimap<key_type, data_type, SearchClass, key_compare, traits, allocator_type>    self;
 
     /// Construct the STL-required value_type as a composition pair of key and
     /// data types
     typedef std::pair<key_type, data_type>      value_type;
 
     /// Implementation type of the btree_base
-    typedef stx::btree<key_type, data_type, value_type, key_compare,
+    typedef stx::btree<key_type, data_type, SearchClass, value_type, key_compare,
                        traits, true, allocator_type, false> btree_impl;
 
     /// Function class comparing two value_type pairs.

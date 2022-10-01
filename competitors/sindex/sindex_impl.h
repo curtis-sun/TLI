@@ -29,12 +29,15 @@
 
 namespace sindex {
 
-template <class key_t, class val_t, bool seq>
-SIndex<key_t, val_t, seq>::SIndex(const std::vector<key_t> &keys,
+template <class key_t, class val_t, bool seq, class SearchClass>
+SIndex<key_t, val_t, seq, SearchClass>::SIndex(const std::vector<key_t> &keys,
                                   const std::vector<val_t> &vals,
-                                  size_t worker_num, size_t bg_n)
+                                  size_t worker_num, size_t bg_n,
+                                  size_t et, size_t pt)
     : bg_num(bg_n) {
   config.worker_n = worker_num;
+  config.group_error_bound = et;
+  config.partial_len_bound = pt;
   // sanity checks
   INVARIANT(config.root_error_bound > 0);
   INVARIANT(config.root_memory_constraint > 0);
@@ -56,20 +59,22 @@ SIndex<key_t, val_t, seq>::SIndex(const std::vector<key_t> &keys,
   start_bg();
 }
 
-template <class key_t, class val_t, bool seq>
-SIndex<key_t, val_t, seq>::~SIndex() {
+template <class key_t, class val_t, bool seq, class SearchClass>
+SIndex<key_t, val_t, seq, SearchClass>::~SIndex() {
   terminate_bg();
+  root->free_memory();
+  delete root;
 }
 
-template <class key_t, class val_t, bool seq>
-inline bool SIndex<key_t, val_t, seq>::get(const key_t &key, val_t &val,
-                                           const uint32_t worker_id) {
+template <class key_t, class val_t, bool seq, class SearchClass>
+inline bool SIndex<key_t, val_t, seq, SearchClass>::get(const key_t &key, val_t &val,
+                                           const uint32_t worker_id) const {
   rcu_progress(worker_id);
   return root->get(key, val) == result_t::ok;
 }
 
-template <class key_t, class val_t, bool seq>
-inline bool SIndex<key_t, val_t, seq>::put(const key_t &key, const val_t &val,
+template <class key_t, class val_t, bool seq, class SearchClass>
+inline bool SIndex<key_t, val_t, seq, SearchClass>::put(const key_t &key, const val_t &val,
                                            const uint32_t worker_id) {
   result_t res;
   rcu_progress(worker_id);
@@ -79,31 +84,40 @@ inline bool SIndex<key_t, val_t, seq>::put(const key_t &key, const val_t &val,
   return res == result_t::ok;
 }
 
-template <class key_t, class val_t, bool seq>
-inline bool SIndex<key_t, val_t, seq>::remove(const key_t &key,
+template <class key_t, class val_t, bool seq, class SearchClass>
+inline bool SIndex<key_t, val_t, seq, SearchClass>::remove(const key_t &key,
                                               const uint32_t worker_id) {
   rcu_progress(worker_id);
   return root->remove(key) == result_t::ok;
 }
 
-template <class key_t, class val_t, bool seq>
-inline size_t SIndex<key_t, val_t, seq>::scan(
+template <class key_t, class val_t, bool seq, class SearchClass>
+inline size_t SIndex<key_t, val_t, seq, SearchClass>::scan(
     const key_t &begin, const size_t n,
     std::vector<std::pair<key_t, val_t>> &result, const uint32_t worker_id) {
   rcu_progress(worker_id);
   return root->scan(begin, n, result);
 }
 
-template <class key_t, class val_t, bool seq>
-size_t SIndex<key_t, val_t, seq>::range_scan(
+template <class key_t, class val_t, bool seq, class SearchClass>
+size_t SIndex<key_t, val_t, seq, SearchClass>::range_scan(
     const key_t &begin, const key_t &end,
-    std::vector<std::pair<key_t, val_t>> &result, const uint32_t worker_id) {
+    std::vector<std::pair<key_t, val_t>> &result, const uint32_t worker_id) const {
   rcu_progress(worker_id);
   return root->range_scan(begin, end, result);
 }
 
-template <class key_t, class val_t, bool seq>
-void *SIndex<key_t, val_t, seq>::background(void *this_) {
+template <class key_t, class val_t, bool seq, class SearchClass>
+unsigned long long SIndex<key_t, val_t, seq, SearchClass>::size() const{
+  unsigned long long size = sizeof(*this);
+  if (root){
+    size += root->size();
+  }
+  return size;
+}
+
+template <class key_t, class val_t, bool seq, class SearchClass>
+void *SIndex<key_t, val_t, seq, SearchClass>::background(void *this_) {
   volatile SIndex &index = *(SIndex *)this_;
   if (index.bg_num == 0) return nullptr;
 
@@ -203,8 +217,9 @@ void *SIndex<key_t, val_t, seq>::background(void *this_) {
   return nullptr;
 }
 
-template <class key_t, class val_t, bool seq>
-void SIndex<key_t, val_t, seq>::start_bg() {
+template <class key_t, class val_t, bool seq, class SearchClass>
+void SIndex<key_t, val_t, seq, SearchClass>::start_bg() {
+  config.exited = false;
   bg_running = true;
   int ret = pthread_create(&bg_master, nullptr, background, this);
   if (ret) {
@@ -212,10 +227,16 @@ void SIndex<key_t, val_t, seq>::start_bg() {
   }
 }
 
-template <class key_t, class val_t, bool seq>
-void SIndex<key_t, val_t, seq>::terminate_bg() {
+template <class key_t, class val_t, bool seq, class SearchClass>
+void SIndex<key_t, val_t, seq, SearchClass>::terminate_bg() {
   config.exited = true;
   bg_running = false;
+  DEBUG_THIS("--- [bg] joining bg master");
+  void *status;
+  int rc = pthread_join(bg_master, &status);
+  if (rc) {
+    COUT_N_EXIT("Error: unable to join bg master");
+  }
 }
 
 }  // namespace sindex

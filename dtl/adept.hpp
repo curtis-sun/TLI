@@ -104,15 +104,15 @@ struct array_info<std::array<T, N>> {
 #define unlikely(x) __builtin_expect((x),0)
 #endif
 
-#if defined(NDEBUG)
-  #if !defined(forceinline)
-  #define forceinline inline __attribute__((always_inline))
-  #endif
-#else
-  #if !defined(forceinline)
-  #define forceinline
-  #endif
-#endif
+// #if defined(NDEBUG)
+//   #if !defined(forceinline)
+//   #define forceinline inline __attribute__((always_inline))
+//   #endif
+// #else
+//   #if !defined(forceinline)
+//   #define forceinline
+//   #endif
+// #endif
 
 #if defined(NDEBUG)
 // Release build.

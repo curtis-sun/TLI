@@ -343,7 +343,7 @@ public:
     }
 
     // resort for retraining
-    void resort(std::vector<key_type>& keys, std::vector<key_type>& vals) {
+    void resort(std::vector<key_type>& keys, std::vector<data_type>& vals) {
         assert(m_root);
         size_t itemnum = 0;
         const root_bin* r = m_root;
@@ -1287,6 +1287,42 @@ public:
         return remaining;
     }
 
+    bool range_scan(const key_type &lkey, const key_type &rkey, std::vector<std::pair<key_type, data_type>> &result){
+        child_bin* child = nullptr;
+        bool is_end = false;
+        memory_fence();
+        if(m_root){
+            root_bin* root = m_root;
+            int slot = find_lower(root, lkey);
+            child = static_cast<child_bin*>(root->children[slot]);
+        } else {
+            if(m_headbin){
+                child = m_headbin;
+            } else {
+                return is_end;
+            }
+        }
+        assert(child!=nullptr);
+        int cslot = find_lower(child, lkey);
+        if(cslot>=child->slotuse){
+            child = child->nextbin;
+            cslot = 0;
+        }
+        while(child) {
+            if (child->slotkey[cslot] > rkey){
+                is_end = true;
+                break;
+            }
+            result.push_back(std::pair<key_type, data_type>(child->slotkey[cslot], child->slotdata[cslot]));
+            cslot++;
+            if(cslot>=child->slotuse){
+                child = child->nextbin;
+                cslot = 0;
+            }
+        }
+        return is_end;
+    }
+
 
 
 
@@ -1413,6 +1449,15 @@ public:
         }
     }
 
+    size_t size() const{
+        if (m_root) {
+            return sizeof(*this) + sizeof(root_bin) + sizeof(child_bin) * (m_root->slotuse + 1);
+        } 
+        if(m_headbin){
+            return sizeof(*this) + sizeof(child_bin);
+        }
+        return sizeof(*this);
+    }
 
 
 private:

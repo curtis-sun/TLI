@@ -31,7 +31,7 @@ namespace xindex {
 template <class key_t>
 class LinearModel {
   typedef std::array<double, key_t::model_key_size()> model_key_t;
-  template <class key_t_, class val_t, bool seq>
+  template <class key_t_, class val_t, bool seq, class sc>
   friend class Root;
 
  public:

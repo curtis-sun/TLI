@@ -3,12 +3,12 @@ build/
 cmake-build-debug/
 cmake-build-release/
 data/
+experiments/
 *~
 \#*
 *ipynb*
 competitors/rmi/*.h
 competitors/rmi/*.cpp
-results/*.txt
-results_perf/*.txt
 rmi_data/*
 rmi.tar.zst
+.vscode/

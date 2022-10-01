@@ -32,7 +32,7 @@
  * @tparam PGMType the type of @ref PGMIndex to use in the container
  * @tparam MinIndexedLevel the minimum level (of size 2^MinIndexedLevel) on which a @p PGMType index is constructed
  */
-template<typename K, typename V, typename PGMType = PGMIndex<K, 64, 16>, uint8_t MinIndexedLevel = 18>
+template<typename K, typename V, typename SearchClass, typename PGMType = PGMIndex<K, SearchClass, 64, 16>, uint8_t MinIndexedLevel = 18>
 class DynamicPGMIndex {
     class Item;
     class BaseItemA;
@@ -232,8 +232,9 @@ class DynamicPGMIndex {
 
     void insert(const Item &new_item) {
         auto insertion_point = std::lower_bound(data[0].begin(), data[0].end(), new_item);
-        if (insertion_point != data[0].end() && *insertion_point == new_item) {
-            *insertion_point = new_item;
+        // Curtis: only ignore key and value meanwhile equal to allow reduplicate key
+        if (insertion_point != data[0].end() && insertion_point->key() == new_item.key() && insertion_point->value() == new_item.value()) {
+            // *insertion_point = new_item;
             return;
         }
 
@@ -307,9 +308,9 @@ public:
         auto out = target.begin();
         target[0] = Item(*first);
         while (++first != last)
-            if (first->first != out->first)
+            // Curtis: if (first->first != out->first)
                 *++out = Item(*first);
-        target.resize(std::distance(target.begin(), out));
+        // Curtis: target.resize(std::distance(target.begin(), out));
 
         if (used_levels - 1 >= MinIndexedLevel) {
             pgm = std::vector<PGMType>(used_levels - MinIndexedLevel);
@@ -337,10 +338,12 @@ public:
 
     /**
      * Finds an element with key equivalent to @p key.
+     * Curtis: new iterator implementation to allow reduplicate keys
      * @param key key value of the element to search for
      * @return an iterator to an element with key equivalent to @p key. If no such element is found, end() is returned
      */
     iterator find(const K &key) const {
+        std::vector<std::pair<typename LevelType::const_iterator, int16_t>> initial_pairs{};
         uint8_t i = min_level;
         for (; i < std::min(MinIndexedLevel, used_levels); ++i) {
             auto &level = get_level(i);
@@ -349,7 +352,7 @@ public:
 
             auto it = std::lower_bound(level.begin(), level.end(), key);
             if (it != level.end() && it->key() == key)
-                return it->deleted() ? end() : iterator(this, it, i);
+                return it->deleted() ? end() : iterator(this, it, 0, initial_pairs);   
         }
 
         for (; i < used_levels; ++i) {
@@ -358,9 +361,9 @@ public:
                 continue;
 
             auto approx_pos = get_pgm(i).find_approximate_position(key);
-            auto it = std::lower_bound(level.begin() + approx_pos.lo, level.begin() + approx_pos.hi, key);
+            auto it = SearchClass::lower_bound(level.begin() + approx_pos.lo, level.begin() + approx_pos.hi, key, level.begin() + approx_pos.pos);
             if (it != level.end() && it->key() == key)
-                return it->deleted() ? end() : iterator(this, it, i);
+                return it->deleted() ? end() : iterator(this, it, 0, initial_pairs);
         }
 
         return end();
@@ -368,13 +371,15 @@ public:
 
     /**
      * Returns an iterator pointing to the first element that is not less than (i.e. greater or equal to) @p key.
+     * Curtis: new iterator implementation to allow reduplicate keys
      * @param key key value to compare the elements to
      * @return an iterator to an element with key not less than @p key. If no such element is found, end() is returned
      */
     iterator lower_bound(const K &key) const {
         bool lo_is_set = false;
         typename LevelType::const_iterator lo;
-        uint8_t lo_level;
+        std::vector<std::pair<typename LevelType::const_iterator, int16_t>> initial_pairs{};
+        initial_pairs.reserve(used_levels - min_level);
 
         uint8_t i = min_level;
         for (; i < std::min(MinIndexedLevel, used_levels); ++i) {
@@ -386,10 +391,12 @@ public:
             while (it != level.end() && it->deleted())
                 ++it;
 
-            if (it != level.end() && (it->key() >= key && (!lo_is_set || it->key() < lo->key()))) {
-                lo = it;
-                lo_level = i;
-                lo_is_set = true;
+            if (it != level.end()) {
+                initial_pairs.emplace_back(it, i);
+                if (!lo_is_set || it->key() < lo->key()){
+                    lo = it;
+                    lo_is_set = true;
+                }
             }
         }
 
@@ -399,20 +406,23 @@ public:
                 continue;
 
             auto approx_pos = get_pgm(i).find_approximate_position(key);
-            auto it = std::lower_bound(level.begin() + approx_pos.lo, level.begin() + approx_pos.hi, key);
-            while (it != level.end() && it->deleted())
+            auto it = SearchClass::lower_bound(level.begin() + approx_pos.lo, level.begin() + approx_pos.hi, key, level.begin() + approx_pos.pos);
+            while(it != level.end() && it->key() < key){
                 ++it;
+            }
 
-            if (it != level.end() && (it->key() >= key && (!lo_is_set || it->key() < lo->key()))) {
-                lo = it;
-                lo_level = i;
-                lo_is_set = true;
+            if (it != level.end()) {
+                initial_pairs.emplace_back(it, i);
+                if (!lo_is_set || it->key() < lo->key()){
+                    lo = it;
+                    lo_is_set = true;
+                }
             }
         }
 
-        if (lo_is_set)
-            return iterator(this, lo, lo_level);
-
+        if (lo_is_set){
+            return iterator(this, lo, used_levels, initial_pairs);
+        }
         return end();
     }
 
@@ -446,7 +456,10 @@ public:
      * Returns an iterator to the end.
      * @return an iterator to the end
      */
-    iterator end() const { return iterator(this, data.back().end(), 0); }
+    iterator end() const { 
+        std::vector<std::pair<typename LevelType::const_iterator, int16_t>> initial_pairs{};
+        return iterator(this, data.back().end(), std::numeric_limits<uint8_t>::max(), initial_pairs); 
+    }
 
     /**
      * Returns the number of elements with key that compares equal to the specified argument key, which is either 1
@@ -505,17 +518,20 @@ private:
     };
 };
 
-template<typename K, typename V, typename PGMType, uint8_t MinIndexedLevel>
-class DynamicPGMIndex<K, V, PGMType, MinIndexedLevel>::DynamicPGMIndexIterator {
+// Curtis: new iterator implementation to allow reduplicate keys
+template<typename K, typename V, typename SearchClass, typename PGMType, uint8_t MinIndexedLevel>
+class DynamicPGMIndex<K, V, SearchClass, PGMType, MinIndexedLevel>::DynamicPGMIndexIterator {
     friend class DynamicPGMIndex;
 
     using internal_iterator = typename LevelType::const_iterator;
     using queue_pair = std::pair<internal_iterator, int16_t>;
-    using dynamic_pgm_type = DynamicPGMIndex<K, V, PGMType, MinIndexedLevel>;
+    using dynamic_pgm_type = DynamicPGMIndex<K, V, SearchClass, PGMType, MinIndexedLevel>;
 
     const dynamic_pgm_type *super;
     internal_iterator it;
     uint8_t level{};
+
+    std::vector<queue_pair> initial_pairs;
 
     static bool queue_cmp(const queue_pair &e1, const queue_pair &e2) {
         return *e1.first > *e2.first || (*e1.first == *e2.first && e1.second > e2.second);
@@ -528,9 +544,6 @@ class DynamicPGMIndex<K, V, PGMType, MinIndexedLevel>::DynamicPGMIndexIterator {
         if (initialized)
             return;
 
-        std::vector<queue_pair> initial_pairs{};
-        initial_pairs.reserve(super->used_levels - level);
-
         // For each level create and position an iterator to the first key > it->key()
         for (uint8_t i = level; i < super->used_levels; ++i) {
             auto &level_data = super->get_level(i);
@@ -539,18 +552,25 @@ class DynamicPGMIndex<K, V, PGMType, MinIndexedLevel>::DynamicPGMIndexIterator {
 
             size_t lo = 0;
             size_t hi = level_data.size();
+            size_t mid = 0;
             if (i >= MinIndexedLevel) {
                 auto approx_pos = super->get_pgm(i).find_approximate_position(it->key());
+                mid = approx_pos.pos;
                 lo = approx_pos.lo;
                 hi = approx_pos.hi;
             }
 
-            auto pos = std::upper_bound(level_data.begin() + lo, level_data.begin() + hi, *it);
+            auto pos = SearchClass::lower_bound(level_data.begin() + lo, level_data.begin() + hi, *it, level_data.begin() + mid);
+            while(pos != level_data.end() && pos->key() < *it){
+                ++pos;
+            }
+
             if (pos != level_data.end())
                 initial_pairs.emplace_back(pos, i);
         }
 
         queue = decltype(queue)(&queue_cmp, initial_pairs);
+        advance_queue();
         level = std::numeric_limits<decltype(level)>::max();
     }
 
@@ -572,8 +592,10 @@ class DynamicPGMIndex<K, V, PGMType, MinIndexedLevel>::DynamicPGMIndexIterator {
 
     DynamicPGMIndexIterator() = default;
 
-    DynamicPGMIndexIterator(const dynamic_pgm_type *super, const internal_iterator it, uint8_t level)
-        : super(super), it(it), level(level), queue() {};
+    DynamicPGMIndexIterator(const dynamic_pgm_type *super, const internal_iterator it, uint8_t level, std::vector<queue_pair>& initial_pairs_)
+        : super(super), it(it), level(level), queue() {
+            initial_pairs.swap(initial_pairs_);
+        };
 
 public:
 
@@ -602,8 +624,8 @@ public:
 
 #pragma pack(push, 1)
 
-template<typename K, typename V, typename PGMType, uint8_t MinIndexedLevel>
-class DynamicPGMIndex<K, V, PGMType, MinIndexedLevel>::BaseItemA {
+template<typename K, typename V, typename SearchClass, typename PGMType, uint8_t MinIndexedLevel>
+class DynamicPGMIndex<K, V, SearchClass, PGMType, MinIndexedLevel>::BaseItemA {
 protected:
     static V tombstone;
     V second;
@@ -615,11 +637,11 @@ protected:
     void set_deleted() { second = tombstone; }
 };
 
-template<typename K, typename V, typename PGMType, uint8_t MinIndexedLevel>
-V DynamicPGMIndex<K, V, PGMType, MinIndexedLevel>::BaseItemA::tombstone = new std::remove_pointer_t<V>();
+template<typename K, typename V, typename SearchClass, typename PGMType, uint8_t MinIndexedLevel>
+V DynamicPGMIndex<K, V, SearchClass, PGMType, MinIndexedLevel>::BaseItemA::tombstone = new std::remove_pointer_t<V>();
 
-template<typename K, typename V, typename PGMType, uint8_t MinIndexedLevel>
-class DynamicPGMIndex<K, V, PGMType, MinIndexedLevel>::BaseItemB {
+template<typename K, typename V, typename SearchClass, typename PGMType, uint8_t MinIndexedLevel>
+class DynamicPGMIndex<K, V, SearchClass, PGMType, MinIndexedLevel>::BaseItemB {
 protected:
     V second;
     bool flag;
@@ -631,8 +653,8 @@ protected:
     void set_deleted() { flag = true; }
 };
 
-template<typename K, typename V, typename PGMType, uint8_t MinIndexedLevel>
-class DynamicPGMIndex<K, V, PGMType, MinIndexedLevel>::Item : private BaseItem {
+template<typename K, typename V, typename SearchClass, typename PGMType, uint8_t MinIndexedLevel>
+class DynamicPGMIndex<K, V, SearchClass, PGMType, MinIndexedLevel>::Item : private BaseItem {
     friend class DynamicPGMIndex;
     K first;
 

@@ -144,6 +144,11 @@ inline uint32_t AltBtreeBuffer<key_t, val_t>::size() {
 }
 
 template <class key_t, class val_t>
+unsigned long long AltBtreeBuffer<key_t, val_t>::size_in_byte() const{
+  return allocated_blocks.size() * node_n_per_block * node_size;
+}
+
+template <class key_t, class val_t>
 inline typename AltBtreeBuffer<key_t, val_t>::leaf_t *
 AltBtreeBuffer<key_t, val_t>::locate_leaf(key_t key, uint64_t &leaf_ver) {
 retry:
@@ -590,6 +595,7 @@ int AltBtreeBuffer<key_t, val_t>::Node::find_first_larger_than_or_equal_to(
     mid = (begin_i + end_i) / 2;
   }
   return mid;
+  // return BranchingBinarySearch<track_errors>::lower_bound(keys, keys + this->key_n, key, keys) - keys;
 }
 
 template <class key_t, class val_t>
@@ -609,6 +615,7 @@ int AltBtreeBuffer<key_t, val_t>::Node::find_first_larger_than(
     mid = (begin_i + end_i) / 2;
   }
   return mid;
+  // return BranchingBinarySearch<track_errors>::upper_bound(keys, keys + this->key_n, key, keys) - keys;
 }
 
 template <class key_t, class val_t>

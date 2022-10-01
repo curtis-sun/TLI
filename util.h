@@ -9,12 +9,32 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
-
-#define ROW_WIDTH 1
+#include <map>
+#include <set>
+#include <string>
+#include <cstring>
+#include <immintrin.h>
+#include <atomic>
 
 //#define PRINT_ERRORS
 
-enum DataType { UINT32 = 0, UINT64 = 1 };
+#if !defined(forceinline)
+#ifdef _MSC_VER
+#define forceinline __forceinline
+#elif defined(__GNUC__)
+#define forceinline inline __attribute__((__always_inline__))
+#elif defined(__CLANG__)
+#if __has_attribute(__always_inline__)
+#define forceinline inline __attribute__((__always_inline__))
+#else
+#define forceinline inline
+#endif
+#else
+#define forceinline inline
+#endif
+#endif
+
+enum DataType { UINT32 = 0, UINT64 = 1, STRING = 2 };
 
 template <class KeyType>
 struct KeyValue {
@@ -22,30 +42,96 @@ struct KeyValue {
   uint64_t value;
 } __attribute__((packed));
 
-template <class KeyType>
-struct Row {
-  KeyType key;
-  uint64_t data[ROW_WIDTH];
-};
-
 template <class KeyType = uint64_t>
-struct EqualityLookup {
-  KeyType key;
+struct EqualitySql {
+  uint8_t op;
+  KeyType lo_key;
+  KeyType hi_key;
   uint64_t result;
+} __attribute__((packed));
+
+#define CACHELINE_SIZE (1 << 6)
+
+struct alignas(CACHELINE_SIZE) FGParam{
+  void *index, *sqls, *keys;
+  uint64_t *individual_ns;
+  uint64_t start, limit, sql_cnt;
+  uint32_t thread_id;
 };
 
-struct SearchBound {
-  size_t start;
-  size_t stop;
-};
+__m256i static forceinline _mm256_cmpge_epu32(__m256i a, __m256i b) {
+  return _mm256_cmpeq_epi32(_mm256_max_epu32(a, b), a);
+}
+
+__m256i static forceinline _mm256_cmple_epu32(__m256i a, __m256i b) {
+  return _mm256_cmpge_epu32(b, a);
+}
+
+__m256i static forceinline _mm256_cmpgt_epu32(__m256i a, __m256i b) {
+  return _mm256_xor_si256(_mm256_cmple_epu32(a, b), _mm256_set1_epi32(-1));
+}
+
+__m256i static forceinline _mm256_cmplt_epu32(__m256i a, __m256i b) {
+  return _mm256_cmpgt_epu32(b, a);
+}
+
+__m256i static forceinline _mm256_cmpgt_epu64(__m256i a, __m256i b) {  
+  const static __m256i highBit = _mm256_set1_epi64x((long long)0x8000000000000000);   
+  a = _mm256_xor_si256(a, highBit);
+  b = _mm256_xor_si256(b, highBit);
+  return _mm256_cmpgt_epi64(a, b);
+}
+
+__m256i static forceinline _mm256_cmplt_epu64(__m256i a, __m256i b) {  
+  return _mm256_cmpgt_epu64(b, a);
+}
+
+__m256i static forceinline _mm256_cmpge_epu64(__m256i a, __m256i b) {  
+  return _mm256_xor_si256(_mm256_cmplt_epu64(a, b), _mm256_set1_epi32(-1));
+}
+
+__m256i static forceinline _mm256_cmple_epu64(__m256i a, __m256i b) {  
+  return _mm256_cmpge_epu64(b, a);
+}
 
 namespace util {
 
+const static uint8_t LOOKUP = 0;
+const static uint8_t RANGE_QUERY = 1;
+const static uint8_t INSERT = 2;
+
 const static uint64_t NOT_FOUND = std::numeric_limits<uint64_t>::max();
+
+const static size_t OVERFLOW = std::numeric_limits<size_t>::max();
+
+static volatile bool running = false;
+static std::atomic<size_t> ready_threads;
 
 static void fail(const std::string& message) {
   std::cerr << message << std::endl;
   exit(EXIT_FAILURE);
+}
+
+template <class KeyType>
+static std::string convertToString(const KeyType& key){
+  KeyType endian_key;
+  if constexpr (std::is_same<KeyType, uint32_t>::value){
+    endian_key = __builtin_bswap32(key);
+  }
+  else if constexpr (std::is_same<KeyType, uint64_t>::value){
+    endian_key = __builtin_bswap64(key);
+  }
+  else{
+    util::fail("unknown key type");
+  }
+  return std::string(reinterpret_cast<const char*>(&endian_key), sizeof(KeyType));
+}
+
+template <>
+std::string convertToString(const std::string& key){
+  std::string str = key;
+  str.push_back(0);
+  return str;
 }
 
 [[maybe_unused]] static std::string get_suffix(const std::string& filename) {
@@ -60,6 +146,8 @@ static void fail(const std::string& message) {
     return DataType::UINT32;
   } else if (suffix == "uint64") {
     return DataType::UINT64;
+  } else if (suffix == "string") {
+    return DataType::STRING;
   } else {
     std::cerr << "type " << suffix << " not supported" << std::endl;
     exit(EXIT_FAILURE);
@@ -108,6 +196,53 @@ static bool is_unique(const std::vector<KeyValue<KeyType>>& data) {
   return true;
 }
 
+template <typename T>
+static std::vector<T> in_data(std::ifstream& in){
+  // Read size.
+  uint64_t size;
+  in.read(reinterpret_cast<char*>(&size), sizeof(uint64_t));
+  std::vector<T> data(size);
+  // Read values.
+  if constexpr (std::is_same<T, std::string>::value){
+    for (size_t i = 0; i < size; i ++){
+      uint32_t len;
+      in.read(reinterpret_cast<char*>(&len), sizeof(uint32_t));
+      char str[len];
+      in.read(reinterpret_cast<char*>(str), len);
+      data[i] = std::string(str, len);
+    }
+  }
+  else if constexpr (std::is_same<T, EqualitySql<std::string>>::value){
+    for (size_t i = 0; i < size; i ++){
+      in.read(reinterpret_cast<char*>(&data[i].op), sizeof(uint8_t));
+      in.read(reinterpret_cast<char*>(&data[i].result), sizeof(uint64_t));
+      uint32_t len;
+      in.read(reinterpret_cast<char*>(&len), sizeof(uint32_t));
+      char lo_str[len];
+      in.read(reinterpret_cast<char*>(lo_str), len);
+      data[i].lo_key = std::string(lo_str, len);
+      in.read(reinterpret_cast<char*>(&len), sizeof(uint32_t));
+      char hi_str[len];
+      in.read(reinterpret_cast<char*>(hi_str), len);
+      data[i].hi_key = std::string(hi_str, len);
+    }
+  }
+  else if constexpr (std::is_same<T, KeyValue<std::string>>::value){
+    for (size_t i = 0; i < size; i ++){
+      in.read(reinterpret_cast<char*>(&data[i].value), sizeof(uint64_t));
+      uint32_t len;
+      in.read(reinterpret_cast<char*>(&len), sizeof(uint32_t));
+      char str[len];
+      in.read(reinterpret_cast<char*>(str), len);
+      data[i].key = std::string(str, len);
+    }
+  }
+  else{
+    in.read(reinterpret_cast<char*>(data.data()), size * sizeof(T));
+  }
+  return data;
+}
+
 // Loads values from binary file into vector.
 template <typename T>
 static std::vector<T> load_data(const std::string& filename,
@@ -119,12 +254,7 @@ static std::vector<T> load_data(const std::string& filename,
       std::cerr << "unable to open " << filename << std::endl;
       exit(EXIT_FAILURE);
     }
-    // Read size.
-    uint64_t size;
-    in.read(reinterpret_cast<char*>(&size), sizeof(uint64_t));
-    data.resize(size);
-    // Read values.
-    in.read(reinterpret_cast<char*>(data.data()), size * sizeof(T));
+    data = in_data<T>(in);
     in.close();
   });
   const uint64_t ms = ns / 1e6;
@@ -138,6 +268,76 @@ static std::vector<T> load_data(const std::string& filename,
   return data;
 }
 
+template <typename T>
+static std::vector<std::vector<T>> load_data_multithread(const std::string& filename,
+                                bool print = true) {
+  std::vector<std::vector<T>> data;
+  size_t size = 0;
+  const uint64_t ns = util::timing([&] {
+    std::ifstream in(filename, std::ios::binary);
+    if (!in.is_open()) {
+      std::cerr << "unable to open " << filename << std::endl;
+      exit(EXIT_FAILURE);
+    }
+    // Read length.
+    uint64_t len;
+    in.read(reinterpret_cast<char*>(&len), sizeof(uint64_t));
+    data.reserve(len);
+    for (size_t i = 0; i < len; i ++){
+      data.push_back(in_data<T>(in));
+      size += data[i].size();
+    }
+    in.close();
+  });
+  const uint64_t ms = ns / 1e6;
+
+  if (print) {
+    std::cout << "read " << size << " values from " << filename << " in "
+              << ms << " ms (" << static_cast<double>(size) / 1000 / ms
+              << " M values/s)" << std::endl;
+  }
+
+  return data;
+}
+
+template <typename T>
+static void out_data(const std::vector<T>& data, std::ofstream& out) {
+    // Write size.
+    const uint64_t size = data.size();
+    out.write(reinterpret_cast<const char*>(&size), sizeof(uint64_t));
+    // Write values.
+    if constexpr (std::is_same<T, std::string>::value){
+      for (size_t i = 0; i < size; i ++){
+        uint32_t len = data[i].length();
+        out.write(reinterpret_cast<const char*>(&len), sizeof(uint32_t));
+        out.write(reinterpret_cast<const char*>(data[i].c_str()), len);
+      }
+    }
+    else if constexpr (std::is_same<T, EqualitySql<std::string>>::value){
+      for (size_t i = 0; i < size; i ++){
+        out.write(reinterpret_cast<const char*>(&data[i].op), sizeof(uint8_t));
+        out.write(reinterpret_cast<const char*>(&data[i].result), sizeof(uint64_t));
+        uint32_t len = data[i].lo_key.length();
+        out.write(reinterpret_cast<const char*>(&len), sizeof(uint32_t));
+        out.write(reinterpret_cast<const char*>(data[i].lo_key.c_str()), len);
+        len = data[i].hi_key.length();
+        out.write(reinterpret_cast<const char*>(&len), sizeof(uint32_t));
+        out.write(reinterpret_cast<const char*>(data[i].hi_key.c_str()), len);
+      }
+    }
+    else if constexpr (std::is_same<T, KeyValue<std::string>>::value){
+      for (size_t i = 0; i < size; i ++){
+        out.write(reinterpret_cast<const char*>(&data[i].value), sizeof(uint64_t));
+        uint32_t len = data[i].key.length();
+        out.write(reinterpret_cast<const char*>(&len), sizeof(uint32_t));
+        out.write(reinterpret_cast<const char*>(data[i].key.c_str()), len);
+      }
+    }
+    else{
+      out.write(reinterpret_cast<const char*>(data.data()), size * sizeof(T));
+    }
+}
+
 // Writes values from vector into binary file.
 template <typename T>
 static void write_data(const std::vector<T>& data, const std::string& filename,
@@ -148,11 +348,7 @@ static void write_data(const std::vector<T>& data, const std::string& filename,
       std::cerr << "unable to open " << filename << std::endl;
       exit(EXIT_FAILURE);
     }
-    // Write size.
-    const uint64_t size = data.size();
-    out.write(reinterpret_cast<const char*>(&size), sizeof(uint64_t));
-    // Write values.
-    out.write(reinterpret_cast<const char*>(data.data()), size * sizeof(T));
+    out_data(data, out);
     out.close();
   });
   const uint64_t ms = ns / 1e6;
@@ -163,36 +359,44 @@ static void write_data(const std::vector<T>& data, const std::string& filename,
   }
 }
 
-// Returns a duplicate-free copy.
-// Note that data has to be sorted.
+// Writes values from vector into binary file.
 template <typename T>
-static std::vector<T> remove_duplicates(const std::vector<T>& data) {
-  std::vector<T> result = data;
-  auto last = std::unique(result.begin(), result.end());
-  result.erase(last, result.end());
-  return result;
-}
-
-// Returns a value for a key at position i.
-template <class KeyType>
-static uint64_t get_value(const KeyType i) {
-  return i;
+static void write_data_multithread(std::vector<T> const* data, uint64_t len, const std::string& filename,
+                       const bool print = true) {
+  size_t size = 0;
+  const uint64_t ns = util::timing([&] {
+    std::ofstream out(filename, std::ios_base::trunc | std::ios::binary);
+    if (!out.is_open()) {
+      std::cerr << "unable to open " << filename << std::endl;
+      exit(EXIT_FAILURE);
+    }
+    // Write length.
+    out.write(reinterpret_cast<const char*>(&len), sizeof(uint64_t));
+    for (size_t i = 0; i < len; ++ i){
+      out_data(data[i], out);
+      size += data[i].size();
+    }
+    out.close();
+  });
+  const uint64_t ms = ns / 1e6;
+  if (print) {
+    std::cout << "wrote " << size << " values to " << filename << " in "
+              << ms << " ms (" << static_cast<double>(size) / 1000 / ms
+              << " M values/s)" << std::endl;
+  }
 }
 
 // Generates deterministic values for keys.
 template <class KeyType>
-static std::vector<Row<KeyType>> add_values(const std::vector<KeyType>& keys) {
-  std::vector<Row<KeyType>> result;
+static std::vector<KeyValue<KeyType>> add_values(const std::vector<KeyType>& keys) {
+  std::vector<KeyValue<KeyType>> result;
   result.reserve(keys.size());
 
   for (uint64_t i = 0; i < keys.size(); ++i) {
-    Row<KeyType> row;
-    row.key = keys[i];
-    for (int j = 0; j < ROW_WIDTH; j++) {
-      row.data[j] = get_value(i * (j + 1));
-    }
-
-    result.push_back(row);
+    KeyValue<KeyType> kv;
+    kv.key = keys[i];
+    kv.value = i;
+    result.push_back(kv);
   }
   return result;
 }
