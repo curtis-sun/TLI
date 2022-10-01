@@ -1,11 +1,9 @@
 #! /usr/bin/env bash
 
 echo "Executing benchmark and saving results..."
-num_iterations=1;
 while getopts n:c arg; do
     case $arg in
         c) do_csv=true;;
-        n) num_iterations=${OPTARG};;
     esac
 done
 
@@ -15,35 +13,54 @@ if [ ! -f $BENCHMARK ]; then
     exit
 fi
 
-function do_benchmark() {
+function execute_lookups_200M() {
+    echo "Executing lookups for $1 and index $2"
+    $BENCHMARK ./data/$1 ./data/$1_equality_sqls_20M_0.000000rq_0.500000nl_0.000000i --through --csv --only $2
+    $BENCHMARK ./data/$1 ./data/$1_equality_sqls_20M_1.000000rq_0.000000nl_0.000000i --through --csv --only $2
 
-    RESULTS=./results/$1_results.txt
-    if [ -f $RESULTS ]; then
-        echo "Already have results for $1"
-    else
-        echo "Executing workload $1"
-        $BENCHMARK -r $2 ./data/$1 ./data/$1_equality_lookups_10M --pareto | tee ./results/$1_results.txt
-    fi
+    $BENCHMARK ./data/$1 ./data/$1_equality_sqls_86666666_0.000000rq_0.500000nl_0.769231i_0m --through --csv --only $2
+    $BENCHMARK ./data/$1 ./data/$1_equality_sqls_201818181_0.000000rq_0.500000nl_0.900901i_0m --through --csv --only $2
+    $BENCHMARK ./data/$1 ./data/$1_equality_sqls_29523809_0.000000rq_0.500000nl_0.322581i_0m --through --csv --only $2
+    $BENCHMARK ./data/$1 ./data/$1_equality_sqls_207500K_0.000000rq_0.500000nl_0.903614i_0m --through --csv --only $2
+    $BENCHMARK ./data/$1 ./data/$1_equality_sqls_38181818_0.000000rq_0.500000nl_0.476190i_0m --through --csv --only $2
+    $BENCHMARK ./data/$1 ./data/$1_equality_sqls_120M_0.000000rq_0.500000nl_0.833333i_0m --through --csv --only $2
+    $BENCHMARK ./data/$1 ./data/$1_equality_sqls_186666666_0.000000rq_0.500000nl_0.892857i_0m --through --csv --only $2
+
+    $BENCHMARK ./data/$1 ./data/$1_equality_sqls_100M_0.000000rq_0.000000nl_1.000000i_0m_5Mbulkload --through --csv --only $2
+    $BENCHMARK ./data/$1 ./data/$1_equality_sqls_100M_0.010000rq_0.500000nl_0.800000i_0m_mix_5Mbulkload --through --csv --only $2
+    $BENCHMARK ./data/$1 ./data/$1_equality_sqls_100M_0.025000rq_0.500000nl_0.500000i_0m_mix_5Mbulkload --through --csv --only $2
+    $BENCHMARK ./data/$1 ./data/$1_equality_sqls_100M_0.047500rq_0.500000nl_0.050000i_0m_mix_5Mbulkload --through --csv --only $2
+    $BENCHMARK ./data/$1 ./data/$1_equality_sqls_100M_0.050000rq_0.500000nl_0.000000i_mix_105Mbulkload --through --csv --only $2
+
+    $BENCHMARK ./data/$1 ./data/$1_equality_sqls_20M_0.000000rq_0.500000nl_0.500000i_0m_10Mbulkload --through --csv --only $2
+    $BENCHMARK ./data/$1 ./data/$1_equality_sqls_20M_0.000000rq_0.500000nl_0.500000i_1m_10Mbulkload --through --csv --only $2
+    $BENCHMARK ./data/$1 ./data/$1_equality_sqls_20M_0.000000rq_0.500000nl_0.500000i_2m_0.050000h_10Mbulkload --through --csv --only $2
+    $BENCHMARK ./data/$1 ./data/$1_equality_sqls_20M_0.000000rq_0.500000nl_0.500000i_2m_0.100000h_10Mbulkload --through --csv --only $2
+    $BENCHMARK ./data/$1 ./data/$1_equality_sqls_20M_0.000000rq_0.500000nl_0.500000i_2m_0.150000h_10Mbulkload --through --csv --only $2
+    $BENCHMARK ./data/$1 ./data/$1_equality_sqls_20M_0.000000rq_0.500000nl_0.500000i_2m_0.200000h_10Mbulkload --through --csv --only $2
+    $BENCHMARK ./data/$1 ./data/$1_equality_sqls_20M_0.000000rq_0.500000nl_0.500000i_2m_0.250000h_10Mbulkload --through --csv --only $2
+    $BENCHMARK ./data/$1 ./data/$1_equality_sqls_20M_0.000000rq_0.500000nl_0.500000i_2m_0.300000h_10Mbulkload --through --csv --only $2
 }
 
-function do_benchmark_csv() {
-
-    RESULTS=./results/$1_results_table.csv
-    if [ -f $RESULTS ]; then
-	# Previously existing file could be from incomplete run
-        echo "Removing results CSV for $1"
-	rm $RESULTS
-    fi
-    echo "Executing workload $1 and printing to CSV"
-    $BENCHMARK -r $2 ./data/$1 ./data/$1_equality_lookups_10M --pareto --csv
+function execute_strings_90M() {
+    echo "Executing lookups for $1 and index $2"
+    $BENCHMARK ./data/$1 ./data/$1_equality_sqls_60M_0.000000rq_0.000000nl_1.000000i_0m_3Mbulkload --through --csv --only $2
+    $BENCHMARK ./data/$1 ./data/$1_equality_sqls_60M_0.000000rq_0.000000nl_0.500000i_0m_mix_3Mbulkload --through --csv --only $2
+    $BENCHMARK ./data/$1 ./data/$1_equality_sqls_60M_0.000000rq_0.000000nl_0.050000i_0m_mix_3Mbulkload --through --csv --only $2
+    $BENCHMARK ./data/$1 ./data/$1_equality_sqls_60M_0.000000rq_0.000000nl_0.000000i_63Mbulkload --through --csv --only $2
 }
 
 mkdir -p ./results
 
-for dataset in $(cat scripts/datasets_under_test.txt); do
-    if [ "$do_csv" = true ]; then
-        do_benchmark_csv "$dataset" $num_iterations
-    else
-        do_benchmark "$dataset" $num_iterations
-    fi
+for DATA in fb osm_cellids books wiki_ts
+do
+for INDEX in ART RMI TS FAST PGM DynamicPGM LIPP BTree ALEX MABTree XIndex FINEdex Wormhole
+do
+    execute_lookups_200M ${DATA}_200M_uint64 $INDEX
+done
+done
+
+for INDEX in ART Wormhole SIndex
+do
+    execute_strings_90M url_90M_string $INDEX
 done

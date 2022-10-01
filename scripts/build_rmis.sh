@@ -12,7 +12,8 @@ function build_rmi_set() {
     shift 1
     if [ ! -f $HEADER_PATH ]; then
         echo "Building RMI set for $DATA_NAME"
-        RMI/target/release/rmi data/$DATA_NAME --param-grid ${JSON_PATH} -d rmi_data/ --threads 8 --zero-build-time
+        RMI/target/release/rmi --optimize ${JSON_PATH} data/$DATA_NAME --threads 32
+        RMI/target/release/rmi data/$DATA_NAME --param-grid ${JSON_PATH} -d rmi_data/ --threads 32
         mv ${DATA_NAME}_* competitors/rmi/
     fi
 }
