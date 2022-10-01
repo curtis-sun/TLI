@@ -1,0 +1,30 @@
+[submodule "RMI"]
+	path = RMI
+	url = https://github.com/learnedsystems/RMI
+[submodule "competitors/FST"]
+	path = competitors/FST
+	url = https://github.com/Christoph-Maximilian/FST
+[submodule "competitors/PGM-index"]
+	path = competitors/PGM-index
+	url = https://github.com/gvinciguerra/PGM-index
+[submodule "competitors/rs"]
+	path = competitors/rs
+	url = https://github.com/learnedsystems/RadixSpline.git
+[submodule "fast64"]
+	path = fast64
+	url = https://github.com/RyanMarcus/fast64.git
+[submodule "wormhole"]
+	path = wormhole
+	url = https://github.com/wuxb45/wormhole.git
+[submodule "competitors/ALEX"]
+	path = competitors/ALEX
+	url = https://github.com/microsoft/ALEX.git
+[submodule "competitors/CHT"]
+	path = competitors/CHT
+	url = https://github.com/stoianmihail/CHT.git
+[submodule "competitors/ts"]
+	path = competitors/ts
+	url = https://github.com/stoianmihail/TrieSpline.git
+[submodule "competitors/analysis-rmi"]
+	path = competitors/analysis-rmi
+	url = https://github.com/alhuan/analysis-rmi.git

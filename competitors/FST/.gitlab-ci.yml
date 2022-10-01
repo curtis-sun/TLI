@@ -1,0 +1,55 @@
+stages:
+    - build
+    - test
+    - cleanup
+
+make:
+    stage: build
+    script:
+        - ls
+        - mkdir -p build
+        - ls
+        - cd build
+        - cmake -DCMAKE_BUILD_TYPE=Debug ..
+        - make
+        - cd ..
+    artifacts:
+        paths:
+            - build
+        expire_in: 1 hrs
+    cache:
+        key: "$CI_COMMIT_REF_SLUG"
+        paths:
+            - build/vendor/
+        policy: pull-push
+    tags:
+        - "clang-6.0"
+        - "cmake"
+
+tester:
+    stage: test
+    script:
+        - ls
+        - cd build
+        - for f in test*; do
+            ./${f};
+          done
+
+lint:
+    stage: test
+    script:
+        - mkdir -p build
+        - cd build
+        - cmake -DCMAKE_BUILD_TYPE=Debug ..
+        - make clang-tidy
+    cache:
+        key: "$CI_COMMIT_REF_SLUG"
+        paths:
+            - build/vendor/
+        policy: pull-push
+    tags:
+        - "clang-6.0"
+        - "clang-tidy-6.0"
+        - "cmake"
+        - "python3"
+    allow_failure: true
