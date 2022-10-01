@@ -1,168 +1,18 @@
 /*
- * Copyright (c) 2016--2019  Wu, Xingbo <wuxb45@gmail.com>
+ * Copyright (c) 2016--2021  Wu, Xingbo <wuxb45@gmail.com>
  *
  * All rights reserved. No warranty, explicit or implicit, provided.
  */
 #pragma once
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// kv {{{
-/*
- * Some internal union names can be ignored:
- * struct kv {
- *   u32 klen;
- *   u32 vlen;
- *   u64 hash;
- *   u8 kv[];
- * };
- */
-struct kv {
-  union { // the first u64
-    u64 kvlen;
-    struct {
-      u32 klen;
-      union {
-        u32 vlen;
-        u32 refcnt;
-      };
-    };
-  };
-  union {
-    u64 hash; // hashvalue of the key
-    struct {
-      u32 hashlo; // little endian
-      u32 hashhi;
-    };
-  };
-  u8 kv[];  // len(kv) == klen + vlen
-} __attribute__((packed));
-
-// sized buffer: for returning value only
-struct sbuf {
-  u32 len;
-  u8 buf[];
-};
-
-  extern size_t
-kv_size(const struct kv * const kv);
-
-  extern size_t
-kv_size_align(const struct kv * const kv, const u64 align);
-
-  extern size_t
-key_size(const struct kv * const key);
-
-  extern size_t
-key_size_align(const struct kv * const key, const u64 align);
-
-  extern void
-kv_update_hash(struct kv * const kv);
-
-  extern void
-kv_refill(struct kv * const kv, const void * const key, const u32 klen, const void * const value, const u32 vlen);
-
-  extern void
-kv_refill_str_str(struct kv * const kv, const char * const key, const char * const value);
-
-  extern void
-kv_refill_str_u64(struct kv * const kv, const char * const key, const u64 value);
-
-  extern struct kv *
-kv_create(const void * const key, const u32 klen, const void * const value, const u32 vlen);
-
-  extern struct kv *
-kv_create_str(const char * const key, const char * const value);
-
-  extern struct kv *
-kv_dup(const struct kv * const kv);
-
-  extern struct kv *
-kv_dup_key(const struct kv * const kv);
-
-  extern struct kv *
-kv_dup2(const struct kv * const from, struct kv * const to);
-
-  extern struct kv *
-kv_dup2_key(const struct kv * const from, struct kv * const to);
-
-  extern struct kv *
-kv_dup2_key_prefix(const struct kv * const from, struct kv * const to, const u64 plen);
-
-  extern struct sbuf *
-kv_dup2_sbuf(const struct kv * const from, struct sbuf * const to);
-
-  extern bool
-kv_keymatch(const struct kv * const key1, const struct kv * const key2);
-
-  extern bool
-kv_keymatch_r(const struct kv * const key1, const struct kv * const key2);
-
-  extern bool
-kv_fullmatch(const struct kv * const kv1, const struct kv * const kv2);
-
-typedef int  (*kv_compare_func)(const struct kv * const kv1, const struct kv * const kv2);
-
-  extern int
-kv_keycompare(const struct kv * const kv1, const struct kv * const kv2);
-
-  extern int
-kv_compare_k128(const struct kv * const sk, const u8 * const k128);
-
-  extern int
-kv_compare_kv128(const struct kv * const sk, const u8 * const kv128);
-
-  extern void
-kv_qsort(struct kv ** const kvs, const size_t nr);
-
-  extern u32
-kv_key_lcp(const struct kv * const key1, const struct kv * const key2);
-
-  extern void *
-kv_vptr(struct kv * const kv);
-
-  extern void *
-kv_kptr(struct kv * const kv);
-
-  extern const void *
-kv_vptr_c(const struct kv * const kv);
-
-  extern const void *
-kv_kptr_c(const struct kv * const kv);
-
-  extern void
-kv_print(const struct kv * const kv, const char * const cmd, FILE * const out);
-
-  extern struct kv *
-kv_dup_in_default(const struct kv * const kv, void * const priv);
-
-  extern struct kv *
-kv_dup_out_default(const struct kv * const kv, struct kv * const out);
-
-  extern void
-kv_free_default(struct kv * const kv, void * const priv);
-
-typedef void        (* kv_free_func)(struct kv *, void *);
-typedef struct kv * (* kv_dup_out_func)(const struct kv *, struct kv *);
-typedef struct kv * (* kv_dup_in_func)(const struct kv *, void *);
-
-struct kvmap_mm {
-  kv_dup_in_func in;
-  kv_dup_out_func out;
-  kv_free_func free;
-  void * priv;
-};
-// }}} kv
-
-// kvmap {{{
-typedef void (* kv_inplace_func)(struct kv * const curr, void * const priv);
-// }}} kvmap
-
-// wormhole {{{
 struct wormhole;
 struct wormref;
 
+// wormhole {{{
 // the wh created by wormhole_create() can work with all of safe/unsafe operations.
   extern struct wormhole *
 wormhole_create(const struct kvmap_mm * const mm);
@@ -172,26 +22,38 @@ wormhole_create(const struct kvmap_mm * const mm);
 whunsafe_create(const struct kvmap_mm * const mm);
 
   extern struct kv *
-wormhole_get(struct wormref * const ref, const struct kv * const key, struct kv * const out);
+wormhole_get(struct wormref * const ref, const struct kref * const key, struct kv * const out);
 
   extern bool
-wormhole_probe(struct wormref * const ref, const struct kv * const key);
+wormhole_probe(struct wormref * const ref, const struct kref * const key);
 
   extern bool
-wormhole_set(struct wormref * const ref, const struct kv * const kv);
+wormhole_put(struct wormref * const ref, struct kv * const kv);
 
   extern bool
-wormhole_inplace(struct wormref * const ref, const struct kv * const key,
-    kv_inplace_func uf, void * const priv);
+wormhole_merge(struct wormref * const ref, const struct kref * const kref,
+    kv_merge_func uf, void * const priv);
 
   extern bool
-wormhole_del(struct wormref * const ref, const struct kv * const key);
+wormhole_inpr(struct wormref * const ref, const struct kref * const key,
+    kv_inp_func uf, void * const priv);
+
+  extern bool
+wormhole_inpw(struct wormref * const ref, const struct kref * const key,
+    kv_inp_func uf, void * const priv);
+
+  extern bool
+wormhole_del(struct wormref * const ref, const struct kref * const key);
+
+  extern u64
+wormhole_delr(struct wormref * const ref, const struct kref * const start,
+    const struct kref * const end);
 
   extern struct wormhole_iter *
 wormhole_iter_create(struct wormref * const ref);
 
   extern void
-wormhole_iter_seek(struct wormhole_iter * const iter, const struct kv * const key);
+wormhole_iter_seek(struct wormhole_iter * const iter, const struct kref * const key);
 
   extern bool
 wormhole_iter_valid(struct wormhole_iter * const iter);
@@ -199,14 +61,26 @@ wormhole_iter_valid(struct wormhole_iter * const iter);
   extern struct kv *
 wormhole_iter_peek(struct wormhole_iter * const iter, struct kv * const out);
 
+  extern bool
+wormhole_iter_kref(struct wormhole_iter * const iter, struct kref * const kref);
+
+  extern bool
+wormhole_iter_kvref(struct wormhole_iter * const iter, struct kvref * const kvref);
+
   extern void
-wormhole_iter_skip(struct wormhole_iter * const iter, const u64 nr);
+wormhole_iter_skip1(struct wormhole_iter * const iter);
+
+  extern void
+wormhole_iter_skip(struct wormhole_iter * const iter, const u32 nr);
 
   extern struct kv *
 wormhole_iter_next(struct wormhole_iter * const iter, struct kv * const out);
 
   extern bool
-wormhole_iter_inplace(struct wormhole_iter * const iter, kv_inplace_func uf, void * const priv);
+wormhole_iter_inp(struct wormhole_iter * const iter, kv_inp_func uf, void * const priv);
+
+  extern void
+wormhole_iter_park(struct wormhole_iter * const iter);
 
   extern void
 wormhole_iter_destroy(struct wormhole_iter * const iter);
@@ -218,7 +92,17 @@ wormhole_ref(struct wormhole * const map);
 wormhole_unref(struct wormref * const ref);
 
   extern void
+wormhole_park(struct wormref * const ref);
+
+  extern void
+wormhole_resume(struct wormref * const ref);
+
+  extern void
 wormhole_refresh_qstate(struct wormref * const ref);
+
+// clean with more threads
+  extern void
+wormhole_clean_th(struct wormhole * const map, const u32 nr_threads);
 
   extern void
 wormhole_clean(struct wormhole * const map);
@@ -226,57 +110,202 @@ wormhole_clean(struct wormhole * const map);
   extern void
 wormhole_destroy(struct wormhole * const map);
 
+// safe API (no need to refresh qstate)
+
+  extern struct kv *
+whsafe_get(struct wormref * const ref, const struct kref * const key, struct kv * const out);
+
+  extern bool
+whsafe_probe(struct wormref * const ref, const struct kref * const key);
+
+  extern bool
+whsafe_put(struct wormref * const ref, struct kv * const kv);
+
+  extern bool
+whsafe_merge(struct wormref * const ref, const struct kref * const kref,
+    kv_merge_func uf, void * const priv);
+
+  extern bool
+whsafe_inpr(struct wormref * const ref, const struct kref * const key,
+    kv_inp_func uf, void * const priv);
+
+  extern bool
+whsafe_inpw(struct wormref * const ref, const struct kref * const key,
+    kv_inp_func uf, void * const priv);
+
+  extern bool
+whsafe_del(struct wormref * const ref, const struct kref * const key);
+
+  extern u64
+whsafe_delr(struct wormref * const ref, const struct kref * const start,
+    const struct kref * const end);
+
+// use wormhole_iter_create
+  extern void
+whsafe_iter_seek(struct wormhole_iter * const iter, const struct kref * const key);
+
+  extern struct kv *
+whsafe_iter_peek(struct wormhole_iter * const iter, struct kv * const out);
+
+// use wormhole_iter_valid
+// use wormhole_iter_peek
+// use wormhole_iter_kref
+// use wormhole_iter_kvref
+// use wormhole_iter_skip1
+// use wormhole_iter_skip
+// use wormhole_iter_next
+// use wormhole_iter_inp
+
+  extern void
+whsafe_iter_park(struct wormhole_iter * const iter);
+
+  extern void
+whsafe_iter_destroy(struct wormhole_iter * const iter);
+
+  extern struct wormref *
+whsafe_ref(struct wormhole * const map);
+
+// use wormhole_unref
+
 // unsafe API
 
   extern struct kv *
-whunsafe_get(struct wormhole * const map, const struct kv * const key, struct kv * const out);
+whunsafe_get(struct wormhole * const map, const struct kref * const key, struct kv * const out);
 
   extern bool
-whunsafe_probe(struct wormhole * const map, const struct kv * const key);
+whunsafe_probe(struct wormhole * const map, const struct kref * const key);
 
   extern bool
-whunsafe_set(struct wormhole * const map, const struct kv * const kv);
+whunsafe_put(struct wormhole * const map, struct kv * const kv);
 
   extern bool
-whunsafe_inplace(struct wormhole * const map, const struct kv * const key,
-    kv_inplace_func uf, void * const priv);
+whunsafe_merge(struct wormhole * const map, const struct kref * const kref,
+    kv_merge_func uf, void * const priv);
 
   extern bool
-whunsafe_del(struct wormhole * const map, const struct kv * const key);
+whunsafe_inp(struct wormhole * const map, const struct kref * const key,
+    kv_inp_func uf, void * const priv);
+
+  extern bool
+whunsafe_del(struct wormhole * const map, const struct kref * const key);
+
+  extern u64
+whunsafe_delr(struct wormhole * const map, const struct kref * const start,
+    const struct kref * const end);
 
   extern struct wormhole_iter *
 whunsafe_iter_create(struct wormhole * const map);
 
   extern void
-whunsafe_iter_seek(struct wormhole_iter * const iter, const struct kv * const key);
+whunsafe_iter_seek(struct wormhole_iter * const iter, const struct kref * const key);
 
-  extern bool
-whunsafe_iter_valid(struct wormhole_iter * const iter);
-
-  extern struct kv *
-whunsafe_iter_peek(struct wormhole_iter * const iter, struct kv * const out);
+// unsafe iter_valid: use wormhole_iter_valid
+// unsafe iter_peek: use wormhole_iter_peek
+// unsafe iter_kref: use wormhole_iter_kref
 
   extern void
-whunsafe_iter_skip(struct wormhole_iter * const iter, const u64 nr);
+whunsafe_iter_skip1(struct wormhole_iter * const iter);
+
+  extern void
+whunsafe_iter_skip(struct wormhole_iter * const iter, const u32 nr);
 
   extern struct kv *
 whunsafe_iter_next(struct wormhole_iter * const iter, struct kv * const out);
 
-  extern bool
-whunsafe_iter_inplace(struct wormhole_iter * const iter, kv_inplace_func uf, void * const priv);
+// unsafe iter_inp: use wormhole_iter_inp
 
   extern void
 whunsafe_iter_destroy(struct wormhole_iter * const iter);
 
-  extern bool
-wormhole_locking(struct wormhole * const map, const bool locking);
-
-  extern bool
-whunsafe_locking(struct wormhole * const map, const bool locking);
-
   extern void
 wormhole_fprint(struct wormhole * const map, FILE * const out);
+
+extern const struct kvmap_api kvmap_api_wormhole;
+extern const struct kvmap_api kvmap_api_whsafe;
+extern const struct kvmap_api kvmap_api_whunsafe;
 // }}} wormhole
+
+// wh {{{
+  extern struct wormhole *
+wh_create(void);
+
+  extern struct wormref *
+wh_ref(struct wormhole * const wh);
+
+  extern void
+wh_unref(struct wormref * const ref);
+
+  extern void
+wh_park(struct wormref * const ref);
+
+  extern void
+wh_resume(struct wormref * const ref);
+
+  extern void
+wh_clean(struct wormhole * const map);
+
+  extern void
+wh_destroy(struct wormhole * const map);
+
+  extern bool
+wh_put(struct wormref * const ref, const void * const kbuf, const u32 klen,
+    const void * const vbuf, const u32 vlen);
+
+  extern bool
+wh_del(struct wormref * const ref, const void * const kbuf, const u32 klen);
+
+  extern bool
+wh_probe(struct wormref * const ref, const void * const kbuf, const u32 klen);
+
+  extern bool
+wh_get(struct wormref * const ref, const void * const kbuf, const u32 klen,
+    void * const vbuf_out, const u32 vbuf_size, u32 * const vlen_out);
+
+  extern bool
+wh_inpr(struct wormref * const ref, const void * const kbuf, const u32 klen,
+    kv_inp_func uf, void * const priv);
+
+  extern bool
+wh_inpw(struct wormref * const ref, const void * const kbuf, const u32 klen,
+    kv_inp_func uf, void * const priv);
+
+  extern bool
+wh_merge(struct wormref * const ref, const void * const kbuf, const u32 klen,
+    kv_merge_func uf, void * const priv);
+
+  extern u64
+wh_delr(struct wormref * const ref, const void * const kbuf_start, const u32 klen_start,
+    const void * const kbuf_end, const u32 klen_end);
+
+  extern struct wormhole_iter *
+wh_iter_create(struct wormref * const ref);
+
+  extern void
+wh_iter_seek(struct wormhole_iter * const iter, const void * const kbuf, const u32 klen);
+
+  extern bool
+wh_iter_valid(struct wormhole_iter * const iter);
+
+  extern bool
+wh_iter_peek(struct wormhole_iter * const iter,
+    void * const kbuf_out, const u32 kbuf_size, u32 * const klen_out,
+    void * const vbuf_out, const u32 vbuf_size, u32 * const vlen_out);
+
+  extern void
+wh_iter_skip1(struct wormhole_iter * const iter);
+
+  extern void
+wh_iter_skip(struct wormhole_iter * const iter, const u32 nr);
+
+  extern bool
+wh_iter_inp(struct wormhole_iter * const iter, kv_inp_func uf, void * const priv);
+
+  extern void
+wh_iter_park(struct wormhole_iter * const iter);
+
+  extern void
+wh_iter_destroy(struct wormhole_iter * const iter);
+// }}} wh
 
 #ifdef __cplusplus
 }

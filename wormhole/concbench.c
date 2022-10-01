@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <stdatomic.h>
 #include "lib.h"
+#include "kv.h"
 #include "wh.h"
 
 atomic_uint_least64_t __seqno = 0;
@@ -29,7 +30,7 @@ kv_load_worker(struct wormhole * const wh)
   const u64 nz = (seq == (__nth - 1)) ? __nkeys : (__nkeys / __nth * (seq + 1));
   printf("load worker %lu %lu\n", n0, nz);
   for (u64 i = n0; i < nz; i++)
-    wormhole_set(ref, __samples[i]);
+    wormhole_put(ref, __samples[i]);
   wormhole_unref(ref);
   return NULL;
 }
@@ -56,7 +57,8 @@ kv_probe_worker(struct wormhole * const wh)
 
       // do probe
       // customize your benchmark: do a mix of wh operations with switch-cases
-      if (wormhole_probe(ref, key))
+      const struct kref kref = kv_kref(key);
+      if (wormhole_probe(ref, &kref))
         succ++;
     }
     count += BATCH;
@@ -67,7 +69,6 @@ kv_probe_worker(struct wormhole * const wh)
   wormhole_unref(ref);
   return NULL;
 }
-
 
   int
 main(int argc, char ** argv)
@@ -107,7 +108,7 @@ main(int argc, char ** argv)
     for (u64 j = 0; j < 6; j++)
       ss[j] = words[random() % nr_words];
     sprintf(buf, "%s %s %s %s %s %s!", ss[0], ss[1], ss[2], ss[3], ss[4], ss[5]);
-    samples[i] = kv_create_str(buf, "");
+    samples[i] = kv_create_str(buf, NULL, 0);
   }
   // free words & buf
   for (u64 i = 0; i < nr_words; i++)
@@ -124,10 +125,10 @@ main(int argc, char ** argv)
   printf("load x4 %.2lf mops\n", ((double)nkeys) * 1e3 / ((double)dtl));
 
   const u64 nth = strtoull(argv[3], NULL, 10);
-  printf("probe with %lu threads. each round takes 10 seconds\n", nth);
+  printf("probe with %lu threads. each round takes 3 seconds\n", nth);
   for (u64 i = 0; i < 3; i++) {
     __tot = 0;
-    __endtime = time_nsec() + 3e9; // 10 sec
+    __endtime = time_nsec() + 3e9; // 3 sec
     const u64 dt = thread_fork_join(nth, (void *)kv_probe_worker, false, (void *)wh);
     const double mops = ((double)__tot) * 1e3 / ((double)dt);
     printf("probe x%lu %.2lf mops\n", nth, mops);

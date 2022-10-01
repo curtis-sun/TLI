@@ -1,0 +1,9 @@
+build/
+.vscode/
+CMakeFiles
+cmake_install.cmake_install
+CMakeCache.txt
+compile_commands.json
+Makefile
+micro_bench
+*.log

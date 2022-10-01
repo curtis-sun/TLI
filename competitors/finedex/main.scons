@@ -1,0 +1,29 @@
+# content of main.scons
+env = Environment(CCFLAGS="-g -msse -march=core-avx2 -std=c++17")
+
+env.Program('finedex_benchmark', source = ['finedex_benchmark.cpp'], CPPPATH = ['/opt/intel/oneapi/mkl/2021.1.1/include', './include'], LIBS=['pthread'])
+env.Program('xindex_benchmark', source = ['xindex_benchmark.cpp'], CPPPATH = ['/opt/intel/oneapi/mkl/2021.1.1/include', './include'], LIBS=['pthread'])
+env.Program('learnedindex_benchmark', source = ['learnedindex_benchmark.cpp'], CPPPATH = ['/opt/intel/oneapi/mkl/2021.1.1/include', './include'], LIBS=['pthread'])
+env.Program('masstree_benchmark', source = ['masstree_benchmark.cpp'], CPPPATH = ['/opt/intel/oneapi/mkl/2021.1.1/include', './include'], LIBS=['pthread'])
+
+env.Program('finedex_searchinsert', source = ['finedex_searchinsert.cpp'], CPPPATH = ['/opt/intel/oneapi/mkl/2021.1.1/include', './include'], LIBS=['pthread'])
+env.Program('learnedindex_searchinsert', source = ['learnedindex_searchinsert.cpp'], CPPPATH = ['/opt/intel/oneapi/mkl/2021.1.1/include', './include'], LIBS=['pthread'])
+env.Program('masstree_searchinsert', source = ['masstree_searchinsert.cpp'], CPPPATH = ['/opt/intel/oneapi/mkl/2021.1.1/include', './include'], LIBS=['pthread'])
+env.Program('xindex_searchinsert', source = ['xindex_searchinsert.cpp'], CPPPATH = ['/opt/intel/oneapi/mkl/2021.1.1/include', './include'], LIBS=['pthread'])
+
+env.Program('finedex_ycsb', source = ['finedex_ycsb.cpp'], CPPPATH = ['/opt/intel/oneapi/mkl/2021.1.1/include', './include'], LIBS=['pthread'])
+env.Program('learnedindex_ycsb', source = ['learnedindex_ycsb.cpp'], CPPPATH = ['/opt/intel/oneapi/mkl/2021.1.1/include', './include'], LIBS=['pthread'])
+env.Program('masstree_ycsb', source = ['masstree_ycsb.cpp'], CPPPATH = ['/opt/intel/oneapi/mkl/2021.1.1/include', './include'], LIBS=['pthread'])
+env.Program('xindex_ycsb', source = ['xindex_ycsb.cpp'], CPPPATH = ['/opt/intel/oneapi/mkl/2021.1.1/include', './include'], LIBS=['pthread'])
+
+
+'''
+env.Program('simd_test', source=['simd_test.cpp'], CPPPATH = ['/opt/intel/oneapi/mkl/2021.1.1/include', './include'], LIBS=['pthread'])
+env.Program('load_factor', source=['load_factor.cpp'], CPPPATH = ['/opt/intel/oneapi/mkl/2021.1.1/include', './include'], LIBS=['pthread'])
+env.Program('test', source=['test.cpp'])
+
+env.Program('tree_li_compare', source=['tree_li_compare.cpp'], CPPPATH = ['/opt/intel/oneapi/mkl/2021.1.1/include', './include'], LIBS=['pthread'])
+
+
+env.Program('search', source=['search.cpp'], CPPPATH = ['/opt/intel/oneapi/mkl/2021.1.1/include', './include'], LIBS=['pthread'])
+'''
