@@ -1,0 +1,39 @@
+[package]
+name = "plr"
+description = "Performs greedy or optimal error-bounded piecewise linear regression (PLR) and spline regression"
+repository = "https://github.com/RyanMarcus/plr"
+keywords = ["plr", "piecewise", "regression"]
+license = "GPL-3.0-or-later"
+version = "0.3.1"
+authors = ["Ryan Marcus <ryan@ryanmarc.us>"]
+edition = "2018"
+readme = "README.md"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+approx = "0.3"
+rug = "1.6"
+serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
+criterion = "0.3"
+superslice = "1.0.0"
+
+#[profile.release]
+#debug = true
+
+[badges]
+travis-ci = { repository = "RyanMarcus/plr", branch = "master" }
+
+#[[bin]]
+#name = "plr"
+#path = "src/bin.rs"
+
+[[bench]]
+name = "plr_bench"
+harness = false
+
+[[bench]]
+name = "spline_bench"
+harness = false
