@@ -1,13 +1,13 @@
 #! /usr/bin/env bash
 # set -e
 
-# echo "Compiling benchmark..."
-# git submodule update --init --recursive 
+echo "Compiling benchmark..."
+git submodule update --init --recursive 
 
-# mkdir -p build
+mkdir -p build
 cd build
-# cmake -DCMAKE_BUILD_TYPE=Release ..
-# make -j 8 
+cmake -DCMAKE_BUILD_TYPE=Release ..
+make -j 8 
 
 function generate_lookups_200M() {
     echo "Generating lookups for $1"
