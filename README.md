@@ -6,6 +6,8 @@ WOSD is a testbed to compare (learned) indexes on various datasets and workloads
 
 One dependency that should be emphasized is [Intel MKL](https://software.intel.com/en-us/mkl), used when testing the performance of [XIndex and SIndex](https://ipads.se.sjtu.edu.cn:1312/opensource/xindex). The detailed steps of installation can be found [here](https://software.intel.com/en-us/articles/installing-intel-free-libs-and-python-apt-repo).
 
+Generally, the dependencies can be installed in the following steps.
+
 ```shell
 $ cd /tmp
 $ wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2019.PUB
@@ -55,10 +57,10 @@ The results in `results/latency-results` are obtained measuring latencies in sin
 
 The results in `results/errors-results` are obtained measuring position searches, and are shown in the following format.
 ```txt
-(index name) (bulk loading time) (index size) (average, P50, P99, P99.9, max, standard derivation of the latency) (average position search overhead) (average position search overhead per operation) (average prediction error)
+(index name) (bulk loading time) (index size) (average, P50, P99, P99.9, max, standard derivation of the latency) (average position search overhead) (average position search overhead per operation) (average prediction error) (hyper-parameters)
 ```
 
 The filenames of csvs in `results` comply with the following rule.
 ```txt
-{dataset}_ops_{operation count}_{range query ratio}_{negative lookup ratio}_{insert ratio}_({insert pattern}_)({hotspot ratio}_)({thread number}_)(mix_)({bulk loaded data size}_)results_table.csv
+{dataset}_ops_{operation count}_{range query ratio}_{negative lookup ratio}_{insert ratio}_({insert pattern}_)({hotspot ratio}_)({thread number}_)(mix_)({bulk-loaded data size}_)results_table.csv
 ```
