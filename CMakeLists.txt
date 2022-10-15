@@ -20,8 +20,8 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 find_package(Boost REQUIRED COMPONENTS chrono)
 
-set(MKLROOT "/home/zhaoyan/intel/oneapi/mkl/2022.1.0")
-set(TBBROOT "/home/zhaoyan/intel/oneapi/tbb/2021.6.0")
+set(MKL_INCLUDE_DIRECTORY "/opt/intel/mkl/include")
+set(MKL_LINK_DIRECTORY "/opt/intel/mkl/lib/intel64")
 
 add_subdirectory(dtl)
 
@@ -29,8 +29,7 @@ if (${APPLE})
     include_directories(/usr/local/include/) # required by Mac OS to find boost
 endif ()
 
-include_directories(${MKLROOT}/include)
-link_directories(${TBBROOT}/lib/intel64/gcc4.8)
+include_directories(${MKL_INCLUDE_DIRECTORY})
 
 set(SOURCE_FILES util.h)
 file(GLOB_RECURSE RMI_SOURCES "competitors/rmi/*.cpp")
@@ -67,7 +66,7 @@ target_include_directories(benchmark
         PRIVATE "competitors/rs/include"
         PRIVATE "competitors/stx-btree-0.9/include"
         PRIVATE "competitors/ts/include"
-        PRIVATE ${Boost_INCLUDE_DIRS})                
+        PRIVATE ${Boost_INCLUDE_DIRS})
 
 if (${LINUX})
     target_include_directories(benchmark PRIVATE "wormhole")
@@ -79,8 +78,7 @@ target_link_libraries(benchmark
         PRIVATE Threads::Threads dtl
         PRIVATE ${Boost_LIBRARIES})
 
-set(MKL_LIBRARIES ${MKLROOT}/lib/intel64/libmkl_intel_lp64.a ${MKLROOT}/lib/intel64/libmkl_tbb_thread.a ${MKLROOT}/lib/intel64/libmkl_core.a)
 target_link_libraries(benchmark
-        PRIVATE -Wl,--start-group ${MKL_LIBRARIES} -Wl,--end-group
+        PRIVATE ${MKL_LINK_DIRECTORY}
         PRIVATE dl
-        -ltbb)
+        PRIVATE mkl_rt)
