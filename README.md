@@ -30,3 +30,4 @@ The results in `results/errors-results` are shown in the following format.
 ```csv
 (index name) (bulk loading time) (index size) (average, P50, P99, P99.9, max, standard derivation of the latency) (average position search overhead) (average position search overhead per operation) (average prediction error)
 ```
+The filenames of csvs in `results` comply with the following rules: `{dataset}_ops_{operation count}_{range query ratio}_{negative lookup ratio}_{insert ratio}_({insert pattern}_)({hotspot ratio}_)({thread number}_)(mix_)({bulk loaded data size}_)results_table.csv`

@@ -15,8 +15,8 @@ fi
 
 function execute_lookups_200M() {
     echo "Executing lookups for dataset $1 and index $2"
-    $BENCHMARK ./data/$1 ./data/$1_equality_sqls_20M_0.000000rq_0.500000nl_0.000000i --fence --csv --only $2
-    $BENCHMARK ./data/$1 ./data/$1_equality_sqls_20M_0.000000rq_0.500000nl_0.500000i_0m_10Mbulkload --fence --csv --only $2
+    $BENCHMARK ./data/$1 ./data/$1_ops_20M_0.000000rq_0.500000nl_0.000000i --fence --csv --only $2
+    $BENCHMARK ./data/$1 ./data/$1_ops_20M_0.000000rq_0.500000nl_0.500000i_0m_10Mbulkload --fence --csv --only $2
 }
 
 mkdir -p ./results

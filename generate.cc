@@ -19,7 +19,7 @@ constexpr size_t max_num_retries = 100;
 
 static mt19937_64 g(42);
 
-enum InsertMode { Equality = 0, Delta = 1, Hotspot = 2 };
+enum InsertPat { Equality = 0, Delta = 1, Hotspot = 2 };
 
 vector<size_t> generate_permute(size_t lo, size_t hi, bool is_shuffle=false){
   vector<size_t> permute;
@@ -37,20 +37,20 @@ vector<size_t> generate_permute(size_t lo, size_t hi, bool is_shuffle=false){
 // and `range_query_ratio`, and manipulate the scan number 
 // of range queries with `max_num`.
 template <class KeyType>
-void generate_equality_lookups(const string& filename, vector<EqualitySql<KeyType>>& sqls, util::FastRandom& ranny,
+void generate_equality_lookups(const string& filename, vector<Operation<KeyType>>& ops, util::FastRandom& ranny,
     std::multimap<KeyType, uint64_t>& data_map, vector<KeyValue<KeyType>>& data_vec,
     const double negative_lookup_ratio, bool is_insert, const size_t max_num = 100, const double error = 0.05) {
   bool flag = filename.find("fb_200M_uint64") != std::string::npos;
-  for (size_t i = 0; i < sqls.size(); i ++){
-    if (sqls[i].op == util::INSERT){
-      data_map.emplace(static_cast<KeyType>(sqls[i].lo_key), static_cast<uint64_t>(sqls[i].result));
+  for (size_t i = 0; i < ops.size(); i ++){
+    if (ops[i].op == util::INSERT){
+      data_map.emplace(static_cast<KeyType>(ops[i].lo_key), static_cast<uint64_t>(ops[i].result));
       KeyValue<KeyType> kv;
-      kv.key = sqls[i].lo_key;
-      kv.value = sqls[i].result;
+      kv.key = ops[i].lo_key;
+      kv.value = ops[i].result;
       data_vec.push_back(kv);
       continue;
     }
-    if (sqls[i].op == util::LOOKUP){
+    if (ops[i].op == util::LOOKUP){
       // Required to generate negative lookups within data domain.
       KeyType min_key, max_key;
       if (is_insert){
@@ -86,8 +86,8 @@ void generate_equality_lookups(const string& filename, vector<EqualitySql<KeyTyp
               is_exist = it != data_vec.end() && it->key == negative_lookup;
             }
           }
-          sqls[i].lo_key = negative_lookup;
-          sqls[i].result = util::NOT_FOUND;
+          ops[i].lo_key = negative_lookup;
+          ops[i].result = util::NOT_FOUND;
           continue;
         }
       }
@@ -97,11 +97,11 @@ void generate_equality_lookups(const string& filename, vector<EqualitySql<KeyTyp
       // Draw lookup key from existing keys.
       const uint64_t offset = ranny.RandUint32(0, data_vec.size() - 1);
       const KeyType lookup_key = data_vec[offset].key;
-      sqls[i].lo_key = lookup_key;
-      sqls[i].result = 0;
+      ops[i].lo_key = lookup_key;
+      ops[i].result = 0;
       continue;
     }
-    if (sqls[i].op == util::RANGE_QUERY){
+    if (ops[i].op == util::RANGE_QUERY){
       size_t num_retries = 0;
       bool generated = false;
 
@@ -175,53 +175,53 @@ void generate_equality_lookups(const string& filename, vector<EqualitySql<KeyTyp
           // Try a different lookup key.
           continue;
         }
-        sqls[i].lo_key = lo_key;
-        sqls[i].hi_key = hi_key;
-        sqls[i].result = result;
+        ops[i].lo_key = lo_key;
+        ops[i].hi_key = hi_key;
+        ops[i].result = result;
         generated = true;
       }
       continue;
     }
-    util::fail("unknown sql operation");
+    util::fail("unknown operation");
   }
 }
 
 // Generate insertions and bulk loads 
 // compatible with `insert_ratio` and 
-// `insert_mode`.
+// `insert_pattern`.
 template <class KeyType>
-void generate_equality_inserts(vector<EqualitySql<KeyType>>& sqls, vector<KeyValue<KeyType>>& bulk_loads, const vector<size_t>& sql_id,
+void generate_inserts(vector<Operation<KeyType>>& ops, vector<KeyValue<KeyType>>& bulk_loads, const vector<size_t>& op_id,
     const vector<KeyValue<KeyType>>& data_vec,
-    const size_t num_insert, const InsertMode mode, const double hotspot_ratio) {
+    const size_t num_insert, const InsertPat pat, const double hotspot_ratio) {
   size_t lo = 0, hi = data_vec.size();
-  switch (mode) {
-    case InsertMode::Equality: {
+  switch (pat) {
+    case InsertPat::Equality: {
       break;
     }
 
-    case InsertMode::Delta: {
+    case InsertPat::Delta: {
       lo = hi - num_insert;
       break;
     }
 
-    case InsertMode::Hotspot: {
+    case InsertPat::Hotspot: {
       lo = 0.3 * data_vec.size();
       hi = lo + hotspot_ratio * data_vec.size();
       break;
     }
 
     default: {
-      util::fail("undefined insertion mode found.");
+      util::fail("undefined insert pattern found.");
     }
   }
 
   bulk_loads.insert(bulk_loads.end(), data_vec.begin(), data_vec.begin() + lo);
 
-  if (mode == InsertMode::Delta) {
+  if (pat == InsertPat::Delta) {
     for (size_t i = 0; i < num_insert; i ++){
-      sqls[sql_id[i]].op = util::INSERT;
-      sqls[sql_id[i]].lo_key = data_vec[lo + i].key;
-      sqls[sql_id[i]].result = data_vec[lo + i].value;
+      ops[op_id[i]].op = util::INSERT;
+      ops[op_id[i]].lo_key = data_vec[lo + i].key;
+      ops[op_id[i]].result = data_vec[lo + i].value;
     }
   }
   else {
@@ -230,9 +230,9 @@ void generate_equality_inserts(vector<EqualitySql<KeyType>>& sqls, vector<KeyVal
     for (size_t i = 0; i < num; i ++){
       auto kv = data_vec[kv_id[i]];
       if (i < num_insert){
-        sqls[sql_id[i]].op = util::INSERT;
-        sqls[sql_id[i]].lo_key = kv.key;
-        sqls[sql_id[i]].result = kv.value;
+        ops[op_id[i]].op = util::INSERT;
+        ops[op_id[i]].lo_key = kv.key;
+        ops[op_id[i]].result = kv.value;
       }
       else{
         bulk_loads.push_back(kv);
@@ -263,38 +263,38 @@ const string to_nice_number(uint64_t num) {
 }
 
 template <class KeyType>
-void print_equality_sql_stats(
-  vector<EqualitySql<KeyType>> const* sqls, size_t thread_num) {
+void print_op_stats(
+  vector<Operation<KeyType>> const* ops, size_t thread_num) {
   for (size_t i = 0; i < thread_num; i ++){
     size_t negative_count = 0, lookup_count = 0, rq_count = 0, insert_count = 0;
-    for (const auto& sql: sqls[i]){
-      if (sql.op == util::LOOKUP){
-        if (sql.result == util::NOT_FOUND){
+    for (const auto& op: ops[i]){
+      if (op.op == util::LOOKUP){
+        if (op.result == util::NOT_FOUND){
           ++negative_count;
         }
         ++lookup_count;
         continue;
       }
-      if (sql.op == util::RANGE_QUERY){
+      if (op.op == util::RANGE_QUERY){
         ++rq_count;
         continue;
       }
-      if (sql.op == util::INSERT){
+      if (op.op == util::INSERT){
         ++insert_count;
         continue;
       }
     }
-    cout << "thread's operation count: " << sqls[i].size() << endl;
+    cout << "thread's operation count: " << ops[i].size() << endl;
     cout << "negative lookup ratio: " << static_cast<double>(negative_count) / lookup_count << endl;
-    cout << "range query ratio: " << static_cast<double>(rq_count) / sqls[i].size() << endl;
-    cout << "insert ratio: " << static_cast<double>(insert_count) / sqls[i].size() << endl;
+    cout << "range query ratio: " << static_cast<double>(rq_count) / ops[i].size() << endl;
+    cout << "insert ratio: " << static_cast<double>(insert_count) / ops[i].size() << endl;
   }
 }
 
 template <class KeyType>
 void generate(const string& filename, size_t op_cnt, 
               double range_query_ratio, double negative_lookup_ratio, double insert_ratio,
-              InsertMode mode, double hotspot_ratio, 
+              InsertPat pat, double hotspot_ratio, 
               size_t thread_num, bool mix, size_t bulkload_cnt){
   util::FastRandom ranny(42);
   // Load data.
@@ -304,24 +304,24 @@ void generate(const string& filename, size_t op_cnt,
     util::fail("keys have to be sorted");
 
   // Generate name for benchmark.
-  string sql_filename = filename + "_equality_sqls_" + to_nice_number(op_cnt) + "_" 
+  string op_filename = filename + "_ops_" + to_nice_number(op_cnt) + "_" 
                     + to_string(range_query_ratio) + "rq_"
                     + to_string(negative_lookup_ratio) + "nl_"
                     + to_string(insert_ratio) + "i";
   if (insert_ratio > 0)
-    sql_filename += "_" + to_string(mode) + "m";
-  if (mode == InsertMode::Hotspot)
-    sql_filename += "_" + to_string(hotspot_ratio) + "h";
+    op_filename += "_" + to_string(pat) + "m";
+  if (pat == InsertPat::Hotspot)
+    op_filename += "_" + to_string(hotspot_ratio) + "h";
   if (thread_num > 1){
-    sql_filename += "_" + to_string(thread_num) + "t";
+    op_filename += "_" + to_string(thread_num) + "t";
   }
   if (mix){
-    sql_filename += "_mix";
+    op_filename += "_mix";
   }
   if (bulkload_cnt != size_t(-1)){
-    sql_filename += "_" + to_nice_number(bulkload_cnt) + "bulkload";
+    op_filename += "_" + to_nice_number(bulkload_cnt) + "bulkload";
   }
-  string bulkload_filename = sql_filename + "_bulkload"; 
+  string bulkload_filename = op_filename + "_bulkload"; 
 
   // Add artificial values to original keys.
   vector<KeyValue<KeyType>> org_vec = util::add_values(keys);
@@ -332,15 +332,15 @@ void generate(const string& filename, size_t op_cnt,
   
   vector<KeyValue<KeyType>> bulk_loads;
   bulk_loads.reserve(org_vec.size() - insert_cnt);
-  vector<EqualitySql<KeyType>> tot_equality_sqls(op_cnt);
+  vector<Operation<KeyType>> tot_ops(op_cnt);
   
-  vector<size_t> sql_id = generate_permute(0, op_cnt, mix);
+  vector<size_t> op_id = generate_permute(0, op_cnt, mix);
   if (insert_ratio > 0) {
     if (mix){
-      sort(sql_id.begin(), sql_id.begin() + insert_cnt);
+      sort(op_id.begin(), op_id.begin() + insert_cnt);
     }
-    generate_equality_inserts(tot_equality_sqls, bulk_loads, sql_id,
-      org_vec, insert_cnt, mode, hotspot_ratio);
+    generate_inserts(tot_ops, bulk_loads, op_id,
+      org_vec, insert_cnt, pat, hotspot_ratio);
 
     if (bulkload_cnt != size_t(-1)){
       vector<KeyValue<KeyType>> sample_bulk_loads;
@@ -356,18 +356,18 @@ void generate(const string& filename, size_t op_cnt,
   }
 
   for (size_t j = insert_cnt; j < insert_cnt + lookup_cnt; j ++){
-    tot_equality_sqls[sql_id[j]].op = util::LOOKUP;
+    tot_ops[op_id[j]].op = util::LOOKUP;
   }
   for (size_t j = insert_cnt + lookup_cnt; j < op_cnt; j ++){
-    tot_equality_sqls[sql_id[j]].op = util::RANGE_QUERY;
+    tot_ops[op_id[j]].op = util::RANGE_QUERY;
   }
 
   vector<pair<KeyType, uint64_t>> insert_vecs[thread_num];
-  vector<EqualitySql<KeyType>> equality_sqls[thread_num];
+  vector<Operation<KeyType>> ops[thread_num];
   if (thread_num > 1){
-    for (const auto& e: tot_equality_sqls){
+    for (const auto& e: tot_ops){
       size_t i = ranny.RandUint32(0, thread_num - 1);
-      equality_sqls[i].push_back(e);
+      ops[i].push_back(e);
       if (e.op == util::INSERT){
         insert_vecs[i].emplace_back(e.lo_key, e.result);
       }
@@ -378,7 +378,7 @@ void generate(const string& filename, size_t op_cnt,
     // }
   }
   else{
-    equality_sqls[0] = tot_equality_sqls;
+    ops[0] = tot_ops;
   }
 
 
@@ -402,19 +402,19 @@ void generate(const string& filename, size_t op_cnt,
       data_map.insert(other_vec.begin(), other_vec.end());
     }
     
-    generate_equality_lookups(filename, equality_sqls[i], ranny,
+    generate_equality_lookups(filename, ops[i], ranny,
       data_map, data_vec, negative_lookup_ratio, insert_ratio > 0);
   }
-  print_equality_sql_stats(equality_sqls, thread_num);
+  print_op_stats(ops, thread_num);
 
   if (insert_ratio > 0 || bulkload_cnt != size_t(-1)){
     util::write_data(bulk_loads, bulkload_filename);
   }
   if (thread_num > 1){
-    util::write_data_multithread(equality_sqls, thread_num, sql_filename);
+    util::write_data_multithread(ops, thread_num, op_filename);
   }
   else{
-    util::write_data(equality_sqls[0], sql_filename);
+    util::write_data(ops[0], op_filename);
   }
 }
 
@@ -433,7 +433,7 @@ int main(int argc, char* argv[]) {
                                cxxopts::value<double>()->default_value("0"))(
       "i,insert-ratio", "Insert ratio", 
                                cxxopts::value<double>()->default_value("0"))(
-      "m,insert-mode", "Specify an insert mode, one of: equality, delta, hotspot",
+      "m,insert-pattern", "Specify an insert pattern, one of: equality, delta, hotspot",
                                cxxopts::value<string>()->default_value("equality"))(
       "h,hotspot-ratio", "Hotspot ratio",
                                cxxopts::value<double>()->default_value("0.1"))(
@@ -460,18 +460,18 @@ int main(int argc, char* argv[]) {
          insert_ratio = result["insert-ratio"].as<double>(),
          hotspot_ratio = result["hotspot-ratio"].as<double>();
 
-  InsertMode mode = InsertMode::Equality; 
+  InsertPat pat = InsertPat::Equality; 
   if (insert_ratio > 0){
-    const string mode_str = result["insert-mode"].as<string>();
-    if (mode_str == "equality") {}
-    else if (mode_str == "delta"){
-      mode = InsertMode::Delta;
+    const string pat_str = result["insert-pattern"].as<string>();
+    if (pat_str == "equality") {}
+    else if (pat_str == "delta"){
+      pat = InsertPat::Delta;
     }
-    else if (mode_str == "hotspot"){
-      mode = InsertMode::Hotspot;
+    else if (pat_str == "hotspot"){
+      pat = InsertPat::Hotspot;
     }
     else {
-      util::fail("undefined insertion mode found.");
+      util::fail("undefined insert pattern found.");
     }
   }
 
@@ -486,21 +486,21 @@ int main(int argc, char* argv[]) {
     case DataType::UINT32: {
       generate<uint32_t>(filename, op_cnt, 
                   range_query_ratio, negative_lookup_ratio, insert_ratio, 
-                  mode, hotspot_ratio,
+                  pat, hotspot_ratio,
                   thread_num, mix, bulkload_cnt);
       break;
     }
     case DataType::UINT64: {
       generate<uint64_t>(filename, op_cnt, 
                   range_query_ratio, negative_lookup_ratio, insert_ratio, 
-                  mode, hotspot_ratio,
+                  pat, hotspot_ratio,
                   thread_num, mix, bulkload_cnt);
       break;
     }
     case DataType::STRING: {
       generate<std::string>(filename, op_cnt, 
                   range_query_ratio, 0, insert_ratio, 
-                  mode, hotspot_ratio,
+                  pat, hotspot_ratio,
                   thread_num, mix, bulkload_cnt);
       break;
     }

@@ -43,7 +43,7 @@ struct KeyValue {
 } __attribute__((packed));
 
 template <class KeyType = uint64_t>
-struct EqualitySql {
+struct Operation {
   uint8_t op;
   KeyType lo_key;
   KeyType hi_key;
@@ -53,9 +53,9 @@ struct EqualitySql {
 #define CACHELINE_SIZE (1 << 6)
 
 struct alignas(CACHELINE_SIZE) FGParam{
-  void *index, *sqls, *keys;
+  void *index, *ops, *keys;
   uint64_t *individual_ns;
-  uint64_t start, limit, sql_cnt;
+  uint64_t start, limit, op_cnt;
   uint32_t thread_id;
 };
 
@@ -212,7 +212,7 @@ static std::vector<T> in_data(std::ifstream& in){
       data[i] = std::string(str, len);
     }
   }
-  else if constexpr (std::is_same<T, EqualitySql<std::string>>::value){
+  else if constexpr (std::is_same<T, Operation<std::string>>::value){
     for (size_t i = 0; i < size; i ++){
       in.read(reinterpret_cast<char*>(&data[i].op), sizeof(uint8_t));
       in.read(reinterpret_cast<char*>(&data[i].result), sizeof(uint64_t));
@@ -313,7 +313,7 @@ static void out_data(const std::vector<T>& data, std::ofstream& out) {
         out.write(reinterpret_cast<const char*>(data[i].c_str()), len);
       }
     }
-    else if constexpr (std::is_same<T, EqualitySql<std::string>>::value){
+    else if constexpr (std::is_same<T, Operation<std::string>>::value){
       for (size_t i = 0; i < size; i ++){
         out.write(reinterpret_cast<const char*>(&data[i].op), sizeof(uint8_t));
         out.write(reinterpret_cast<const char*>(&data[i].result), sizeof(uint64_t));

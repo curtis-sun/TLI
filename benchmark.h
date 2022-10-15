@@ -72,10 +72,10 @@ static void wipe_cache(){
   }                  
 
 template <bool multithread, class KeyType, class Index, bool time_each, bool fence, bool clear_cache, bool verify>
-static void* DoEqualitySqlsCoreLoop(void* param) {
+static void* DoOpsCoreLoop(void* param) {
   FGParam &thread_param = *(FGParam *)param;
   Index* index = (Index *)thread_param.index;
-  const std::vector<EqualitySql<KeyType>> &sqls = *(std::vector<EqualitySql<KeyType>> *)thread_param.sqls;
+  const std::vector<Operation<KeyType>> &ops = *(std::vector<Operation<KeyType>> *)thread_param.ops;
   const std::vector<KeyType> &keys = *(std::vector<KeyType> *)thread_param.keys;
   uint64_t *individual_ns = thread_param.individual_ns;
   size_t start = thread_param.start, limit = thread_param.limit;
@@ -92,13 +92,13 @@ static void* DoEqualitySqlsCoreLoop(void* param) {
   for (size_t idx = start; idx < limit; ++idx) {
     if (!util::running && !flag){
       flag = true;
-      thread_param.sql_cnt = idx - start;
+      thread_param.op_cnt = idx - start;
     }
 
-    const uint8_t op = sqls[idx].op;
-    const KeyType lo_key = sqls[idx].lo_key;
-    const KeyType hi_key = sqls[idx].hi_key;
-    const uint64_t expected = sqls[idx].result;
+    const uint8_t op = ops[idx].op;
+    const KeyType lo_key = ops[idx].lo_key;
+    const KeyType hi_key = ops[idx].hi_key;
+    const uint64_t expected = ops[idx].result;
 
     if constexpr (clear_cache) {
       wipe_cache();
@@ -139,7 +139,7 @@ static void* DoEqualitySqlsCoreLoop(void* param) {
 
           if constexpr (verify) {
             if (actual != expected){
-              std::cerr << "equality range query returned wrong result:" << std::endl;
+              std::cerr << "range query returned wrong result:" << std::endl;
               std::cerr << "low key: " << lo_key << ", high key: " << hi_key << std::endl;
               std::cerr << "actual: " << actual << ", expected: " << expected << std::endl;
               run_failed = true;
@@ -176,7 +176,7 @@ static void* DoEqualitySqlsCoreLoop(void* param) {
 
   if (!flag){
     util::running = false;
-    thread_param.sql_cnt = limit - start;
+    thread_param.op_cnt = limit - start;
   }
   return nullptr;
 }
@@ -190,12 +190,12 @@ template <typename KeyType>
 class Benchmark {
  public:
   Benchmark(const std::string& data_filename,
-            const std::string& sqls_filename,
+            const std::string& ops_filename,
             const bool through, const bool perf, const bool build, const bool fence,
             const bool cold_cache, const bool track_errors, const bool csv,
             const size_t num_threads, const bool verify)
       : data_filename_(data_filename),
-        sqls_filename_(sqls_filename),
+        ops_filename_(ops_filename),
         first_run_(true),
         through_(through),
         perf_(perf),
@@ -212,7 +212,7 @@ class Benchmark {
     }
 
     static constexpr const char* prefix = "data/";
-    dataset_name_ = sqls_filename.data();
+    dataset_name_ = ops_filename.data();
     dataset_name_.erase(
         dataset_name_.begin(),
         dataset_name_.begin() + dataset_name_.find(prefix) + strlen(prefix));
@@ -222,10 +222,10 @@ class Benchmark {
 
     // Load lookups.
     if (num_threads_ > 1){
-      sqls_ = util::load_data_multithread<EqualitySql<KeyType>>(sqls_filename_);
+      ops_ = util::load_data_multithread<Operation<KeyType>>(ops_filename_);
     }
     else{
-      sqls_.push_back(util::load_data<EqualitySql<KeyType>>(sqls_filename_));
+      ops_.push_back(util::load_data<Operation<KeyType>>(ops_filename_));
     }
 
     bool is_mix = dataset_name_.find("mix") != std::string::npos;
@@ -240,7 +240,7 @@ class Benchmark {
     flag_ = is_mix || (insert_ratio_ == 0) || (insert_ratio_ == 1);
 
     if (insert_ratio_ > 0 || dataset_name_.find("bulkload") != std::string::npos) {
-      std::string bl_filename = sqls_filename_ + "_bulkload";
+      std::string bl_filename = ops_filename_ + "_bulkload";
       index_data_ = util::load_data<KeyValue<KeyType>>(bl_filename);
     }
     else {
@@ -255,13 +255,13 @@ class Benchmark {
     for (size_t i = 0; i < num_threads_; ++ i){
       bound_points[3 * i] = 0;
       if (!flag_){
-        bound_points[3 * i + 1] = std::lower_bound(sqls_[i].begin(), sqls_[i].end(), 1, 
-                                                  [](const EqualitySql<KeyType>& e, const int key){
+        bound_points[3 * i + 1] = std::lower_bound(ops_[i].begin(), ops_[i].end(), 1, 
+                                                  [](const Operation<KeyType>& e, const int key){
                                                       return (e.op != util::INSERT) < key;
-                                                    }) - sqls_[i].begin();
+                                                    }) - ops_[i].begin();
         insert_cnt += bound_points[3 * i + 1];
       }
-      bound_points[3 * i + 2] = sqls_[i].size();
+      bound_points[3 * i + 2] = ops_[i].size();
       tot_cnt += bound_points[3 * i + 2];
     };
     if (flag_){
@@ -321,29 +321,29 @@ class Benchmark {
     if constexpr (!sosd_config::fast_mode) {
       if (through_) {
         if (fence_) {
-          DoEqualitySqls<Index, false, true, false, false>(index);
+          DoOps<Index, false, true, false, false>(index);
         } else{
-          DoEqualitySqls<Index, false, false, false, false>(index);
+          DoOps<Index, false, false, false, false>(index);
         }
       } else if (cold_cache_) {
         if (num_threads_ > 1)
           util::fail("cold cache not supported with multiple threads");
         if (verify_){
-          DoEqualitySqls<Index, true, false, true, true>(index);
+          DoOps<Index, true, false, true, true>(index);
         } else{
-          DoEqualitySqls<Index, true, false, true, false>(index);
+          DoOps<Index, true, false, true, false>(index);
         }
       } else if (fence_) {
         if (verify_){
-          DoEqualitySqls<Index, true, true, false, true>(index);
+          DoOps<Index, true, true, false, true>(index);
         } else {
-          DoEqualitySqls<Index, true, true, false, false>(index);
+          DoOps<Index, true, true, false, false>(index);
         }
       } else {
         if (verify_){
-          DoEqualitySqls<Index, true, false, false, true>(index);
+          DoOps<Index, true, false, false, true>(index);
         } else {
-          DoEqualitySqls<Index, true, false, false, false>(index);
+          DoOps<Index, true, false, false, false>(index);
         }
       }
     } else {
@@ -352,7 +352,7 @@ class Benchmark {
             "Perf, cold cache, fence, and verify mode require full builds. Disable "
             "fast mode.");
       }
-      DoEqualitySqls<Index, true, false, false, false>(index);
+      DoOps<Index, true, false, false, false>(index);
     }
     PrintResult(index);
 
@@ -366,7 +366,7 @@ class Benchmark {
   // }
 
   template <class Index, bool time_each, bool fence, bool clear_cache, bool verify>
-  void DoEqualitySqls(Index* index) {
+  void DoOps(Index* index) {
     if (build_) return;
 
     if constexpr (time_each){
@@ -405,7 +405,7 @@ class Benchmark {
       size_t exe_cnt = 0;
       for (size_t worker_i = 0; worker_i < num_threads_; worker_i++) {
         fg_params[worker_i].index = index;
-        fg_params[worker_i].sqls = &sqls_[worker_i];
+        fg_params[worker_i].ops = &ops_[worker_i];
         fg_params[worker_i].keys = &keys_;
         fg_params[worker_i].individual_ns = individual_ns + exe_cnt;
         fg_params[worker_i].thread_id = worker_i;
@@ -417,7 +417,7 @@ class Benchmark {
 
       uint64_t timing;
       if (num_threads_ > 1){
-        timing = index->runMultithread(DoEqualitySqlsCoreLoop<true, KeyType, Index, time_each, fence, clear_cache, verify>, fg_params);
+        timing = index->runMultithread(DoOpsCoreLoop<true, KeyType, Index, time_each, fence, clear_cache, verify>, fg_params);
       }
       else{
         util::running = true;
@@ -426,11 +426,11 @@ class Benchmark {
             checkLinux(({
               BenchmarkParameters params;
               PerfEventBlock e(exe_cnt, params, &perf_metrics, /*printHeader=*/first_run_);
-              DoEqualitySqlsCoreLoop<false, KeyType, Index, time_each, fence, clear_cache, verify>(fg_params);
+              DoOpsCoreLoop<false, KeyType, Index, time_each, fence, clear_cache, verify>(fg_params);
             }));
           }
           else{
-            DoEqualitySqlsCoreLoop<false, KeyType, Index, time_each, fence, clear_cache, verify>(fg_params);
+            DoOpsCoreLoop<false, KeyType, Index, time_each, fence, clear_cache, verify>(fg_params);
           }
         });
       }
@@ -464,7 +464,7 @@ class Benchmark {
       else{
         double throughput = 0;
         for (size_t worker_i = 0; worker_i < num_threads_; worker_i++) {
-          throughput += fg_params[worker_i].sql_cnt;
+          throughput += fg_params[worker_i].op_cnt;
         }
         throughput = throughput * 1e3 / timing;
         throughputs_.push_back(throughput);
@@ -565,14 +565,14 @@ class Benchmark {
   }
 
   const std::string data_filename_;
-  const std::string sqls_filename_;
+  const std::string ops_filename_;
   std::string dataset_name_;
   std::vector<KeyType> keys_;
   std::vector<KeyValue<KeyType>> index_data_;
   bool unique_keys_;
   bool is_range_query_;
   double insert_ratio_;
-  std::vector<std::vector<EqualitySql<KeyType>>> sqls_;
+  std::vector<std::vector<Operation<KeyType>>> ops_;
   std::vector<size_t> bound_points;
   size_t flag_;
   // Metrics

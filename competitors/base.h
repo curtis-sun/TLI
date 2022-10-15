@@ -33,7 +33,7 @@ class Base {
   }
 
   double searchAverageTime() const { return 0; }
-  double searchLatency(uint64_t sql_num) const { return 0; }
+  double searchLatency(uint64_t op_cnt) const { return 0; }
   double searchBound() const { return 0; }
   void initSearch() {}
   uint64_t runMultithread(void *(* func)(void *), FGParam *params) { return 0; }
@@ -43,7 +43,7 @@ template<class KeyType, class SearchClass>
 class Competitor: public Base<KeyType> {
  public:
   double searchAverageTime() const { return SearchClass::searchAverageTime(); }
-  double searchLatency(uint64_t sql_num) const { return (double)SearchClass::searchTotalTime() / sql_num; }
+  double searchLatency(uint64_t op_cnt) const { return (double)SearchClass::searchTotalTime() / op_cnt; }
   double searchBound() const { return SearchClass::searchBound(); }
   void initSearch() { SearchClass::initSearch(); }
 };

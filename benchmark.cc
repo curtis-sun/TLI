@@ -35,7 +35,7 @@ using namespace std;
 #define add_search_type(name, func, type, search_class, record)                                           \
   if (search_type == (name) ) {                                                                           \
     sosd::Benchmark<type> benchmark(                                                                      \
-        filename, sqls, through, perf, build, fence, cold_cache,                                          \
+        filename, ops, through, perf, build, fence, cold_cache,                                           \
         track_errors, csv, num_threads, verify);                                                                  \
     func<search_class, record>(benchmark, pareto, params, only_mode, only, filename);                     \
     break;                                                                                                \
@@ -43,9 +43,9 @@ using namespace std;
 #define add_default(func, type, record)                                                                   \
   if (!pareto && params.empty()) {                                                                        \
     sosd::Benchmark<type> benchmark(                                                                      \
-        filename, sqls, through, perf, build, fence, cold_cache,                                          \
+        filename, ops, through, perf, build, fence, cold_cache,                                           \
         track_errors, csv, num_threads, verify);                                                                  \
-    func<record>(benchmark, only_mode, only, sqls);                                                       \
+    func<record>(benchmark, only_mode, only, ops);                                                        \
     break;                                                                                                \
   }
 #define add_search_types(func, type, record)                                                              \
@@ -178,10 +178,10 @@ void execute_string(sosd::Benchmark<std::string>& benchmark, bool only_mode,
 
 int main(int argc, char* argv[]) {
   cxxopts::Options options("benchmark", "Searching on sorted data benchmark");
-  options.positional_help("<data> <sqls>");
+  options.positional_help("<data> <ops>");
   options.add_options()("data", "Data file with keys",
                         cxxopts::value<std::string>())(
-      "sqls", "Sql file", cxxopts::value<std::string>())(
+      "ops", "Workload file with operations", cxxopts::value<std::string>())(
       "help", "Displays help")(
       "t,threads", "Number of lookup threads",
       cxxopts::value<int>()->default_value("1"))(
@@ -204,7 +204,7 @@ int main(int argc, char* argv[]) {
       "params", "Set the parameters of index",
       cxxopts::value<std::vector<int>>()->default_value(""));
 
-  options.parse_positional({"data", "sqls"});
+  options.parse_positional({"data", "ops"});
 
   const auto result = options.parse(argc, argv);
 
@@ -226,7 +226,7 @@ int main(int argc, char* argv[]) {
   const bool csv = result.count("csv");
   const bool pareto = result.count("pareto");
   const std::string filename = result["data"].as<std::string>();
-  const std::string sqls = result["sqls"].as<std::string>();
+  const std::string ops = result["ops"].as<std::string>();
   const std::string search_type = result["search"].as<std::string>();
   const bool only_mode = result.count("only") || std::getenv("SOSD_ONLY");
   const std::vector<int> params = result["params"].as<std::vector<int>>();
