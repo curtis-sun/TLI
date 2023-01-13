@@ -79,7 +79,7 @@ class PGM : public Competitor<KeyType, SearchClass> {
 
   std::size_t size() const { return pgm_.size_in_bytes() + (sizeof(KeyType) + sizeof(uint64_t)) * data_.size(); }
 
-  bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& data_filename) const {
+  bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& ops_filename) const {
     std::string name = SearchClass::name();
     return !insert && name != "LinearAVX" && !multithread;
   }

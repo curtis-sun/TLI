@@ -40,7 +40,6 @@ template <class KeyType>
 void generate_equality_lookups(const string& filename, vector<Operation<KeyType>>& ops, util::FastRandom& ranny,
     std::multimap<KeyType, uint64_t>& data_map, vector<KeyValue<KeyType>>& data_vec,
     const double negative_lookup_ratio, bool is_insert, const size_t max_num = 100, const double error = 0.05) {
-  bool flag = filename.find("fb_200M_uint64") != std::string::npos;
   for (size_t i = 0; i < ops.size(); i ++){
     if (ops[i].op == util::INSERT){
       data_map.emplace(static_cast<KeyType>(ops[i].lo_key), static_cast<uint64_t>(ops[i].result));
@@ -56,15 +55,16 @@ void generate_equality_lookups(const string& filename, vector<Operation<KeyType>
       if (is_insert){
         min_key = data_map.begin()->first;
         max_key = data_map.rbegin()->first;
-        if constexpr (std::is_same<KeyType, uint64_t>::value){
-          if (flag && max_key > 77308821508){
-            max_key = 77308821508;
-          }
-        }
       } 
       else{
         min_key = data_vec[0].key;
         max_key = data_vec[data_vec.size() - 1].key;
+      }
+
+      if constexpr (std::is_same<KeyType, uint64_t>::value){
+        if (filename.find("fb_200M_uint64") != std::string::npos && max_key > 77308821508){
+          max_key = 77308821508;
+        }
       }
 
       if constexpr (!std::is_same<KeyType, std::string>::value){

@@ -41,7 +41,7 @@ public:
         lipp_.insert(data.key, data.value);
     }
 
-    bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& data_filename) {
+    bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& ops_filename) {
         // LIPP only supports unique keys.
         return unique && !multithread;
     }

@@ -50,17 +50,17 @@ void benchmark_64_mabtree(sosd::Benchmark<uint64_t>& benchmark, const std::strin
       benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,8>>();
     } else if (filename.find("mix") == std::string::npos) {
       if (filename.find("0m") != std::string::npos) {
-        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,7>>();
-        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,8>>();
-        benchmark.template Run<MABTree<uint64_t, BranchingBinarySearch<record>,10,7>>();
-      } else if (filename.find("1m") != std::string::npos) {
-        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,18,7>>();
-        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,18,8>>();
-        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,18,6>>();
-      } else if (filename.find("2m") != std::string::npos) {
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,7>>();
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,7>>();
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,6>>();
-        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,8>>();
+      } else if (filename.find("1m") != std::string::npos) {
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,18,6>>();
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,16,7>>();
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,16,6>>();
+      } else if (filename.find("2m") != std::string::npos) {
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,7>>();
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,8>>();
+        benchmark.template Run<MABTree<uint64_t, LinearAVX<uint64_t, record>,12,8>>();
       }
     } else {
       if (filename.find("0.050000i") != std::string::npos) {
@@ -68,48 +68,48 @@ void benchmark_64_mabtree(sosd::Benchmark<uint64_t>& benchmark, const std::strin
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,6>>();
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,8>>();
       } else if (filename.find("0.500000i") != std::string::npos) {
-        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,7>>();
-        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,8>>();
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,7>>();
-      } else if (filename.find("0.800000i") != std::string::npos) {
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,6>>();
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,7>>();
-        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,8>>();
-        benchmark.template Run<MABTree<uint64_t, ExponentialSearch<record>,10,7>>();
+      } else if (filename.find("0.800000i") != std::string::npos) {
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,7>>();
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,6>>();
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,7>>();
       }
     }
   }
   if (filename.find("fb_200M") != std::string::npos) {
     if (filename.find("0.000000i") != std::string::npos) {
-      benchmark.template Run<MABTree<uint64_t, BranchingBinarySearch<record>,14,7>>();
-      benchmark.template Run<MABTree<uint64_t, BranchingBinarySearch<record>,14,8>>();
-      benchmark.template Run<MABTree<uint64_t, BranchingBinarySearch<record>,18,7>>();
+      benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,6>>();
+      benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,6>>();
+      benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,7>>();
     } else if (filename.find("mix") == std::string::npos) {
       if (filename.find("0m") != std::string::npos) {
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,7>>();
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,6>>();
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,7>>();
-        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,8>>();
-        benchmark.template Run<MABTree<uint64_t, BranchingBinarySearch<record>,10,7>>();
       } else if (filename.find("1m") != std::string::npos) {
-        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,18,8>>();
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,18,6>>();
-        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,18,7>>();
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,16,6>>();
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,18,8>>();
       } else if (filename.find("2m") != std::string::npos) {
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,7>>();
-        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,6>>();
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,8>>();
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,6>>();
       }
     } else {
       if (filename.find("0.050000i") != std::string::npos) {
-        benchmark.template Run<MABTree<uint64_t, BranchingBinarySearch<record>,14,7>>();
-        benchmark.template Run<MABTree<uint64_t, BranchingBinarySearch<record>,14,8>>();
-        benchmark.template Run<MABTree<uint64_t, BranchingBinarySearch<record>,14,6>>();
-      } else if (filename.find("0.500000i") != std::string::npos) {
-        benchmark.template Run<MABTree<uint64_t, BranchingBinarySearch<record>,10,7>>();
-        benchmark.template Run<MABTree<uint64_t, BranchingBinarySearch<record>,10,8>>();
-        benchmark.template Run<MABTree<uint64_t, ExponentialSearch<record>,10,7>>();
-      } else if (filename.find("0.800000i") != std::string::npos) {
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,6>>();
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,6>>();
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,7>>();
-        benchmark.template Run<MABTree<uint64_t, BranchingBinarySearch<record>,10,7>>();
-        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,8>>();
+      } else if (filename.find("0.500000i") != std::string::npos) {
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,6>>();
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,7>>();
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,7>>();
+      } else if (filename.find("0.800000i") != std::string::npos) {
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,7>>();
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,6>>();
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,7>>();
       }
     }
   }
@@ -121,16 +121,16 @@ void benchmark_64_mabtree(sosd::Benchmark<uint64_t>& benchmark, const std::strin
     } else if (filename.find("mix") == std::string::npos) {
       if (filename.find("0m") != std::string::npos) {
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,7>>();
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,6>>();
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,8>>();
-        benchmark.template Run<MABTree<uint64_t, LinearAVX<uint64_t, record>,10,7>>();
       } else if (filename.find("1m") != std::string::npos) {
-        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,18,7>>();
-        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,18,8>>();
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,16,8>>();
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,16,6>>();
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,18,6>>();
       } else if (filename.find("2m") != std::string::npos) {
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,7>>();
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,8>>();
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,6>>();
-        benchmark.template Run<MABTree<uint64_t, BranchingBinarySearch<record>,10,7>>();
       }
     } else {
       if (filename.find("0.050000i") != std::string::npos) {
@@ -139,12 +139,12 @@ void benchmark_64_mabtree(sosd::Benchmark<uint64_t>& benchmark, const std::strin
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,8>>();
       } else if (filename.find("0.500000i") != std::string::npos) {
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,7>>();
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,6>>();
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,8>>();
-        benchmark.template Run<MABTree<uint64_t, BranchingBinarySearch<record>,10,7>>();
       } else if (filename.find("0.800000i") != std::string::npos) {
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,7>>();
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,6>>();
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,8>>();
-        benchmark.template Run<MABTree<uint64_t, BranchingBinarySearch<record>,10,7>>();
       }
     }
   }
@@ -156,30 +156,30 @@ void benchmark_64_mabtree(sosd::Benchmark<uint64_t>& benchmark, const std::strin
     } else if (filename.find("mix") == std::string::npos) {
       if (filename.find("0m") != std::string::npos) {
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,7>>();
-        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,8>>();
-        benchmark.template Run<MABTree<uint64_t, BranchingBinarySearch<record>,10,7>>();
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,6>>();
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,7>>();
       } else if (filename.find("1m") != std::string::npos) {
-        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,18,8>>();
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,16,8>>();
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,18,7>>();
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,18,6>>();
       } else if (filename.find("2m") != std::string::npos) {
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,8>>();
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,7>>();
-        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,6>>();
-        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,8>>();
+        benchmark.template Run<MABTree<uint64_t, LinearAVX<uint64_t, record>,12,8>>();
       }
     } else {
       if (filename.find("0.050000i") != std::string::npos) {
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,6>>();
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,7>>();
-        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,8>>();
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,8>>();
       } else if (filename.find("0.500000i") != std::string::npos) {
-        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,8>>();
-        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,7>>();
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,6>>();
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,7>>();
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,7>>();
       } else if (filename.find("0.800000i") != std::string::npos) {
         benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,7>>();
-        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,10,8>>();
-        benchmark.template Run<MABTree<uint64_t, BranchingBinarySearch<record>,10,7>>();
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,6>>();
+        benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,7>>();
       }
     }
   }

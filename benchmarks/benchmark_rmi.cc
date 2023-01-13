@@ -96,8 +96,8 @@ void benchmark_64_rmi(sosd::Benchmark<uint64_t>& benchmark, const std::string& f
       run_rmi(uint64, books_200M, LinearSearch<record>, 2, 2);
     }
     if (filename.find("fb_200M") != std::string::npos) {
-      run_rmi(uint64, fb_200M, LinearSearch<record>, 1, 1);
       run_rmi(uint64, fb_200M, LinearSearch<record>, 0, 0);
+      run_rmi(uint64, fb_200M, LinearSearch<record>, 1, 1);
       run_rmi(uint64, fb_200M, LinearSearch<record>, 2, 2);
     }
     if (filename.find("osm_cellids_200M") != std::string::npos) {

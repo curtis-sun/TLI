@@ -42,66 +42,66 @@ void benchmark_64_btree(sosd::Benchmark<uint64_t>& benchmark, const std::string&
       benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,16>>();
     } else if (filename.find("mix") == std::string::npos) {
       if (filename.find("0m") != std::string::npos) {
-        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,8>>();
-        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,6>>();
-        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,8>>();
-      } else if (filename.find("1m") != std::string::npos) {
-        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,18>>();
-        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,14>>();
-        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,16>>();
-      } else if (filename.find("2m") != std::string::npos) {
-        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,8>>();
-        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,6>>();
         benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,10>>();
-      }
-    } else {
-      if (filename.find("0.050000i") != std::string::npos) {
-        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,6>>();
         benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,8>>();
-        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,16>>();
-      } else if (filename.find("0.500000i") != std::string::npos) {
-        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,8>>();
-        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,6>>();
-        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,8>>();
-      }  else if (filename.find("0.800000i") != std::string::npos) {
-        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,8>>();
-        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,6>>();
-        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,8>>();
-      }
-    }
-  }
-  if (filename.find("fb_200M") != std::string::npos) {
-    if (filename.find("0.000000i") != std::string::npos) {
-      benchmark.template Run<STXBTree<uint64_t, BranchingBinarySearch<record>,18>>();
-      benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,6>>();
-      benchmark.template Run<STXBTree<uint64_t, BranchingBinarySearch<record>,14>>();
-    } else if (filename.find("mix") == std::string::npos) {
-      if (filename.find("0m") != std::string::npos) {
-        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,8>>();
-        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,6>>();
-        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,8>>();
+        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,12>>();
       } else if (filename.find("1m") != std::string::npos) {
         benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,18>>();
-        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,14>>();
         benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,16>>();
+        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,14>>();
       } else if (filename.find("2m") != std::string::npos) {
         benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,8>>();
-        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,6>>();
+        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,8>>();
         benchmark.template Run<STXBTree<uint64_t, LinearAVX<uint64_t, record>,10>>();
       }
     } else {
       if (filename.find("0.050000i") != std::string::npos) {
         benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,6>>();
-        benchmark.template Run<STXBTree<uint64_t, BranchingBinarySearch<record>,18>>();
-        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,6>>();
-      } else if (filename.find("0.500000i") != std::string::npos) {
-        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,6>>();
         benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,8>>();
-        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,8>>();
+        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,16>>();
+      } else if (filename.find("0.500000i") != std::string::npos) {
+        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,8>>();
+        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,6>>();
+        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,12>>();
       } else if (filename.find("0.800000i") != std::string::npos) {
         benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,8>>();
+        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,10>>();
+        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,12>>();
+      }
+    }
+  }
+  if (filename.find("fb_200M") != std::string::npos) {
+    if (filename.find("0.000000i") != std::string::npos) {
+      benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,6>>();
+      benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,8>>();
+      benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,6>>();
+    } else if (filename.find("mix") == std::string::npos) {
+      if (filename.find("0m") != std::string::npos) {
+        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,10>>();
+        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,12>>();
+        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,8>>();
+      } else if (filename.find("1m") != std::string::npos) {
+        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,18>>();
+        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,16>>();
+        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,14>>();
+      } else if (filename.find("2m") != std::string::npos) {
         benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,6>>();
-        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,8>>();
+        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,8>>();
+        benchmark.template Run<STXBTree<uint64_t, LinearAVX<uint64_t, record>,10>>();
+      }
+    } else {
+      if (filename.find("0.050000i") != std::string::npos) {
+        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,6>>();
+        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,8>>();
+        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,6>>();
+      } else if (filename.find("0.500000i") != std::string::npos) {
+        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,8>>();
+        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,6>>();
+        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,10>>();
+      } else if (filename.find("0.800000i") != std::string::npos) {
+        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,8>>();
+        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,10>>();
+        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,6>>();
       }
     }
   }
@@ -114,14 +114,14 @@ void benchmark_64_btree(sosd::Benchmark<uint64_t>& benchmark, const std::string&
       if (filename.find("0m") != std::string::npos) {
         benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,8>>();
         benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,6>>();
-        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,10>>();
+        benchmark.template Run<STXBTree<uint64_t, LinearAVX<uint64_t, record>,10>>();
       } else if (filename.find("1m") != std::string::npos) {
         benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,18>>();
         benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,16>>();
         benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,14>>();
       } else if (filename.find("2m") != std::string::npos) {
-        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,8>>();
         benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,6>>();
+        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,8>>();
         benchmark.template Run<STXBTree<uint64_t, LinearAVX<uint64_t, record>,10>>();
       }
     } else {
@@ -133,10 +133,10 @@ void benchmark_64_btree(sosd::Benchmark<uint64_t>& benchmark, const std::string&
         benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,8>>();
         benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,6>>();
         benchmark.template Run<STXBTree<uint64_t, BranchingBinarySearch<record>,10>>();
-      }  else if (filename.find("0.800000i") != std::string::npos) {
+      } else if (filename.find("0.800000i") != std::string::npos) {
         benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,8>>();
         benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,6>>();
-        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,6>>();
+        benchmark.template Run<STXBTree<uint64_t, LinearAVX<uint64_t, record>,10>>();
       }
     }
   }
@@ -147,31 +147,31 @@ void benchmark_64_btree(sosd::Benchmark<uint64_t>& benchmark, const std::string&
       benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,14>>();
     } else if (filename.find("mix") == std::string::npos) {
       if (filename.find("0m") != std::string::npos) {
+        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,10>>();
         benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,8>>();
-        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,6>>();
-        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,8>>();
+        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,12>>();
       } else if (filename.find("1m") != std::string::npos) {
         benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,18>>();
-        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,14>>();
         benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,16>>();
+        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,12>>();
       } else if (filename.find("2m") != std::string::npos) {
-        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,8>>();
         benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,6>>();
-        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,10>>();
+        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,8>>();
+        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,8>>();
       }
     } else {
       if (filename.find("0.050000i") != std::string::npos) {
         benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,8>>();
         benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,6>>();
-        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,14>>();
+        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,12>>();
       } else if (filename.find("0.500000i") != std::string::npos) {
         benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,8>>();
         benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,6>>();
-        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,8>>();
+        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,10>>();
       } else if (filename.find("0.800000i") != std::string::npos) {
         benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,8>>();
-        benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,6>>();
-        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,8>>();
+        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,10>>();
+        benchmark.template Run<STXBTree<uint64_t, InterpolationSearch<record>,12>>();
       }
     }
   }

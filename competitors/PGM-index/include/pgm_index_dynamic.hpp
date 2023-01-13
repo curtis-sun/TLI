@@ -553,14 +553,18 @@ class DynamicPGMIndex<K, V, SearchClass, PGMType, MinIndexedLevel>::DynamicPGMIn
             size_t lo = 0;
             size_t hi = level_data.size();
             size_t mid = 0;
+            decltype(level_data.begin()) pos;
             if (i >= MinIndexedLevel) {
                 auto approx_pos = super->get_pgm(i).find_approximate_position(it->key());
                 mid = approx_pos.pos;
                 lo = approx_pos.lo;
                 hi = approx_pos.hi;
+                pos = SearchClass::lower_bound(level_data.begin() + lo, level_data.begin() + hi, *it, level_data.begin() + mid);
             }
-
-            auto pos = SearchClass::lower_bound(level_data.begin() + lo, level_data.begin() + hi, *it, level_data.begin() + mid);
+            else{
+                pos = std::lower_bound(level_data.begin() + lo, level_data.begin() + hi, *it);
+            }
+            
             while(pos != level_data.end() && pos->key() < *it){
                 ++pos;
             }

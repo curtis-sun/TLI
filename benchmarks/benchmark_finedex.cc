@@ -43,47 +43,67 @@ void benchmark_64_finedex(sosd::Benchmark<uint64_t>& benchmark, const std::strin
       benchmark.template Run<sosd_finedex::FINEdex<uint64_t, InterpolationSearch<record>>>({128});
       benchmark.template Run<sosd_finedex::FINEdex<uint64_t, LinearAVX<uint64_t, record>>>({64});
     } else if (filename.find("mix") == std::string::npos) {
-      benchmark.template Run<sosd_finedex::FINEdex<uint64_t, InterpolationSearch<record>>>({256});
-      benchmark.template Run<sosd_finedex::FINEdex<uint64_t, InterpolationSearch<record>>>({512});
-      benchmark.template Run<sosd_finedex::FINEdex<uint64_t, InterpolationSearch<record>>>({64});
+      if (filename.find("0m") != std::string::npos) {
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, LinearAVX<uint64_t, record>>>({64});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, InterpolationSearch<record>>>({128});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({64});
+      } else if (filename.find("1m") != std::string::npos) {
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, InterpolationSearch<record>>>({512});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, LinearSearch<record>>>({256});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, LinearSearch<record>>>({512});
+      } else if (filename.find("2m") != std::string::npos) {
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, LinearSearch<record>>>({64});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({128});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, InterpolationSearch<record>>>({512});
+      }
     } else {
       if (filename.find("0.050000i") != std::string::npos) {
         benchmark.template Run<sosd_finedex::FINEdex<uint64_t, InterpolationSearch<record>>>({256});
         benchmark.template Run<sosd_finedex::FINEdex<uint64_t, InterpolationSearch<record>>>({128});
         benchmark.template Run<sosd_finedex::FINEdex<uint64_t, LinearAVX<uint64_t, record>>>({64});
       } else if (filename.find("0.500000i") != std::string::npos) {
-        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, InterpolationSearch<record>>>({256});
-        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, InterpolationSearch<record>>>({64});
         benchmark.template Run<sosd_finedex::FINEdex<uint64_t, InterpolationSearch<record>>>({128});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, LinearAVX<uint64_t, record>>>({64});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, InterpolationSearch<record>>>({64});
       } else if (filename.find("0.800000i") != std::string::npos) {
-        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, InterpolationSearch<record>>>({256});
-        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, InterpolationSearch<record>>>({512});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, LinearAVX<uint64_t, record>>>({64});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, InterpolationSearch<record>>>({128});
         benchmark.template Run<sosd_finedex::FINEdex<uint64_t, InterpolationSearch<record>>>({64});
       }
     }
   }
   if (filename.find("fb_200M") != std::string::npos) {
     if (filename.find("0.000000i") != std::string::npos) {
-      benchmark.template Run<sosd_finedex::FINEdex<uint64_t, LinearSearch<record>>>({128});
-      benchmark.template Run<sosd_finedex::FINEdex<uint64_t, ExponentialSearch<record>>>({128});
-      benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({2048});
-    } else if (filename.find("mix") == std::string::npos) {
-      benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({256});
       benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({128});
-      benchmark.template Run<sosd_finedex::FINEdex<uint64_t, LinearSearch<record>>>({128});
+      benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({64});
+      benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({1024});
+    } else if (filename.find("mix") == std::string::npos) {
+      if (filename.find("0m") != std::string::npos) {
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({64});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({128});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, LinearAVX<uint64_t, record>>>({64});
+      } else if (filename.find("1m") != std::string::npos) {
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, InterpolationSearch<record>>>({512});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, LinearSearch<record>>>({64});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, LinearSearch<record>>>({256});
+      } else if (filename.find("2m") != std::string::npos) {
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({64});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, LinearSearch<record>>>({64});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, LinearAVX<uint64_t, record>>>({64});
+      }
     } else {
       if (filename.find("0.050000i") != std::string::npos) {
-        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, LinearSearch<record>>>({128});
-        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, ExponentialSearch<record>>>({128});
-        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({2048});
-      } else if (filename.find("0.500000i") != std::string::npos) {
-        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, LinearSearch<record>>>({128});
-        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({2048});
-        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({256});
-      } else if (filename.find("0.800000i") != std::string::npos) {
-        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({256});
-        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, LinearSearch<record>>>({128});
         benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({128});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({64});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({1024});
+      } else if (filename.find("0.500000i") != std::string::npos) {
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({64});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({128});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, LinearSearch<record>>>({64});
+      } else if (filename.find("0.800000i") != std::string::npos) {
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({64});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({128});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, LinearSearch<record>>>({64});
       }
     }
   }
@@ -93,9 +113,19 @@ void benchmark_64_finedex(sosd::Benchmark<uint64_t>& benchmark, const std::strin
       benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({1024});
       benchmark.template Run<sosd_finedex::FINEdex<uint64_t, ExponentialSearch<record>>>({128});
     } else if (filename.find("mix") == std::string::npos) {
-      benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({512});
-      benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({1024});
-      benchmark.template Run<sosd_finedex::FINEdex<uint64_t, InterpolationSearch<record>>>({128});
+      if (filename.find("0m") != std::string::npos) {
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({64});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, LinearSearch<record>>>({64});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, LinearAVX<uint64_t, record>>>({64});
+      } else if (filename.find("1m") != std::string::npos) {
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, LinearSearch<record>>>({2048});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, InterpolationSearch<record>>>({32});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({32});
+      } else if (filename.find("2m") != std::string::npos) {
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({64});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, LinearAVX<uint64_t, record>>>({64});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({2048});
+      }
     } else {
       if (filename.find("0.050000i") != std::string::npos) {
         benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({512});
@@ -104,11 +134,11 @@ void benchmark_64_finedex(sosd::Benchmark<uint64_t>& benchmark, const std::strin
       } else if (filename.find("0.500000i") != std::string::npos) {
         benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({512});
         benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({1024});
-        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({256});
-      }  else if (filename.find("0.800000i") != std::string::npos) {
-        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({512});
-        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({1024});
-        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({256});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({64});
+      } else if (filename.find("0.800000i") != std::string::npos) {
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({64});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, LinearSearch<record>>>({64});
+        benchmark.template Run<sosd_finedex::FINEdex<uint64_t, BranchingBinarySearch<record>>>({128});
       }
     }
   }

@@ -69,7 +69,7 @@ class FST : public Base<KeyType> {
     return fst_->getMemoryUsage() + sizeof(KeyType) * keys_.size();
   }
 
-  bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& data_filename) {
+  bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& ops_filename) {
     // FST only supports unique keys.
     return unique && !insert && !multithread;
   }

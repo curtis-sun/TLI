@@ -42,7 +42,7 @@ class Fast : public Base<KeyType> {
 
   std::size_t size() const { return fast_.size_in_byte() + (sizeof(KeyType) + sizeof(uint64_t)) * data_.size(); }
 
-  bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& _data_filename) const {
+  bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& _ops_filename) const {
     return unique && !insert && !multithread;
   }
 

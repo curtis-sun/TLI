@@ -64,8 +64,8 @@ class RMI_B: public Competitor<KeyType, SearchClass> {
     return result;
   }
 
-  bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& data_filename) const {
-    return !insert && data_filename.find("books_200M_uint32") == std::string::npos && !multithread;
+  bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& ops_filename) const {
+    return !insert && ops_filename.find("books_200M_uint32") == std::string::npos && !multithread;
   }
 
   std::vector<std::string> variants() const { 

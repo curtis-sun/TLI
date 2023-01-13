@@ -21,13 +21,13 @@ function generate_lookups_200M() {
     ./generate ../data/$1 207500000 --insert-ratio 0.903614 --negative-lookup-ratio 0.5 --thread $2
     
     ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --bulkload-count 10000000 --thread $2
-    ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --insert-mode delta --bulkload-count 10000000 --thread $2
-    ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --insert-mode hotspot --hotspot-ratio 0.05 --bulkload-count 10000000 --thread $2
-    ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --insert-mode hotspot --hotspot-ratio 0.1 --bulkload-count 10000000 --thread $2
-    ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --insert-mode hotspot --hotspot-ratio 0.15 --bulkload-count 10000000 --thread $2
-    ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --insert-mode hotspot --hotspot-ratio 0.2 --bulkload-count 10000000 --thread $2
-    ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --insert-mode hotspot --hotspot-ratio 0.25 --bulkload-count 10000000 --thread $2
-    ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --insert-mode hotspot --hotspot-ratio 0.3 --bulkload-count 10000000 --thread $2
+    ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --insert-pattern delta --bulkload-count 10000000 --thread $2
+    ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --insert-pattern hotspot --hotspot-ratio 0.05 --bulkload-count 10000000 --thread $2
+    ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --insert-pattern hotspot --hotspot-ratio 0.1 --bulkload-count 10000000 --thread $2
+    ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --insert-pattern hotspot --hotspot-ratio 0.15 --bulkload-count 10000000 --thread $2
+    ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --insert-pattern hotspot --hotspot-ratio 0.2 --bulkload-count 10000000 --thread $2
+    ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --insert-pattern hotspot --hotspot-ratio 0.25 --bulkload-count 10000000 --thread $2
+    ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --insert-pattern hotspot --hotspot-ratio 0.3 --bulkload-count 10000000 --thread $2
 }
 
 function generate_lookups_200M_multithread() {
@@ -57,7 +57,7 @@ generate_lookups_200M wiki_ts_200M_uint64 24
 generate_lookups_200M osm_cellids_200M_uint64 24
 generate_lookups_200M books_200M_uint64 24
 
-for THREAD in 2 8 16 24 32 48
+for THREAD in 2 4 8 16 24 32
 do
     generate_strings_90M url_90M_string $THREAD
 

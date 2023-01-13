@@ -86,7 +86,7 @@ class ART_INT : public Base<KeyType> {
 
   std::size_t size() const { return allocated_byte_count + data_size_; }
 
-  bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& _data_filename) const {
+  bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& _ops_filename) const {
     return unique && !multithread;
   }
 

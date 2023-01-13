@@ -35,16 +35,16 @@ using namespace std;
 #define add_search_type(name, func, type, search_class, record)                                           \
   if (search_type == (name) ) {                                                                           \
     sosd::Benchmark<type> benchmark(                                                                      \
-        filename, ops, through, perf, build, fence, cold_cache,                                           \
-        track_errors, csv, num_threads, verify);                                                                  \
+        filename, ops, num_repeats, through, perf, build, fence, cold_cache,                              \
+        track_errors, csv, num_threads, verify);                                                          \
     func<search_class, record>(benchmark, pareto, params, only_mode, only, filename);                     \
     break;                                                                                                \
   }
 #define add_default(func, type, record)                                                                   \
   if (!pareto && params.empty()) {                                                                        \
     sosd::Benchmark<type> benchmark(                                                                      \
-        filename, ops, through, perf, build, fence, cold_cache,                                           \
-        track_errors, csv, num_threads, verify);                                                                  \
+        filename, ops, num_repeats, through, perf, build, fence, cold_cache,                              \
+        track_errors, csv, num_threads, verify);                                                          \
     func<record>(benchmark, only_mode, only, ops);                                                        \
     break;                                                                                                \
   }
@@ -186,6 +186,8 @@ int main(int argc, char* argv[]) {
       "t,threads", "Number of lookup threads",
       cxxopts::value<int>()->default_value("1"))(
       "through", "Measure throughput")(
+      "r,repeats", "Number of repeats",
+      cxxopts::value<int>()->default_value("1"))(
       "p,perf", "Track performance counters")(
       "b,build", "Only measure and report build times")(
       "only", "Only run the specified index",
@@ -193,13 +195,10 @@ int main(int argc, char* argv[]) {
       "cold-cache", "Clear the CPU cache between each lookup")(
       "pareto", "Run with multiple different sizes for each competitor")(
       "fence", "Execute a memory barrier between each lookup")(
-      "errors",
-      "Tracks index errors, and report those instead of lookup times")(
-      "verify",
-      "Verify the correctness of execution")(
+      "errors", "Tracks index errors, and report those instead of lookup times")(
+      "verify", "Verify the correctness of execution")(
       "csv", "Output a CSV of results in addition to a text file")(
-      "search",
-      "Specify a search type, one of: linear, avx, binary, interpolation, exponential",
+      "search", "Specify a search type, one of: linear, avx, binary, interpolation, exponential",
       cxxopts::value<std::string>()->default_value("binary"))(
       "params", "Set the parameters of index",
       cxxopts::value<std::vector<int>>()->default_value(""));
@@ -213,10 +212,14 @@ int main(int argc, char* argv[]) {
     exit(0);
   }
 
+  const bool through = result.count("through");
+
+  const size_t num_repeats = through ? result["repeats"].as<int>() : 1;
+  cout << "Repeating lookup code " << num_repeats << " time(s)." << endl;
+
   const size_t num_threads = result["threads"].as<int>();
   cout << "Using " << num_threads << " thread(s)." << endl;
 
-  const bool through = result.count("through");
   const bool perf = result.count("perf");
   const bool build = result.count("build");
   const bool fence = result.count("fence");

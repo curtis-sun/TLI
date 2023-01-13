@@ -1,11 +1,6 @@
 #! /usr/bin/env bash
 
 echo "Executing benchmark and saving results..."
-while getopts n:c arg; do
-    case $arg in
-        c) do_csv=true;;
-    esac
-done
 
 BENCHMARK=build/benchmark
 if [ ! -f $BENCHMARK ]; then
@@ -15,31 +10,38 @@ fi
 
 function execute_lookups_200M() {
     echo "Executing lookups for dataset $1, $2 threads and index $3"
-    $BENCHMARK ./data/$1 ./data/$1_ops_20M_0.000000rq_0.500000nl_0.000000i_$2t --through --threads $2 --csv --only $3
-    $BENCHMARK ./data/$1 ./data/$1_ops_29523809_0.000000rq_0.500000nl_0.322581i_0m_$2t --through --threads $2 --csv --only $3
-    $BENCHMARK ./data/$1 ./data/$1_ops_207500K_0.000000rq_0.500000nl_0.903614i_0m_$2t --through --threads $2 --csv --only $3
-    $BENCHMARK ./data/$1 ./data/$1_ops_38181818_0.000000rq_0.500000nl_0.476190i_0m_$2t --through --threads $2 --csv --only $3
-    $BENCHMARK ./data/$1 ./data/$1_ops_86666666_0.000000rq_0.500000nl_0.769231i_0m_$2t --through --threads $2 --csv --only $3
-    $BENCHMARK ./data/$1 ./data/$1_ops_120M_0.000000rq_0.500000nl_0.833333i_0m_$2t --through --threads $2 --csv --only $3
-    $BENCHMARK ./data/$1 ./data/$1_ops_186666666_0.000000rq_0.500000nl_0.892857i_0m_$2t --through --threads $2 --csv --only $3
-    $BENCHMARK ./data/$1 ./data/$1_ops_201818181_0.000000rq_0.500000nl_0.900901i_0m_$2t --through --threads $2 --csv --only $3
+    $BENCHMARK ./data/$1 ./data/$1_ops_20M_0.000000rq_0.500000nl_0.000000i_$2t --through --threads $2 --csv --only $3 -r 3
+    $BENCHMARK ./data/$1 ./data/$1_ops_29523809_0.000000rq_0.500000nl_0.322581i_0m_$2t --through --threads $2 --csv --only $3 -r 3
+    $BENCHMARK ./data/$1 ./data/$1_ops_207500K_0.000000rq_0.500000nl_0.903614i_0m_$2t --through --threads $2 --csv --only $3 -r 3
+    $BENCHMARK ./data/$1 ./data/$1_ops_38181818_0.000000rq_0.500000nl_0.476190i_0m_$2t --through --threads $2 --csv --only $3 -r 3
+    $BENCHMARK ./data/$1 ./data/$1_ops_86666666_0.000000rq_0.500000nl_0.769231i_0m_$2t --through --threads $2 --csv --only $3 -r 3
+    $BENCHMARK ./data/$1 ./data/$1_ops_120M_0.000000rq_0.500000nl_0.833333i_0m_$2t --through --threads $2 --csv --only $3 -r 3
+    $BENCHMARK ./data/$1 ./data/$1_ops_186666666_0.000000rq_0.500000nl_0.892857i_0m_$2t --through --threads $2 --csv --only $3 -r 3
+    $BENCHMARK ./data/$1 ./data/$1_ops_201818181_0.000000rq_0.500000nl_0.900901i_0m_$2t --through --threads $2 --csv --only $3 -r 3
+
+    $BENCHMARK ./data/$1 ./data/$1_ops_20M_0.000000rq_0.500000nl_0.500000i_2m_0.050000h_$2t_10Mbulkload --through --threads $2 --csv --only $3 -r 3
+    $BENCHMARK ./data/$1 ./data/$1_ops_20M_0.000000rq_0.500000nl_0.500000i_2m_0.100000h_$2t_10Mbulkload --through --threads $2 --csv --only $3 -r 3
+    $BENCHMARK ./data/$1 ./data/$1_ops_20M_0.000000rq_0.500000nl_0.500000i_2m_0.150000h_$2t_10Mbulkload --through --threads $2 --csv --only $3 -r 3
+    $BENCHMARK ./data/$1 ./data/$1_ops_20M_0.000000rq_0.500000nl_0.500000i_2m_0.200000h_$2t_10Mbulkload --through --threads $2 --csv --only $3 -r 3
+    $BENCHMARK ./data/$1 ./data/$1_ops_20M_0.000000rq_0.500000nl_0.500000i_2m_0.250000h_$2t_10Mbulkload --through --threads $2 --csv --only $3 -r 3
+    $BENCHMARK ./data/$1 ./data/$1_ops_20M_0.000000rq_0.500000nl_0.500000i_2m_0.300000h_$2t_10Mbulkload --through --threads $2 --csv --only $3 -r 3
 }
 
 function execute_lookups_200M_write_ratio() {
     echo "Executing lookups for dataset $1, $2 threads and index $3"
-    $BENCHMARK ./data/$1 ./data/$1_ops_100M_0.000000rq_0.000000nl_1.000000i_0m_$2t_5Mbulkload --through --threads $2 --csv --only $3
-    $BENCHMARK ./data/$1 ./data/$1_ops_100M_0.000000rq_0.500000nl_0.500000i_0m_$2t_mix_5Mbulkload --through --threads $2 --csv --only $3
-    $BENCHMARK ./data/$1 ./data/$1_ops_100M_0.000000rq_0.500000nl_0.050000i_0m_$2t_mix_5Mbulkload --through --threads $2 --csv --only $3
-    $BENCHMARK ./data/$1 ./data/$1_ops_100M_0.000000rq_0.500000nl_0.000000i_$2t_105Mbulkload --through --threads $2 --csv --only $3
-    # $BENCHMARK ./data/$1 ./data/$1_ops_20M_1.000000rq_0.000000nl_0.000000i_$2t --through --threads $2 --csv --only $3
+    $BENCHMARK ./data/$1 ./data/$1_ops_100M_0.000000rq_0.000000nl_1.000000i_0m_$2t_5Mbulkload --through --threads $2 --csv --only $3 -r 3
+    $BENCHMARK ./data/$1 ./data/$1_ops_100M_0.000000rq_0.500000nl_0.500000i_0m_$2t_mix_5Mbulkload --through --threads $2 --csv --only $3 -r 3
+    $BENCHMARK ./data/$1 ./data/$1_ops_100M_0.000000rq_0.500000nl_0.050000i_0m_$2t_mix_5Mbulkload --through --threads $2 --csv --only $3 -r 3
+    $BENCHMARK ./data/$1 ./data/$1_ops_100M_0.000000rq_0.500000nl_0.000000i_$2t_105Mbulkload --through --threads $2 --csv --only $3 -r 3
+    # $BENCHMARK ./data/$1 ./data/$1_ops_20M_1.000000rq_0.000000nl_0.000000i_$2t --through --threads $2 --csv --only $3 -r 3
 }
 
 function execute_strings_90M_write_ratio() {
     echo "Executing lookups for dataset $1, $2 threads and index $3"
-    $BENCHMARK ./data/$1 ./data/$1_ops_60M_0.000000rq_0.000000nl_1.000000i_0m_$2t_3Mbulkload --threads $2 --through --csv --only $3
-    $BENCHMARK ./data/$1 ./data/$1_ops_60M_0.000000rq_0.000000nl_0.500000i_0m_$2t_mix_3Mbulkload --threads $2 --through --csv --only $3
-    $BENCHMARK ./data/$1 ./data/$1_ops_60M_0.000000rq_0.000000nl_0.050000i_0m_$2t_mix_3Mbulkload --threads $2 --through --csv --only $3
-    $BENCHMARK ./data/$1 ./data/$1_ops_60M_0.000000rq_0.000000nl_0.000000i_$2t_63Mbulkload --threads $2 --through --csv --only $3
+    $BENCHMARK ./data/$1 ./data/$1_ops_60M_0.000000rq_0.000000nl_1.000000i_0m_$2t_3Mbulkload --threads $2 --through --csv --only $3 -r 3
+    $BENCHMARK ./data/$1 ./data/$1_ops_60M_0.000000rq_0.000000nl_0.500000i_0m_$2t_mix_3Mbulkload --threads $2 --through --csv --only $3 -r 3
+    $BENCHMARK ./data/$1 ./data/$1_ops_60M_0.000000rq_0.000000nl_0.050000i_0m_$2t_mix_3Mbulkload --threads $2 --through --csv --only $3 -r 3
+    $BENCHMARK ./data/$1 ./data/$1_ops_60M_0.000000rq_0.000000nl_0.000000i_$2t_63Mbulkload --threads $2 --through --csv --only $3 -r 3
 }
 
 mkdir -p ./results

@@ -55,78 +55,117 @@ template <int record>
 void benchmark_64_xindex(sosd::Benchmark<uint64_t>& benchmark, const std::string& filename) {
   if (filename.find("books_200M") != std::string::npos) {
     if (filename.find("0.000000i") != std::string::npos) {
-      benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({16});
-      benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({32});
       benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({8});
+      benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({64});
+      benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({32});
     } else if (filename.find("mix") == std::string::npos) {
-      benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({16});
-      benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({32});
-      benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({8});
+      if (filename.find("0m") != std::string::npos) {
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, LinearSearch<record>>>({8});
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({8});
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({16});
+      } else if (filename.find("1m") != std::string::npos) {
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, LinearSearch<record>>>({512});
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, LinearSearch<record>>>({256});
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, BranchingBinarySearch<record>>>({512});
+      } else if (filename.find("2m") != std::string::npos) {
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, LinearSearch<record>>>({16});
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({16});
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, BranchingBinarySearch<record>>>({16});
+      }
     } else {
       if (filename.find("0.050000i") != std::string::npos) {
-        benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({16});
-        benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({32});
         benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({8});
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({64});
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({32});
       } else if (filename.find("0.500000i") != std::string::npos) {
-        benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({16});
-        benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({32});
         benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({8});
-      }  else if (filename.find("0.800000i") != std::string::npos) {
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({64});
         benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({16});
-        benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({32});
+      } else if (filename.find("0.800000i") != std::string::npos) {
         benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({8});
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, LinearSearch<record>>>({8});
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({16});
       }
     }
   }
   if (filename.find("fb_200M") != std::string::npos) {
     if (filename.find("0.000000i") != std::string::npos) {
-      benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({64});
-      benchmark.template Run<sosd_xindex::XIndex<uint64_t, BranchingBinarySearch<record>>>({64});
-      benchmark.template Run<sosd_xindex::XIndex<uint64_t, BranchingBinarySearch<record>>>({512});
-    } else if (filename.find("mix") == std::string::npos) {
+      benchmark.template Run<sosd_xindex::XIndex<uint64_t, LinearSearch<record>>>({64});
+      benchmark.template Run<sosd_xindex::XIndex<uint64_t, LinearSearch<record>>>({32});
       benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({32});
-      if (filename.find("1.000000i") != std::string::npos){
+    } else if (filename.find("mix") == std::string::npos) {
+      if (filename.find("0m") != std::string::npos) {
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, LinearSearch<record>>>({16});
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({16});
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, LinearSearch<record>>>({64});
+      } else if (filename.find("1m") != std::string::npos) {
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({128});
         benchmark.template Run<sosd_xindex::XIndex<uint64_t, LinearSearch<record>>>({32});
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, BranchingBinarySearch<record>>>({128});
+      } else if (filename.find("2m") != std::string::npos) {
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, LinearSearch<record>>>({16});
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({16});
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, BranchingBinarySearch<record>>>({16});
       }
-      benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({64});
     } else {
       if (filename.find("0.050000i") != std::string::npos) {
-        benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({64});
-        benchmark.template Run<sosd_xindex::XIndex<uint64_t, BranchingBinarySearch<record>>>({64});
-        benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({128});
-      } else if (filename.find("0.500000i") != std::string::npos) {
-        benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({64});
-        benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({128});
-        benchmark.template Run<sosd_xindex::XIndex<uint64_t, BranchingBinarySearch<record>>>({64});
-      }  else if (filename.find("0.800000i") != std::string::npos) {
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, LinearSearch<record>>>({64});
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, LinearSearch<record>>>({32});
         benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({32});
+      } else if (filename.find("0.500000i") != std::string::npos) {
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, LinearSearch<record>>>({64});
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, LinearSearch<record>>>({32});
         benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({64});
-        benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({128});
+      } else if (filename.find("0.800000i") != std::string::npos) {
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, LinearSearch<record>>>({64});
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, LinearSearch<record>>>({32});
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, LinearSearch<record>>>({16});
       }
     }
   }
   if (filename.find("osm_cellids_200M") != std::string::npos) {
     if (filename.find("0.000000i") != std::string::npos) {
-      benchmark.template Run<sosd_xindex::XIndex<uint64_t, BranchingBinarySearch<record>>>({256});
       benchmark.template Run<sosd_xindex::XIndex<uint64_t, BranchingBinarySearch<record>>>({512});
       benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({256});
-    } else if (filename.find("mix") == std::string::npos) {
       benchmark.template Run<sosd_xindex::XIndex<uint64_t, BranchingBinarySearch<record>>>({256});
-      benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({128});
-      benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({256});
+    } else if (filename.find("mix") == std::string::npos) {
+      if (filename.find("0m") != std::string::npos) {
+        if (filename.find("1.000000i") != std::string::npos){
+          benchmark.template Run<sosd_xindex::XIndex<uint64_t, LinearSearch<record>>>({32});
+        }
+        else{
+          benchmark.template Run<sosd_xindex::XIndex<uint64_t, BranchingBinarySearch<record>>>({128});
+        }
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({32});
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, BranchingBinarySearch<record>>>({32});
+      } else if (filename.find("1m") != std::string::npos) {
+        if (filename.find("1.000000i") != std::string::npos){
+          benchmark.template Run<sosd_xindex::XIndex<uint64_t, LinearSearch<record>>>({256});
+          benchmark.template Run<sosd_xindex::XIndex<uint64_t, LinearSearch<record>>>({128});
+        }
+        else{
+          benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({64});
+          benchmark.template Run<sosd_xindex::XIndex<uint64_t, BranchingBinarySearch<record>>>({128});
+        }
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, BranchingBinarySearch<record>>>({256});
+      } else if (filename.find("2m") != std::string::npos) {
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({32});
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, BranchingBinarySearch<record>>>({128});
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, BranchingBinarySearch<record>>>({64});
+      }
     } else {
       if (filename.find("0.050000i") != std::string::npos) {
-        benchmark.template Run<sosd_xindex::XIndex<uint64_t, BranchingBinarySearch<record>>>({256});
         benchmark.template Run<sosd_xindex::XIndex<uint64_t, BranchingBinarySearch<record>>>({512});
         benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({256});
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, BranchingBinarySearch<record>>>({256});
       } else if (filename.find("0.500000i") != std::string::npos) {
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({32});
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, BranchingBinarySearch<record>>>({128});
         benchmark.template Run<sosd_xindex::XIndex<uint64_t, BranchingBinarySearch<record>>>({256});
-        benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({256});
-        benchmark.template Run<sosd_xindex::XIndex<uint64_t, BranchingBinarySearch<record>>>({512});
-      }  else if (filename.find("0.800000i") != std::string::npos) {
+      } else if (filename.find("0.800000i") != std::string::npos) {
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({32});
+        benchmark.template Run<sosd_xindex::XIndex<uint64_t, BranchingBinarySearch<record>>>({128});
         benchmark.template Run<sosd_xindex::XIndex<uint64_t, BranchingBinarySearch<record>>>({256});
-        benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({128});
-        benchmark.template Run<sosd_xindex::XIndex<uint64_t, ExponentialSearch<record>>>({256});
       }
     }
   }

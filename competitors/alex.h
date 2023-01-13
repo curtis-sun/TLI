@@ -54,10 +54,10 @@ class Alex : public Competitor<KeyType, SearchClass> {
 
   std::size_t size() const { return map_.model_size() + map_.data_size(); }
 
-  bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& data_filename) const {
+  bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& ops_filename) const {
     // The max_data_node_slots should > 21026, 
     // which is the maximum repeated num in dataset wiki_ts_200M_uint64
-    return (data_filename.find("wiki_ts") == std::string::npos || max_node_logsize >= 20) && !multithread;
+    return (ops_filename.find("wiki_ts") == std::string::npos || max_node_logsize >= 20) && !multithread;
   }
 
   std::vector<std::string> variants() const { 

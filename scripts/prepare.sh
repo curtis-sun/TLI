@@ -29,13 +29,13 @@ function generate_lookups_200M() {
     ./generate ../data/$1 100000000 --insert-ratio 1 --bulkload-count 5000000
     
     ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --bulkload-count 10000000
-    ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --insert-mode delta --bulkload-count 10000000
-    ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --insert-mode hotspot --hotspot-ratio 0.05 --bulkload-count 10000000
-    ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --insert-mode hotspot --hotspot-ratio 0.1 --bulkload-count 10000000
-    ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --insert-mode hotspot --hotspot-ratio 0.15 --bulkload-count 10000000
-    ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --insert-mode hotspot --hotspot-ratio 0.2 --bulkload-count 10000000
-    ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --insert-mode hotspot --hotspot-ratio 0.25 --bulkload-count 10000000
-    ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --insert-mode hotspot --hotspot-ratio 0.3 --bulkload-count 10000000
+    ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --insert-pattern delta --bulkload-count 10000000
+    ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --insert-pattern hotspot --hotspot-ratio 0.05 --bulkload-count 10000000
+    ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --insert-pattern hotspot --hotspot-ratio 0.1 --bulkload-count 10000000
+    ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --insert-pattern hotspot --hotspot-ratio 0.15 --bulkload-count 10000000
+    ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --insert-pattern hotspot --hotspot-ratio 0.2 --bulkload-count 10000000
+    ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --insert-pattern hotspot --hotspot-ratio 0.25 --bulkload-count 10000000
+    ./generate ../data/$1 20000000 --insert-ratio 0.5 --negative-lookup-ratio 0.5 --insert-pattern hotspot --hotspot-ratio 0.3 --bulkload-count 10000000
 }
 
 function generate_strings_90M() {

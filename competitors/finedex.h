@@ -70,9 +70,8 @@ class FINEdex : public Competitor<KeyType, SearchClass> {
 
   std::size_t size() const { return table->size(); }
 
-  bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& data_filename) const {
-    std::string name = SearchClass::name();
-    return !std::is_same<KeyType, std::string>::value && unique;
+  bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& ops_filename) const {
+    return !std::is_same<KeyType, std::string>::value && unique && ops_filename.find("1m") == std::string::npos;
   }
 
   std::vector<std::string> variants() const { 

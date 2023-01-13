@@ -41,9 +41,9 @@ void benchmark_64_pgm(sosd::Benchmark<uint64_t>& benchmark, const std::string& f
     benchmark.template Run<PGM<uint64_t, BranchingBinarySearch<record>,256>>();
   }
   if (filename.find("fb_200M") != std::string::npos) {
+    benchmark.template Run<PGM<uint64_t, LinearSearch<record>,16>>();
+    benchmark.template Run<PGM<uint64_t, LinearSearch<record>,8>>();
     benchmark.template Run<PGM<uint64_t, LinearSearch<record>,32>>();
-    benchmark.template Run<PGM<uint64_t, BranchingBinarySearch<record>,128>>();
-    benchmark.template Run<PGM<uint64_t, BranchingBinarySearch<record>,256>>();
   }
   if (filename.find("osm_cellids_200M") != std::string::npos) {
     benchmark.template Run<PGM<uint64_t, BranchingBinarySearch<record>,64>>();

@@ -1,11 +1,6 @@
 #! /usr/bin/env bash
 
 echo "Executing benchmark and saving results..."
-while getopts n:c arg; do
-    case $arg in
-        c) do_csv=true;;
-    esac
-done
 
 BENCHMARK=build/benchmark
 if [ ! -f $BENCHMARK ]; then

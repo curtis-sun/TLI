@@ -40,8 +40,7 @@ void benchmark_64_alex(sosd::Benchmark<uint64_t>& benchmark, const std::string& 
       benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({26});
       benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({24});
       benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({22});
-    } 
-    else if (filename.find("mix") == std::string::npos) {
+    } else if (filename.find("mix") == std::string::npos) {
       if (filename.find("0m") != std::string::npos) {
         benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({22});
         benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({20});
@@ -52,7 +51,7 @@ void benchmark_64_alex(sosd::Benchmark<uint64_t>& benchmark, const std::string& 
         benchmark.template Run<Alex<uint64_t, BranchingBinarySearch<record>>>({18});
       } else if (filename.find("2m") != std::string::npos) {
         benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({26});
-        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({22});
+        benchmark.template Run<Alex<uint64_t, LinearAVX<uint64_t, record>>>({26});
         benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({20});
       }
     } else {
@@ -61,48 +60,48 @@ void benchmark_64_alex(sosd::Benchmark<uint64_t>& benchmark, const std::string& 
         benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({24});
         benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({22});
       } else if (filename.find("0.500000i") != std::string::npos) {
-        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({26});
         benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({24});
+        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({26});
         benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({22});
       } else if (filename.find("0.800000i") != std::string::npos) {
+        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({24});
         benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({22});
         benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({20});
-        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({24});
       }
     }
   }
   if (filename.find("fb_200M") != std::string::npos) {
     if (filename.find("0.000000i") != std::string::npos) {
-      benchmark.template Run<Alex<uint64_t, BranchingBinarySearch<record>>>({22});
-      benchmark.template Run<Alex<uint64_t, BranchingBinarySearch<record>>>({26});
+      benchmark.template Run<Alex<uint64_t, LinearAVX<uint64_t, record>>>({22});
       benchmark.template Run<Alex<uint64_t, ExponentialSearch<record>>>({22});
+      benchmark.template Run<Alex<uint64_t, BranchingBinarySearch<record>>>({22});
     } else if (filename.find("mix") == std::string::npos) {
       if (filename.find("0m") != std::string::npos) {
-        benchmark.template Run<Alex<uint64_t, LinearAVX<uint64_t, record>>>({14});
-        benchmark.template Run<Alex<uint64_t, BranchingBinarySearch<record>>>({14});
-        benchmark.template Run<Alex<uint64_t, ExponentialSearch<record>>>({14});
+        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({26});
+        benchmark.template Run<Alex<uint64_t, LinearAVX<uint64_t, record>>>({26});
+        benchmark.template Run<Alex<uint64_t, ExponentialSearch<record>>>({26});
       } else if (filename.find("1m") != std::string::npos) {
-        benchmark.template Run<Alex<uint64_t, BranchingBinarySearch<record>>>({26});
         benchmark.template Run<Alex<uint64_t, BranchingBinarySearch<record>>>({18});
+        benchmark.template Run<Alex<uint64_t, BranchingBinarySearch<record>>>({20});
         benchmark.template Run<Alex<uint64_t, BranchingBinarySearch<record>>>({16});
       } else if (filename.find("2m") != std::string::npos) {
-        benchmark.template Run<Alex<uint64_t, LinearAVX<uint64_t, record>>>({16});
-        benchmark.template Run<Alex<uint64_t, LinearAVX<uint64_t, record>>>({20});
         benchmark.template Run<Alex<uint64_t, LinearAVX<uint64_t, record>>>({14});
+        benchmark.template Run<Alex<uint64_t, LinearAVX<uint64_t, record>>>({20});
+        benchmark.template Run<Alex<uint64_t, LinearAVX<uint64_t, record>>>({16});
       }
     } else {
       if (filename.find("0.050000i") != std::string::npos) {
-        benchmark.template Run<Alex<uint64_t, BranchingBinarySearch<record>>>({22});
-        benchmark.template Run<Alex<uint64_t, BranchingBinarySearch<record>>>({26});
+        benchmark.template Run<Alex<uint64_t, LinearAVX<uint64_t, record>>>({22});
         benchmark.template Run<Alex<uint64_t, ExponentialSearch<record>>>({22});
+        benchmark.template Run<Alex<uint64_t, BranchingBinarySearch<record>>>({22});
       } else if (filename.find("0.500000i") != std::string::npos) {
-        benchmark.template Run<Alex<uint64_t, ExponentialSearch<record>>>({14});
-        benchmark.template Run<Alex<uint64_t, BranchingBinarySearch<record>>>({14});
-        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({14});
+        benchmark.template Run<Alex<uint64_t, LinearAVX<uint64_t, record>>>({26});
+        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({26});
+        benchmark.template Run<Alex<uint64_t, LinearAVX<uint64_t, record>>>({22});
       } else if (filename.find("0.800000i") != std::string::npos) {
-        benchmark.template Run<Alex<uint64_t, BranchingBinarySearch<record>>>({14});
-        benchmark.template Run<Alex<uint64_t, ExponentialSearch<record>>>({14});
-        benchmark.template Run<Alex<uint64_t, LinearAVX<uint64_t, record>>>({14});
+        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({26});
+        benchmark.template Run<Alex<uint64_t, LinearAVX<uint64_t, record>>>({26});
+        benchmark.template Run<Alex<uint64_t, LinearAVX<uint64_t, record>>>({22});
       }
     }
   }
@@ -113,31 +112,31 @@ void benchmark_64_alex(sosd::Benchmark<uint64_t>& benchmark, const std::string& 
       benchmark.template Run<Alex<uint64_t, ExponentialSearch<record>>>({16});
     } else if (filename.find("mix") == std::string::npos) {
       if (filename.find("0m") != std::string::npos) {
-        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({14});
-        benchmark.template Run<Alex<uint64_t, LinearAVX<uint64_t, record>>>({14});
-        benchmark.template Run<Alex<uint64_t, BranchingBinarySearch<record>>>({14});
+        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({20});
+        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({22});
+        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({18});
       } else if (filename.find("1m") != std::string::npos) {
         benchmark.template Run<Alex<uint64_t, BranchingBinarySearch<record>>>({24});
         benchmark.template Run<Alex<uint64_t, BranchingBinarySearch<record>>>({26});
-        benchmark.template Run<Alex<uint64_t, BranchingBinarySearch<record>>>({22});
+        benchmark.template Run<Alex<uint64_t, BranchingBinarySearch<record>>>({16});
       } else if (filename.find("2m") != std::string::npos) {
-        benchmark.template Run<Alex<uint64_t, LinearAVX<uint64_t, record>>>({24});
-        benchmark.template Run<Alex<uint64_t, LinearAVX<uint64_t, record>>>({18});
         benchmark.template Run<Alex<uint64_t, LinearAVX<uint64_t, record>>>({16});
+        benchmark.template Run<Alex<uint64_t, LinearAVX<uint64_t, record>>>({14});
+        benchmark.template Run<Alex<uint64_t, LinearAVX<uint64_t, record>>>({18});
       }
     } else {
       if (filename.find("0.050000i") != std::string::npos) {
-        benchmark.template Run<Alex<uint64_t, ExponentialSearch<record>>>({18});
         benchmark.template Run<Alex<uint64_t, ExponentialSearch<record>>>({20});
-        benchmark.template Run<Alex<uint64_t, ExponentialSearch<record>>>({16});
+        benchmark.template Run<Alex<uint64_t, ExponentialSearch<record>>>({18});
+        benchmark.template Run<Alex<uint64_t, ExponentialSearch<record>>>({22});
       } else if (filename.find("0.500000i") != std::string::npos) {
-        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({14});
-        benchmark.template Run<Alex<uint64_t, ExponentialSearch<record>>>({14});
-        benchmark.template Run<Alex<uint64_t, LinearAVX<uint64_t, record>>>({14});
+        benchmark.template Run<Alex<uint64_t, ExponentialSearch<record>>>({20});
+        benchmark.template Run<Alex<uint64_t, ExponentialSearch<record>>>({18});
+        benchmark.template Run<Alex<uint64_t, ExponentialSearch<record>>>({22});
       } else if (filename.find("0.800000i") != std::string::npos) {
-        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({14});
-        benchmark.template Run<Alex<uint64_t, LinearAVX<uint64_t, record>>>({14});
-        benchmark.template Run<Alex<uint64_t, ExponentialSearch<record>>>({14});
+        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({20});
+        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({22});
+        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({18});
       }
     }
   }
@@ -148,31 +147,31 @@ void benchmark_64_alex(sosd::Benchmark<uint64_t>& benchmark, const std::string& 
       benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({26});
     } else if (filename.find("mix") == std::string::npos) {
       if (filename.find("0m") != std::string::npos) {
-        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({20});
-        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({22});
-        benchmark.template Run<Alex<uint64_t, LinearAVX<uint64_t, record>>>({20});
-      } else if (filename.find("1m") != std::string::npos) {
-        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({24});
-        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({22});
-        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({20});
-      } else if (filename.find("2m") != std::string::npos) {
         benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({22});
         benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({26});
         benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({24});
+      } else if (filename.find("1m") != std::string::npos) {
+        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({22});
+        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({24});
+        benchmark.template Run<Alex<uint64_t, BranchingBinarySearch<record>>>({22});
+      } else if (filename.find("2m") != std::string::npos) {
+        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({24});
+        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({26});
+        benchmark.template Run<Alex<uint64_t, LinearAVX<uint64_t, record>>>({22});
       }
     } else {
       if (filename.find("0.050000i") != std::string::npos) {
-        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({20});
         benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({22});
+        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({20});
         benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({26});
       } else if (filename.find("0.500000i") != std::string::npos) {
-        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({20});
         benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({22});
+        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({26});
         benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({24});
       } else if (filename.find("0.800000i") != std::string::npos) {
-        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({20});
         benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({22});
-        benchmark.template Run<Alex<uint64_t, LinearAVX<uint64_t, record>>>({20});
+        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({26});
+        benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({24});
       }
     }
   }

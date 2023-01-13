@@ -163,7 +163,7 @@ class Wormhole : public Base<KeyType> {
     return timing;
   }
 
-  bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& data_filename) {
+  bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& ops_filename) {
     // only supports unique keys.
     return unique;
   }

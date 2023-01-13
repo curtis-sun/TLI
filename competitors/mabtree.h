@@ -61,7 +61,7 @@ class MABTree : public Competitor<KeyType, SearchClass> {
 
   std::string name() const { return "MABTree"; }
 
-  bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& data_filename) const {
+  bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& ops_filename) const {
     // The last several keys of AlexNode's key_slots_ are std::numeric_limits<KeyType>::max()
     return SearchClass::name() != "InterpolationSearch" && !multithread;
   }

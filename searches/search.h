@@ -15,17 +15,19 @@
       hr_clock_start = std::chrono::high_resolution_clock::now();    \
     }
 #define record_end(start, actual)                                                                                                         \
+    if constexpr (record){                                                                                                                \
+      Search<record>::sum_search_bound += abs(std::distance(start, actual));                                                              \
+      ++Search<record>::research_num;                                                                                                     \
+    }                                                                                                                                     \
     if constexpr (record == 2){                                                                                                           \
       const auto end_time = boost::chrono::thread_clock::now();                                                                           \
       Search<record>::timing += boost::chrono::duration_cast<boost::chrono::nanoseconds>(end_time - thread_clock_start)                   \
           .count();                                                                                                                       \
-      Search<record>::sum_search_bound += abs(std::distance(start, actual));                                                              \
       ++Search<record>::search_num;                                                                                                       \
     } else if constexpr (record == 1){                                                                                                    \
       const auto end_time = std::chrono::high_resolution_clock::now();                                                                    \
       Search<record>::timing += std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - hr_clock_start)                           \
           .count();                                                                                                                       \
-      Search<record>::sum_search_bound += abs(std::distance(start, actual));                                                              \
       ++Search<record>::search_num;                                                                                                       \
     }
 // log_sum_search_bound += log2(abs(std::distance(start, actual)) + 1);
@@ -73,21 +75,23 @@ class Search<1>: public BaseSearch {
   static uint64_t searchTotalTime() { return timing; }
   static double searchBound() { 
     // if (SearchClass::name() == "LinearSearch" || SearchClass::name() == "LinearAVX"){
-    return double(sum_search_bound) / search_num;
+    return double(sum_search_bound) / research_num;
     // }
     // return SearchClass::log_sum_search_bound / SearchClass::search_num; 
   }
   static void initSearch() { 
     timing = 0;
     // SearchClass::log_sum_search_bound = 0;
-    sum_search_bound = 0;
     search_num = 0;
+    sum_search_bound = 0;
+    research_num = 0;
   }
 
   static uint64_t timing;
   static size_t search_num;
   // static double log_sum_search_bound;
   static uint64_t sum_search_bound;
+  static size_t research_num;
 };
 
 template<>
@@ -95,14 +99,16 @@ class Search<2>: public BaseSearch {
  public:
   static double searchAverageTime() { return (double)timing / search_num; }
   static uint64_t searchTotalTime() { return timing; }
-  static double searchBound() { return double(sum_search_bound) / search_num; }
+  static double searchBound() { return double(sum_search_bound) / research_num; }
   static void initSearch() { 
     timing = 0;
-    sum_search_bound = 0;
     search_num = 0;
+    sum_search_bound = 0;
+    research_num = 0;
   }
 
   static std::atomic<uint64_t> timing;
   static std::atomic<size_t> search_num;
   static std::atomic<uint64_t> sum_search_bound;
+  static size_t research_num;
 };

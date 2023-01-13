@@ -556,6 +556,71 @@ inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::exponential_se
 }
 
 template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::exponential_search_key_no_predict(
+    record_t *const data, uint32_t array_size, const key_t &key,
+    size_t pos) const {
+  if (array_size == 0) return 0;
+  pos = (pos >= array_size ? (array_size - 1) : pos);
+  assert(pos < array_size);
+
+  int begin_i = 0, end_i = array_size;
+  size_t step = 1;
+
+  if (!key.less_than(data[pos].first, prefix_len, feature_len)) {
+    begin_i = pos;
+    end_i = begin_i + step;
+    while (end_i < (int)array_size &&
+           !key.less_than(data[end_i].first, prefix_len, feature_len)) {
+      step *= 2;
+      begin_i = end_i;
+      end_i = begin_i + step;
+    }
+    if (end_i >= (int)array_size) {
+      end_i = array_size - 1;
+    }
+  } else {
+    end_i = pos;
+    begin_i = end_i - step;
+    while (begin_i >= 0 &&
+           key.less_than(data[begin_i].first, prefix_len, feature_len)) {
+      step *= 2;
+      end_i = begin_i;
+      begin_i = end_i - step;
+    }
+    if (begin_i < 0) {
+      begin_i = 0;
+    }
+  }
+
+  assert(begin_i >= 0);
+  assert(end_i < (int)array_size);
+  assert(begin_i <= end_i);
+
+  // the real range is [begin_i, end_i], both inclusive.
+  // we add 1 to end_i in order to find the insert position when the given key
+  // is not exist
+  end_i++;
+  // find the largest position whose key equal to the given key
+  while (end_i > begin_i) {
+    // here the +1 term is used to avoid the infinte loop
+    // where (end_i = begin_i + 1 && mid = begin_i && data[mid].first <= key)
+    int mid = (begin_i + end_i) >> 1;
+    if (data[mid].first.less_than(key, prefix_len, feature_len)) {
+      begin_i = mid + 1;
+    } else {
+      // we should assign end_i with mid (not mid+1) in case infinte loop
+      end_i = mid;
+    }
+  }
+
+  assert(end_i == begin_i);
+  assert(data[end_i].first == key || end_i == 0 || end_i == (int)array_size ||
+         (data[end_i - 1].first < key && data[end_i].first > key));
+
+  return end_i;
+}
+
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
 inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::exponential_search_key(
     record_t *const data, uint32_t array_size, const key_t &key,
     size_t pos) const {
@@ -801,7 +866,7 @@ inline void Group<key_t, val_t, seq, SearchClass, max_model_n>::merge_refs_n_spl
   record_t *intermediate = new record_t[new_capacity_1]();
   merge_refs_internal(intermediate, intermediate_size);
 
-  uint32_t split_pos = exponential_search_key(intermediate, intermediate_size,
+  uint32_t split_pos = exponential_search_key_no_predict(intermediate, intermediate_size,
                                               key, intermediate_size / 2);
   assert(split_pos != intermediate_size &&
          intermediate[split_pos].first >= key);

@@ -58,7 +58,7 @@ class STXBTree : public Competitor<KeyType, SearchClass> {
     return vec;
   }
 
-  bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& data_filename) {
+  bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& ops_filename) {
         return !multithread;
     }
 

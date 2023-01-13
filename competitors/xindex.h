@@ -106,7 +106,7 @@ class XIndex : public Competitor<KeyType, SearchClass> {
 
   std::size_t size() const { return table->size(); }
 
-  bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& data_filename) const {
+  bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& ops_filename) const {
     std::string name = SearchClass::name();
     return name != "LinearAVX" && name != "InterpolationSearch" && !std::is_same<KeyType, std::string>::value && !range_query && unique;
   }

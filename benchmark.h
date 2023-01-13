@@ -191,11 +191,13 @@ class Benchmark {
  public:
   Benchmark(const std::string& data_filename,
             const std::string& ops_filename,
+            const size_t num_repeats,
             const bool through, const bool perf, const bool build, const bool fence,
             const bool cold_cache, const bool track_errors, const bool csv,
             const size_t num_threads, const bool verify)
       : data_filename_(data_filename),
         ops_filename_(ops_filename),
+        num_repeats_(num_repeats),
         first_run_(true),
         through_(through),
         perf_(perf),
@@ -206,10 +208,10 @@ class Benchmark {
         csv_(csv),
         num_threads_(num_threads),
         verify_(verify) {
-    if ((int)cold_cache + (int)perf + (int)fence > 1) {
-      util::fail(
-          "Can only specify one of cold cache, perf counters, or fence.");
-    }
+    // if ((int)cold_cache + (int)perf + (int)fence > 1) {
+    //   util::fail(
+    //       "Can only specify one of cold cache, perf counters, or fence.");
+    // }
 
     static constexpr const char* prefix = "data/";
     dataset_name_ = ops_filename.data();
@@ -294,7 +296,7 @@ class Benchmark {
     // Build index.
     Index* index = new Index(params);
 
-    if (!index->applicable(unique_keys_, is_range_query_, insert_ratio_ > 0, num_threads_ > 1, data_filename_)) {
+    if (!index->applicable(unique_keys_, is_range_query_, insert_ratio_ > 0, num_threads_ > 1, ops_filename_)) {
       std::cout << "index " << index->name() << " is not applicable"
                 << std::endl;
       delete index;
@@ -306,19 +308,41 @@ class Benchmark {
     // clean_cache();
     run_failed = false;
 
-    if (build_ && perf_){
-      checkLinux(({
-          BenchmarkParameters params;
-          PerfEventBlock e(1, params, &perf_metrics, /*printHeader=*/first_run_);
-          build_ns_ = index->Build(index_data_, num_threads_);
-        }));
-    }
-    else{
-      build_ns_ = index->Build(index_data_, num_threads_);
+    build_ns_.clear();
+
+    if (through_){
+      throughputs_.clear();
+    }else{
+      latencies_.clear();
+      if (track_errors_){
+        search_bounds_.clear();
+        search_times_.clear();
+        search_latencies_.clear();
+      }
     }
 
-    // Do equality lookups.
-    if constexpr (!sosd_config::fast_mode) {
+    if (perf_){
+      perf_metrics.clear();
+    }
+
+    for (size_t i = 0; i < num_repeats_; i ++){
+      if (i > 0){
+        delete index;
+        index = new Index(params);
+      }
+
+      if (build_ && perf_){
+        checkLinux(({
+            BenchmarkParameters params;
+            PerfEventBlock e(1, params, &perf_metrics, /*printHeader=*/first_run_);
+            build_ns_.push_back(index->Build(index_data_, num_threads_));
+          }));
+      }
+      else{
+        build_ns_.push_back(index->Build(index_data_, num_threads_));
+      }
+
+      // Do operations.
       if (through_) {
         if (fence_) {
           DoOps<Index, false, true, false, false>(index);
@@ -346,13 +370,11 @@ class Benchmark {
           DoOps<Index, true, false, false, false>(index);
         }
       }
-    } else {
-      if (perf_ || cold_cache_ || fence_ || verify_) {
-        util::fail(
-            "Perf, cold cache, fence, and verify mode require full builds. Disable "
-            "fast mode.");
+      
+      if (run_failed) {
+        delete index;
+        return;
       }
-      DoOps<Index, true, false, false, false>(index);
     }
     PrintResult(index);
 
@@ -368,22 +390,6 @@ class Benchmark {
   template <class Index, bool time_each, bool fence, bool clear_cache, bool verify>
   void DoOps(Index* index) {
     if (build_) return;
-
-    if constexpr (time_each){
-      latencies_.clear();
-      if (track_errors_){
-        search_bounds_.clear();
-        search_times_.clear();
-        search_latencies_.clear();
-      }
-    }
-    else{
-      throughputs_.clear();
-    }
-
-    if (perf_){
-      perf_metrics.clear();
-    }
 
     for (size_t i = 0; i < 2 - flag_; ++i){
       if constexpr (time_each){
@@ -478,8 +484,11 @@ class Benchmark {
       return;
     }
 
-    std::cout << "RESULT: " << index->name() << ","
-                << build_ns_ / 1000 << "," << index->size();
+    std::cout << "RESULT: " << index->name();
+    for (auto b: build_ns_){
+      std::cout << "," << b / 1000;
+    }
+    std::cout << "," << index->size();
                 
     if (!build_) {
       if (through_){
@@ -528,8 +537,11 @@ class Benchmark {
       return;
     }
 
-    fout << index->name() << ","
-                << build_ns_ / 1000 << "," << index->size();
+    fout << index->name();
+    for (auto b: build_ns_){
+      fout << "," << b / 1000;
+    }
+    fout << "," << index->size();
 
     if (!build_) {
       if (through_){
@@ -576,7 +588,7 @@ class Benchmark {
   std::vector<size_t> bound_points;
   size_t flag_;
   // Metrics
-  uint64_t build_ns_;
+  std::vector<uint64_t> build_ns_;
   std::vector<LatencyStat> latencies_;
   uint64_t* individual_ns;
   std::vector<double> throughputs_;
@@ -597,6 +609,7 @@ class Benchmark {
   bool verify_;
   // Number of lookup threads.
   const size_t num_threads_;
+  const size_t num_repeats_;
 };
 
 }  // namespace sosd

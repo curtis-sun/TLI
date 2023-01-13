@@ -52,7 +52,7 @@ class TS : public Competitor<KeyType, SearchClass> {
     return result;
   }
 
-  bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& data_filename) const {
+  bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& ops_filename) const {
     std::string name = SearchClass::name();
     return !insert && name != "LinearAVX" && !multithread;
   }

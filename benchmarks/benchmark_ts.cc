@@ -41,8 +41,8 @@ void benchmark_64_ts(sosd::Benchmark<uint64_t>& benchmark, const std::string& fi
   }
   if (filename.find("fb_200M") != std::string::npos) {
     benchmark.template Run<TS<uint64_t, LinearSearch<record>>>({8});
+    benchmark.template Run<TS<uint64_t, LinearSearch<record>>>({16});
     benchmark.template Run<TS<uint64_t, BranchingBinarySearch<record>>>({8});
-    benchmark.template Run<TS<uint64_t, BranchingBinarySearch<record>>>({16});
   }
   if (filename.find("osm_cellids_200M") != std::string::npos) {
     benchmark.template Run<TS<uint64_t, BranchingBinarySearch<record>>>({16});
