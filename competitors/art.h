@@ -18,94 +18,81 @@
 #include "../util.h"
 #include "base.h"
 
-// Contains a version of ART that supports lower & upper bound lookups.
-
 // Uses ART as a non-clustered primary index that stores <key, offset> pairs.
 // At lookup time, we retrieve a key's offset from ART and lookup its value in
-// the data array.
-namespace sosd_art{
+// the extra database.
+namespace tli_art{
 
 template<class KeyType>
 class ART : public Base<KeyType> {
  public:
   ART(const std::vector<int>& params){}
-  ~ART() { destructTree(tree_); }
+  ~ART() { 
+    if (tree_) {
+      destructTree(tree_);
+    } 
+  }
 
   uint64_t Build(const std::vector<KeyValue<KeyType>>& data, size_t num_threads) {
-    allocated_byte_count = 0;
-
-    if constexpr (std::is_same<KeyType, std::string>::value){
-      data_size_ = sizeof(uint64_t) * data.size();
-    }
-    else{
-      data_size_ = (sizeof(KeyType) + sizeof(uint64_t)) * data.size();
-    }
     std::vector<KeyValue<std::string>> transform_data(data.size());
-    for (size_t i = 0; i < data.size(); ++i) {
-      transform_data[i].value = data[i].value;
-      transform_data[i].key = std::move(util::convertToString(data[i].key));
-      if constexpr (std::is_same<KeyType, std::string>::value){
-        data_size_ += transform_data[i].key.length();
-      }
-    }
 
     return util::timing([&] {
-      data_ = transform_data;
-      bulk_insert(&tree_, 0, data_.size(), 0);
+      for (size_t i = 0; i < data.size(); ++i) {
+        util::convert2String(data[i].key, transform_data[i].key);
+        Element<std::string>* e = new Element<std::string>(transform_data[i].key, data[i].value);
+        transform_data[i].value = (uint64_t(e) >> 1);
+      }
+      bulk_insert(&tree_, transform_data, 0, data.size(), 0);
     });
   }
 
   size_t EqualityLookup(const KeyType& lookup_key, uint32_t thread_id) const {
-    std::string key = std::move(util::convertToString(lookup_key));
+    std::string key;
+    util::convert2String(lookup_key, key);
 
     Node* node = lookup(tree_, static_cast<const uint8_t*>(static_cast<const void*>(key.c_str())), key.length(), 0);
     if (node){
-      return data_[getLeafValue(node)].value;
+      return reinterpret_cast<Element<std::string>*>(getLeafValue(node) << 1)->value;
     }
     return util::NOT_FOUND;
   }
 
   uint64_t RangeQuery(const KeyType& lower_key, const KeyType& upper_key, uint32_t thread_id) const {
-    std::string lkey = std::move(util::convertToString(lower_key)), 
-                ukey = std::move(util::convertToString(upper_key));
+    std::string lkey, ukey;
+    util::convert2String(lower_key, lkey); 
+    util::convert2String(upper_key, ukey);
 
     Iterator it;
     uint64_t result = 0;
     if (bound(tree_, static_cast<const uint8_t*>(static_cast<const void*>(lkey.c_str())), lkey.length(), it, true)){
       do{
-        result += data_[it.value].value;
-      } while(iteratorNext(it) && !(ukey < data_[it.value].key));
+        result += reinterpret_cast<Element<std::string>*>(it.value << 1)->value;
+      } while(iteratorNext(it) && !(ukey < loadKey(it.value)));
     }
     return result;
   }
   
   void Insert(const KeyValue<KeyType>& data, uint32_t thread_id) {
-    KeyValue<std::string> entry;
-    entry.value = data.value;
-    std::string key = std::move(util::convertToString(data.key));
-    data_size_ += key.length() + sizeof(uint64_t);
-    entry.key = key;
-    data_.push_back(std::move(entry));
+    std::string key;
+    util::convert2String(data.key, key);
+    Element<std::string>* e = new Element<std::string>(key, data.value);
 
-    insert(tree_, &tree_, static_cast<const uint8_t*>(static_cast<const void*>(key.c_str())), key.length(), 0, data_.size() - 1);
+    insert(tree_, &tree_, static_cast<const uint8_t*>(static_cast<const void*>(key.c_str())), key.length(), 0, uint64_t(e) >> 1);
   }
 
   std::string name() const { return "ART"; }
 
-  std::size_t size() const { return allocated_byte_count + data_size_; }
+  std::size_t size() const { return size_in_bytes(tree_); }
 
   bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& _ops_filename) const {
     return unique && !multithread;
   }
 
  private:
-  static uint64_t allocated_byte_count;  // track bytes allocated
 
-  /*
-  Adaptive Radix Tree
-  Viktor Leis, 2012
-  leis@in.tum.de
- */
+  const std::string& loadKey(uintptr_t tid) const {
+    return reinterpret_cast<Element<std::string>*>(tid << 1)->key;
+  }
 
   // Constants for the node types
   static const int8_t NodeType4 = 0;
@@ -130,27 +117,6 @@ class ART : public Base<KeyType> {
     uint8_t prefix[maxPrefixLength];
 
     Node(int8_t type) : prefixLength(0), count(0), type(type) {}
-
-    ~Node() {
-      switch (type) {
-        case NodeType4: {
-          allocated_byte_count -= sizeof(Node4);
-          break;
-        }
-        case NodeType16: {
-          allocated_byte_count -= sizeof(Node16);
-          break;
-        }
-        case NodeType48: {
-          allocated_byte_count -= sizeof(Node48);
-          break;
-        }
-        case NodeType256: {
-          allocated_byte_count -= sizeof(Node256);
-          break;
-        }
-      }
-    }
   };
 
   // Node with up to 4 children
@@ -161,7 +127,6 @@ class ART : public Base<KeyType> {
     Node4() : Node(NodeType4) {
       memset(key, 0, sizeof(key));
       memset(child, 0, sizeof(child));
-      allocated_byte_count += sizeof(*this);
     }
   };
 
@@ -173,7 +138,6 @@ class ART : public Base<KeyType> {
     Node16() : Node(NodeType16) {
       memset(key, 0, sizeof(key));
       memset(child, 0, sizeof(child));
-      allocated_byte_count += sizeof(*this);
     }
   };
 
@@ -187,7 +151,6 @@ class ART : public Base<KeyType> {
     Node48() : Node(NodeType48) {
       memset(childIndex, emptyMarker, sizeof(childIndex));
       memset(child, 0, sizeof(child));
-      allocated_byte_count += sizeof(*this);
     }
   };
 
@@ -197,7 +160,6 @@ class ART : public Base<KeyType> {
 
     Node256() : Node(NodeType256) {
       memset(child, 0, sizeof(child));
-      allocated_byte_count += sizeof(*this);
     }
   };
 
@@ -417,7 +379,7 @@ class ART : public Base<KeyType> {
   bool leafMatches(Node* leaf, const uint8_t key[], unsigned keyLength,
                    unsigned depth) const {
     // Check if the key of the leaf is equal to the searched key
-    const std::string& leafKey = data_[getLeafValue(leaf)].key;
+    const std::string& leafKey = loadKey(getLeafValue(leaf));
     if (leafKey.length() != keyLength || memcmp(leafKey.c_str() + depth, key + depth, keyLength - depth)){
       return false;
     }
@@ -427,7 +389,7 @@ class ART : public Base<KeyType> {
   bool leafPrefixMatches(Node* leaf, const uint8_t key[], unsigned keyLength,
                    unsigned depth) const {
     // Check if the key of the leaf is equal to the searched key
-    const std::string& leafKey = data_[getLeafValue(leaf)].key;
+    const std::string& leafKey = loadKey(getLeafValue(leaf));
     if (leafKey.length() < keyLength || memcmp(leafKey.c_str() + depth, key + depth, keyLength - depth)){
       return false;
     }
@@ -458,7 +420,7 @@ class ART : public Base<KeyType> {
 
       // Load key from database
       Node* minNode = minimum(node);
-      const std::string& minKey = data_[getLeafValue(minNode)].key;
+      const std::string& minKey = loadKey(getLeafValue(minNode));
       for (; pos < compBytes; pos++)
         if (key[depth + pos] != (uint8_t)minKey[depth + pos]) return pos;
     } else {
@@ -482,7 +444,7 @@ class ART : public Base<KeyType> {
         iterator.stack.push(entry);
         iterator.value = getLeafValue(n);
 
-        const std::string& leafKey = data_[getLeafValue(n)].key;
+        const std::string& leafKey = loadKey(getLeafValue(n));
         unsigned i;
         for (i = depth; i < min(keyLength, leafKey.length()); i++){
           if ((uint8_t)leafKey[i] != key[i]) {
@@ -495,7 +457,7 @@ class ART : public Base<KeyType> {
           }
         }
         // Equal
-        // Curtis: keys must not be prefixes of other keys
+        // Ensure key must not be prefix of other keys.
         if (lower)
           return true;
         else
@@ -510,7 +472,7 @@ class ART : public Base<KeyType> {
             keyByte = n->prefix[mismatchPos];
           }
           else{
-            const std::string& minKey = data_[getLeafValue(minimum(n))].key;
+            const std::string& minKey = loadKey(getLeafValue(minimum(n)));
             keyByte = minKey[depth + mismatchPos];
           }
           if (keyByte < key[depth + mismatchPos]) {
@@ -723,7 +685,7 @@ class ART : public Base<KeyType> {
 
     if (isLeaf(node)) {
       // Replace leaf with Node4 and store both leaves in it
-      const std::string& existingKey = data_[getLeafValue(node)].key;
+      const std::string& existingKey = loadKey(getLeafValue(node));
       unsigned newPrefixLength = prefixMismatch(static_cast<const uint8_t*>(static_cast<const void*>(existingKey.c_str())), existingKey.length(), key, keyLength, depth);
 
       Node4* newNode = new Node4();
@@ -756,7 +718,7 @@ class ART : public Base<KeyType> {
                   min(node->prefixLength, maxPrefixLength));
         } else {
           node->prefixLength -= (mismatchPos + 1);
-          const std::string& minKey = data_[getLeafValue(minimum(node))].key;
+          const std::string& minKey = loadKey(getLeafValue(minimum(node)));
           insertNode4(newNode, nodeRef, minKey[depth + mismatchPos], node);
           memcpy(node->prefix, minKey.c_str() + depth + mismatchPos + 1,
                   min(node->prefixLength, maxPrefixLength));
@@ -888,7 +850,7 @@ class ART : public Base<KeyType> {
     node->child[keyByte] = child;
   }
 
-  void bulk_insert(Node** nodeRef, size_t first, size_t end, unsigned depth) {
+  void bulk_insert(Node** nodeRef, const std::vector<KeyValue<std::string>>& bulkVec, size_t first, size_t end, unsigned depth) {
     // Bulk insert leaf values into the tree
 
     // Empty array
@@ -898,7 +860,7 @@ class ART : public Base<KeyType> {
     }
     // Allocate new leaf
     if (end - first == 1){
-      *nodeRef = makeLeaf(first);
+      *nodeRef = makeLeaf(bulkVec[first].value);
       return;
     }
 
@@ -908,9 +870,9 @@ class ART : public Base<KeyType> {
       std::vector<size_t> vec = {first};
       size_t cur = first;
       while(cur != end){
-        size_t found = std::upper_bound(data_.begin() + cur + 1, data_.begin() + end, (uint8_t)(data_[cur].key[curDepth]), [&](uint8_t c, const KeyValue<std::string>& e) {
+        size_t found = std::upper_bound(bulkVec.begin() + cur + 1, bulkVec.begin() + end, (uint8_t)(bulkVec[cur].key[curDepth]), [&](uint8_t c, const KeyValue<std::string>& e) {
                             return c < (uint8_t)(e.key[curDepth]);
-                          }) - data_.begin();
+                          }) - bulkVec.begin();
         vec.push_back(found);
         cur = found;
       }
@@ -926,34 +888,34 @@ class ART : public Base<KeyType> {
       if (count <= 4){
         newNode = new Node4();
         for (size_t i = 0; i < count; i ++){
-          ((Node4*)newNode)->key[i] = data_[vec[i]].key[curDepth];
-          bulk_insert(&((Node4*)newNode)->child[i], vec[i], vec[i + 1], curDepth + 1);
+          ((Node4*)newNode)->key[i] = bulkVec[vec[i]].key[curDepth];
+          bulk_insert(&((Node4*)newNode)->child[i], bulkVec, vec[i], vec[i + 1], curDepth + 1);
         }
       }
       else if (count <= 16){
         newNode = new Node16();
         for (size_t i = 0; i < count; i ++){
-          ((Node16*)newNode)->key[i] = data_[vec[i]].key[curDepth];
-          bulk_insert(&((Node16*)newNode)->child[i], vec[i], vec[i + 1], curDepth + 1);
+          ((Node16*)newNode)->key[i] = bulkVec[vec[i]].key[curDepth];
+          bulk_insert(&((Node16*)newNode)->child[i], bulkVec, vec[i], vec[i + 1], curDepth + 1);
         }
       }
       else if (count <= 48){
         newNode = new Node48();
         for (size_t i = 0; i < count; i ++){
-          ((Node48*)newNode)->childIndex[(uint8_t)(data_[vec[i]].key[curDepth])] = i;
-          bulk_insert(&((Node48*)newNode)->child[i], vec[i], vec[i + 1], curDepth + 1);
+          ((Node48*)newNode)->childIndex[(uint8_t)(bulkVec[vec[i]].key[curDepth])] = i;
+          bulk_insert(&((Node48*)newNode)->child[i], bulkVec, vec[i], vec[i + 1], curDepth + 1);
         }
       }
       else {
         newNode = new Node256();
         for (unsigned i = 0; i < count; i++){
-          bulk_insert(&((Node256*)newNode)->child[(uint8_t)(data_[vec[i]].key[curDepth])], vec[i], vec[i + 1], curDepth + 1);
+          bulk_insert(&((Node256*)newNode)->child[(uint8_t)(bulkVec[vec[i]].key[curDepth])], bulkVec, vec[i], vec[i + 1], curDepth + 1);
         }
       }
       *nodeRef = newNode;
       newNode->count = count;
       newNode->prefixLength = curDepth - depth;
-      memcpy(newNode->prefix, data_[first].key.c_str() + depth, min(curDepth - depth, maxPrefixLength));
+      memcpy(newNode->prefix, bulkVec[first].key.c_str() + depth, min(curDepth - depth, maxPrefixLength));
       break;
     }
   }
@@ -1104,15 +1066,16 @@ class ART : public Base<KeyType> {
   }
 
   void destructTree(Node* node) {
-    if (!node) return;
+    if (isLeaf(node)){
+      delete reinterpret_cast<Element<std::string>*>(getLeafValue(node) << 1);
+      return;
+    }
 
     switch (node->type) {
       case NodeType4: {
         auto n4 = static_cast<Node4*>(node);
         for (auto i = 0; i < node->count; i++) {
-          if (!isLeaf(n4->child[i])) {
-            destructTree(n4->child[i]);
-          }
+          destructTree(n4->child[i]);
         }
         delete n4;
         break;
@@ -1120,9 +1083,7 @@ class ART : public Base<KeyType> {
       case NodeType16: {
         auto n16 = static_cast<Node16*>(node);
         for (auto i = 0; i < node->count; i++) {
-          if (!isLeaf(n16->child[i])) {
-            destructTree(n16->child[i]);
-          }
+          destructTree(n16->child[i]);
         }
         delete n16;
         break;
@@ -1130,8 +1091,7 @@ class ART : public Base<KeyType> {
       case NodeType48: {
         auto n48 = static_cast<Node48*>(node);
         for (auto i = 0; i < 256; i++) {
-          if (n48->childIndex[i] != emptyMarker &&
-              !isLeaf(n48->child[n48->childIndex[i]])) {
+          if (n48->childIndex[i] != emptyMarker) {
             destructTree(n48->child[n48->childIndex[i]]);
           }
         }
@@ -1141,7 +1101,7 @@ class ART : public Base<KeyType> {
       case NodeType256: {
         auto n256 = static_cast<Node256*>(node);
         for (auto i = 0; i < 256; i++) {
-          if (n256->child[i] != nullptr && !isLeaf(n256->child[i])) {
+          if (n256->child[i] != nullptr) {
             destructTree(n256->child[i]);
           }
         }
@@ -1151,14 +1111,56 @@ class ART : public Base<KeyType> {
     }
   }
 
-  Node* tree_ = NULL;
-  // Store the key of the tuple into the key vector
-  // Implementation is database specific
-  std::vector<KeyValue<std::string>> data_;
-  uint64_t data_size_;
-};
+  uint64_t size_in_bytes(Node* node) const {
+    if (isLeaf(node)){
+      return loadKey(getLeafValue(node)).length() + sizeof(uint64_t);
+    }
 
-template<class KeyType>
-uint64_t ART<KeyType>::allocated_byte_count;
+    uint64_t size = 0;
+
+    switch (node->type) {
+      case NodeType4: {
+        auto n4 = static_cast<Node4*>(node);
+        for (auto i = 0; i < node->count; i++) {
+          size += size_in_bytes(n4->child[i]);
+        }
+        size += sizeof(*n4);
+        break;
+      }
+      case NodeType16: {
+        auto n16 = static_cast<Node16*>(node);
+        for (auto i = 0; i < node->count; i++) {
+          size += size_in_bytes(n16->child[i]);
+        }
+        size += sizeof(*n16);
+        break;
+      }
+      case NodeType48: {
+        auto n48 = static_cast<Node48*>(node);
+        for (auto i = 0; i < 256; i++) {
+          if (n48->childIndex[i] != emptyMarker) {
+            size += size_in_bytes(n48->child[n48->childIndex[i]]);
+          }
+        }
+        size += sizeof(*n48);
+        break;
+      }
+      case NodeType256: {
+        auto n256 = static_cast<Node256*>(node);
+        for (auto i = 0; i < 256; i++) {
+          if (n256->child[i] != nullptr) {
+            size += size_in_bytes(n256->child[i]);
+          }
+        }
+        size += sizeof(*n256);
+        break;
+      }
+    }
+
+    return size;
+  }
+
+  Node* tree_ = NULL;
+};
 
 };

@@ -36,12 +36,21 @@
 
 enum DataType { UINT32 = 0, UINT64 = 1, STRING = 2 };
 
+// Dataset key-value pair.
 template <class KeyType>
 struct KeyValue {
   KeyType key;
   uint64_t value;
 } __attribute__((packed));
 
+template <class KeyType>
+struct alignas(2) Element {
+  KeyType key;
+  uint64_t value;
+  Element(const KeyType& k, uint64_t v): key(k), value(v){}
+};
+
+// Workload operation.
 template <class KeyType = uint64_t>
 struct Operation {
   uint8_t op;
@@ -51,7 +60,7 @@ struct Operation {
 } __attribute__((packed));
 
 #define CACHELINE_SIZE (1 << 6)
-
+// Thread information.
 struct alignas(CACHELINE_SIZE) FGParam{
   void *index, *ops, *keys;
   uint64_t *individual_ns;
@@ -113,7 +122,7 @@ static void fail(const std::string& message) {
 }
 
 template <class KeyType>
-static std::string convertToString(const KeyType& key){
+[[maybe_unused]] static void convert2String(const KeyType& key, std::string& str){
   KeyType endian_key;
   if constexpr (std::is_same<KeyType, uint32_t>::value){
     endian_key = __builtin_bswap32(key);
@@ -122,16 +131,15 @@ static std::string convertToString(const KeyType& key){
     endian_key = __builtin_bswap64(key);
   }
   else{
-    util::fail("unknown key type");
+    util::fail("Undefined key type.");
   }
-  return std::string(reinterpret_cast<const char*>(&endian_key), sizeof(KeyType));
+  str = std::string(reinterpret_cast<const char*>(&endian_key), sizeof(KeyType));
 }
 
 template <>
-std::string convertToString(const std::string& key){
-  std::string str = key;
+[[maybe_unused]] void convert2String(const std::string& key, std::string& str){
+  str = key;
   str.push_back(0);
-  return str;
 }
 
 [[maybe_unused]] static std::string get_suffix(const std::string& filename) {
@@ -196,13 +204,14 @@ static bool is_unique(const std::vector<KeyValue<KeyType>>& data) {
   return true;
 }
 
+// Load from binary file into vector.
 template <typename T>
 static std::vector<T> in_data(std::ifstream& in){
   // Read size.
   uint64_t size;
   in.read(reinterpret_cast<char*>(&size), sizeof(uint64_t));
   std::vector<T> data(size);
-  // Read values.
+  // Read data.
   if constexpr (std::is_same<T, std::string>::value){
     for (size_t i = 0; i < size; i ++){
       uint32_t len;
@@ -243,7 +252,6 @@ static std::vector<T> in_data(std::ifstream& in){
   return data;
 }
 
-// Loads values from binary file into vector.
 template <typename T>
 static std::vector<T> load_data(const std::string& filename,
                                 bool print = true) {
@@ -279,7 +287,7 @@ static std::vector<std::vector<T>> load_data_multithread(const std::string& file
       std::cerr << "unable to open " << filename << std::endl;
       exit(EXIT_FAILURE);
     }
-    // Read length.
+    // Read thread number.
     uint64_t len;
     in.read(reinterpret_cast<char*>(&len), sizeof(uint64_t));
     data.reserve(len);
@@ -300,12 +308,13 @@ static std::vector<std::vector<T>> load_data_multithread(const std::string& file
   return data;
 }
 
+// Write from vector into binary file.
 template <typename T>
 static void out_data(const std::vector<T>& data, std::ofstream& out) {
     // Write size.
     const uint64_t size = data.size();
     out.write(reinterpret_cast<const char*>(&size), sizeof(uint64_t));
-    // Write values.
+    // Write data.
     if constexpr (std::is_same<T, std::string>::value){
       for (size_t i = 0; i < size; i ++){
         uint32_t len = data[i].length();
@@ -338,7 +347,6 @@ static void out_data(const std::vector<T>& data, std::ofstream& out) {
     }
 }
 
-// Writes values from vector into binary file.
 template <typename T>
 static void write_data(const std::vector<T>& data, const std::string& filename,
                        const bool print = true) {
@@ -359,7 +367,7 @@ static void write_data(const std::vector<T>& data, const std::string& filename,
   }
 }
 
-// Writes values from vector into binary file.
+// Write from vector into binary file.
 template <typename T>
 static void write_data_multithread(std::vector<T> const* data, uint64_t len, const std::string& filename,
                        const bool print = true) {
@@ -370,7 +378,7 @@ static void write_data_multithread(std::vector<T> const* data, uint64_t len, con
       std::cerr << "unable to open " << filename << std::endl;
       exit(EXIT_FAILURE);
     }
-    // Write length.
+    // Write thread number.
     out.write(reinterpret_cast<const char*>(&len), sizeof(uint64_t));
     for (size_t i = 0; i < len; ++ i){
       out_data(data[i], out);
@@ -386,7 +394,7 @@ static void write_data_multithread(std::vector<T> const* data, uint64_t len, con
   }
 }
 
-// Generates deterministic values for keys.
+// Generate deterministic values for keys.
 template <class KeyType>
 static std::vector<KeyValue<KeyType>> add_values(const std::vector<KeyType>& keys) {
   std::vector<KeyValue<KeyType>> result;

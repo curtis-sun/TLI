@@ -78,7 +78,7 @@ public:
 
     LIPP(double BUILD_LR_REMAIN = 0, bool QUIET = true)
         : BUILD_LR_REMAIN(BUILD_LR_REMAIN), QUIET(QUIET) {
-        // Curtis: unfair competition
+        // Ban initial memory pool.
         // {
         //     std::vector<Node*> nodes;
         //     for (int _ = 0; _ < 1e7; _ ++) {
@@ -413,7 +413,7 @@ private:
         const double mid1_target = node->num_items / 3;
         const double mid2_target = node->num_items * 2 / 3;
 
-        // Curtis: avoid accuracy loss
+        // Avoid precision loss in float computation.
         // node->model.a = (mid2_target - mid1_target) / (mid2_key - mid1_key);
         node->model.a = (mid2_target - mid1_target) / (key2 - key1);
         node->model.b = mid1_target - node->model.a * mid1_key;
@@ -876,8 +876,7 @@ private:
         return path[0];
     }
 
-// Curtis begin
-// reimplement find, add lower_bound
+// Reimplement find, add lower_bound
 public:
     bool find(const T& key, P& value) const {
         Node* node = root;
@@ -996,7 +995,6 @@ public:
         it.it = nullptr;
         return it;
     }
-// Curtis end
 };
 
 

@@ -4,20 +4,8 @@
 #include "common.h"
 #include "competitors/alex.h"
 
-// template <typename Searcher>
-// void benchmark_32_alex(sosd::Benchmark<uint32_t>& benchmark,
-//                        bool pareto) {
-//   benchmark.template Run<Alex<uint32_t, Searcher, 28>>();
-//   if (pareto) {
-//     benchmark.template Run<Alex<uint32_t, Searcher, 16>>();
-//     benchmark.template Run<Alex<uint32_t, Searcher, 20>>();
-//     benchmark.template Run<Alex<uint32_t, Searcher, 26>>();
-//     benchmark.template Run<Alex<uint32_t, Searcher, 30>>();
-//   }
-// }
-
 template <typename Searcher>
-void benchmark_64_alex(sosd::Benchmark<uint64_t>& benchmark, 
+void benchmark_64_alex(tli::Benchmark<uint64_t>& benchmark, 
                        bool pareto, const std::vector<int>& params) {
   if (!pareto){
     benchmark.template Run<Alex<uint64_t, Searcher>>(params);
@@ -34,7 +22,7 @@ void benchmark_64_alex(sosd::Benchmark<uint64_t>& benchmark,
 }
 
 template <int record>
-void benchmark_64_alex(sosd::Benchmark<uint64_t>& benchmark, const std::string& filename) {
+void benchmark_64_alex(tli::Benchmark<uint64_t>& benchmark, const std::string& filename) {
   if (filename.find("books_200M") != std::string::npos) {
     if (filename.find("0.000000i") != std::string::npos) {
       benchmark.template Run<Alex<uint64_t, LinearSearch<record>>>({26});
@@ -177,5 +165,4 @@ void benchmark_64_alex(sosd::Benchmark<uint64_t>& benchmark, const std::string& 
   }
 }
 
-// INSTANTIATE_TEMPLATES(benchmark_32_alex, uint32_t);
 INSTANTIATE_TEMPLATES(benchmark_64_alex, uint64_t);

@@ -7,6 +7,6 @@ MAX_ERROR="1 2 4 8 16 25 32 50 60 70 80 90 100 125 150 175 200 225 250 275 300 3
 
 for DATA_SET in $DATA_SETS; do
   for ERROR in $MAX_ERROR; do
-    ./build/bench_end_to_end ../SOSD/data/${DATA_SET} ../SOSD/data/${DATA_SET}_equality_lookups_10M ts $ERROR
+    ./build/bench_end_to_end ../TLI/data/${DATA_SET} ../TLI/data/${DATA_SET}_equality_lookups_10M ts $ERROR
   done;
 done;

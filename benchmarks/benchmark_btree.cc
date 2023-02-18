@@ -4,20 +4,8 @@
 #include "common.h"
 #include "competitors/stx_btree.h"
 
-// template <typename Searcher>
-// void benchmark_32_btree(sosd::Benchmark<uint32_t>& benchmark,
-//                        bool pareto) {
-//   benchmark.template Run<STXBTree<uint32_t, Searcher, 10>>();
-//   if (pareto) {
-//     benchmark.template Run<STXBTree<uint32_t, Searcher, 6>>();
-//     benchmark.template Run<STXBTree<uint32_t, Searcher, 8>>();
-//     benchmark.template Run<STXBTree<uint32_t, Searcher, 14>>();
-//     benchmark.template Run<STXBTree<uint32_t, Searcher, 16>>();
-//   }
-// }
-
 template <typename Searcher>
-void benchmark_64_btree(sosd::Benchmark<uint64_t>& benchmark, 
+void benchmark_64_btree(tli::Benchmark<uint64_t>& benchmark, 
                         bool pareto, const std::vector<int>& params) {
   if (!pareto){
     util::fail("B+tree's hyperparameter cannot be set");
@@ -34,7 +22,7 @@ void benchmark_64_btree(sosd::Benchmark<uint64_t>& benchmark,
 }
 
 template <int record>
-void benchmark_64_btree(sosd::Benchmark<uint64_t>& benchmark, const std::string& filename) {
+void benchmark_64_btree(tli::Benchmark<uint64_t>& benchmark, const std::string& filename) {
   if (filename.find("books_200M") != std::string::npos) {
     if (filename.find("0.000000i") != std::string::npos) {
       benchmark.template Run<STXBTree<uint64_t, LinearSearch<record>,6>>();
@@ -177,5 +165,4 @@ void benchmark_64_btree(sosd::Benchmark<uint64_t>& benchmark, const std::string&
   }
 }
 
-// INSTANTIATE_TEMPLATES(benchmark_32_btree, uint32_t);
 INSTANTIATE_TEMPLATES(benchmark_64_btree, uint64_t);

@@ -11,9 +11,7 @@
 #include <regex>
 
 #include "config.h"
-#include "searches/branching_binary_search.h"
 #include "util.h"
-#include "utils/perf_event.h"
 #include <boost/chrono.hpp>
 
 #ifdef __linux__
@@ -26,25 +24,7 @@
 // Get the CPU affinity for the process.
 static const auto cpu_mask = dtl::this_thread::get_cpu_affinity();
 
-namespace sosd {
-
-// KeyType: Controls the type of the key (the value will always be uint64_t)
-//          Use uint64_t for 64 bit types and uint32_t for 32 bit types
-//          KeyType must implement operator<
-
-// template <bool multithread>
-// static uint64_t timing(std::function<void()> fn) {
-//   if constexpr (multithread){
-//     const auto start = boost::chrono::thread_clock::now();
-//     fn();
-//     const auto end = boost::chrono::thread_clock::now();
-//     return boost::chrono::duration_cast<boost::chrono::nanoseconds>(end - start)
-//         .count();
-//   }
-//   else{
-//     return util::timing(fn);
-//   }
-// }
+namespace tli {
 
 static volatile bool run_failed;
 static uint64_t random_sum;
@@ -69,8 +49,13 @@ static void wipe_cache(){
     const auto end_time = std::chrono::high_resolution_clock::now();                                     \
     timing = std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - hr_clock_start)             \
         .count();                                                                                        \
-  }                  
+  } 
 
+// multithread: whether executed in concurrency scenarios
+// time_each: whether execute latency of each operation
+// fence: whether execute memory fence after each operation
+// clear_cache: whether wipe cache after each operation
+// verify: whether verify the lookup/range results
 template <bool multithread, class KeyType, class Index, bool time_each, bool fence, bool clear_cache, bool verify>
 static void* DoOpsCoreLoop(void* param) {
   FGParam &thread_param = *(FGParam *)param;
@@ -122,9 +107,9 @@ static void* DoOpsCoreLoop(void* param) {
 
           if constexpr (verify) {
             if ((expected == util::NOT_FOUND && idx != util::OVERFLOW) || (expected == 0 && (idx >= keys.size() || keys[idx] != lo_key))){
-              std::cerr << "equality lookup returned wrong result:" << std::endl;
-              std::cerr << "lookup key: " << lo_key << std::endl;
-              std::cerr << "actual index: " << idx << ", expected_negative: " << (expected == util::NOT_FOUND) << std::endl;
+              std::cerr << "Lookup returned wrong result:" << std::endl;
+              std::cerr << "Lookup key: " << lo_key << std::endl;
+              std::cerr << "Actual array index: " << idx << ", Expected positive: " << (expected != util::NOT_FOUND) << std::endl;
               run_failed = true;
             }
           }
@@ -139,9 +124,9 @@ static void* DoOpsCoreLoop(void* param) {
 
           if constexpr (verify) {
             if (actual != expected){
-              std::cerr << "range query returned wrong result:" << std::endl;
-              std::cerr << "low key: " << lo_key << ", high key: " << hi_key << std::endl;
-              std::cerr << "actual: " << actual << ", expected: " << expected << std::endl;
+              std::cerr << "Range query returned wrong result:" << std::endl;
+              std::cerr << "Low key: " << lo_key << ", High key: " << hi_key << std::endl;
+              std::cerr << "Actual sum: " << actual << ", Expected sum: " << expected << std::endl;
               run_failed = true;
             }
           }
@@ -158,7 +143,7 @@ static void* DoOpsCoreLoop(void* param) {
       }
 
       default: {
-        std::cerr << "unknown operation: " << op << std::endl;
+        std::cerr << "Undefined operation: " << op << std::endl;
         run_failed = true;
       }
     }
@@ -186,21 +171,19 @@ struct LatencyStat {
   uint64_t p50, p99, p999, max;
 };
 
+// KeyType: Controls the type of the key (the value will always be uint64_t)
 template <typename KeyType>
 class Benchmark {
  public:
   Benchmark(const std::string& data_filename,
             const std::string& ops_filename,
             const size_t num_repeats,
-            const bool through, const bool perf, const bool build, const bool fence,
+            const bool through, const bool build, const bool fence,
             const bool cold_cache, const bool track_errors, const bool csv,
             const size_t num_threads, const bool verify)
       : data_filename_(data_filename),
-        ops_filename_(ops_filename),
         num_repeats_(num_repeats),
-        first_run_(true),
         through_(through),
-        perf_(perf),
         build_(build),
         fence_(fence),
         cold_cache_(cold_cache),
@@ -224,16 +207,24 @@ class Benchmark {
 
     // Load lookups.
     if (num_threads_ > 1){
-      ops_ = util::load_data_multithread<Operation<KeyType>>(ops_filename_);
+      ops_ = util::load_data_multithread<Operation<KeyType>>(ops_filename);
     }
     else{
-      ops_.push_back(util::load_data<Operation<KeyType>>(ops_filename_));
+      ops_.push_back(util::load_data<Operation<KeyType>>(ops_filename));
     }
 
     bool is_mix = dataset_name_.find("mix") != std::string::npos;
 
-    std::regex rq_pat("(\\d+\\.\\d*)rq"), i_pat("(\\d+\\.\\d*)i");
-    std::smatch rq_result, i_result;
+    std::regex rq_pat("(\\d+\\.\\d*)rq"), i_pat("(\\d+\\.\\d*)i"), blk_pat("(\\d+)blk");
+    std::smatch rq_result, i_result, blk_result;
+    std::regex_search(dataset_name_, blk_result, blk_pat);
+    if (blk_result.size() > 1){
+      num_blocks_ = std::stoi(blk_result[1]);
+    }
+    else{
+      num_blocks_ = 1;
+    }
+
     std::regex_search(dataset_name_, rq_result, rq_pat);
     is_range_query_ = std::stod(rq_result[1]) > 0;
 
@@ -241,44 +232,68 @@ class Benchmark {
     insert_ratio_ = std::stod(i_result[1]);
     flag_ = is_mix || (insert_ratio_ == 0) || (insert_ratio_ == 1);
 
+    if (num_blocks_ > 1 && (num_threads_ > 1 || flag_)){
+      util::fail(
+        "Can not use block-wise loading with multi-thread or mixed scenario.");
+    }
+
     if (insert_ratio_ > 0 || dataset_name_.find("bulkload") != std::string::npos) {
-      std::string bl_filename = ops_filename_ + "_bulkload";
+      std::string bl_filename = ops_filename + "_bulkload";
       index_data_ = util::load_data<KeyValue<KeyType>>(bl_filename);
     }
     else {
       if (!is_sorted(keys_.begin(), keys_.end()))
-        util::fail("keys have to be sorted");
+        util::fail("Keys have to be sorted.");
       // Add artificial values to keys.
       index_data_ = util::add_values(keys_);
     }
 
-    bound_points.resize(3 * num_threads_);
-    size_t tot_cnt = 0, insert_cnt = 0;
-    for (size_t i = 0; i < num_threads_; ++ i){
-      bound_points[3 * i] = 0;
-      if (!flag_){
-        bound_points[3 * i + 1] = std::lower_bound(ops_[i].begin(), ops_[i].end(), 1, 
-                                                  [](const Operation<KeyType>& e, const int key){
-                                                      return (e.op != util::INSERT) < key;
-                                                    }) - ops_[i].begin();
-        insert_cnt += bound_points[3 * i + 1];
+    
+    if (num_blocks_ > 1){
+      bound_points.resize((num_blocks_ << 1) + 1);
+      size_t ind = 0, blk_cnt = 0;
+
+      size_t cur = bound_points[0] = 0;
+      for (size_t j = 1; j < (num_blocks_ << 1) + 1; ++ j){
+        while(cur < ops_[0].size()){
+          if ((ops_[0][cur].op == util::INSERT) ^ (j & 1)){
+            bound_points[j] = cur;
+            break;
+          }
+          ++ cur;
+        }
+        if (cur == ops_[0].size()){
+          bound_points[j] = cur;
+        }
+        blk_cnt = bound_points[j] - bound_points[j - 1];
+        ind = std::max(blk_cnt, ind);
       }
-      bound_points[3 * i + 2] = ops_[i].size();
-      tot_cnt += bound_points[3 * i + 2];
-    };
-    if (flag_){
-      individual_ns = new uint64_t[tot_cnt];
+      individual_ns = new uint64_t[ind];
     }
     else{
+      bound_points.resize(3 * num_threads_);
+      size_t tot_cnt = 0, insert_cnt = 0;
+      for (size_t i = 0; i < num_threads_; ++ i){
+        bound_points[3 * i] = 0;
+        if (!flag_){
+          bound_points[3 * i + 1] = std::lower_bound(ops_[i].begin(), ops_[i].end(), 1, 
+                                                    [](const Operation<KeyType>& e, const int key){
+                                                        return (e.op != util::INSERT) < key;
+                                                      }) - ops_[i].begin();
+          insert_cnt += bound_points[3 * i + 1];
+        }
+        bound_points[3 * i + 2] = ops_[i].size();
+        tot_cnt += bound_points[3 * i + 2];
+      };
       individual_ns = new uint64_t[std::max(insert_cnt, tot_cnt - insert_cnt)];
     }
 
     // Check whether keys are unique.
     unique_keys_ = util::is_unique(keys_);
     if (unique_keys_)
-      std::cout << "data is unique" << std::endl;
+      std::cout << "Data is unique." << std::endl;
     else
-      std::cout << "data contains duplicates" << std::endl;
+      std::cout << "Data contains duplicates." << std::endl;
 
     if (cold_cache_){
       util::FastRandom ranny(8128);
@@ -296,16 +311,15 @@ class Benchmark {
     // Build index.
     Index* index = new Index(params);
 
-    if (!index->applicable(unique_keys_, is_range_query_, insert_ratio_ > 0, num_threads_ > 1, ops_filename_)) {
-      std::cout << "index " << index->name() << " is not applicable"
+    if (!index->applicable(unique_keys_, is_range_query_, insert_ratio_ > 0, num_threads_ > 1, dataset_name_)) {
+      std::cout << "Index " << index->name() << " is not applicable"
                 << std::endl;
       delete index;
       return;
     }
 
-    std::cout << "rsum was: " << random_sum << std::endl;
+    std::cout << "Variable rsum was: " << random_sum << std::endl;
     random_sum = 0;
-    // clean_cache();
     run_failed = false;
 
     build_ns_.clear();
@@ -321,26 +335,13 @@ class Benchmark {
       }
     }
 
-    if (perf_){
-      perf_metrics.clear();
-    }
-
     for (size_t i = 0; i < num_repeats_; i ++){
       if (i > 0){
         delete index;
         index = new Index(params);
       }
 
-      if (build_ && perf_){
-        checkLinux(({
-            BenchmarkParameters params;
-            PerfEventBlock e(1, params, &perf_metrics, /*printHeader=*/first_run_);
-            build_ns_.push_back(index->Build(index_data_, num_threads_));
-          }));
-      }
-      else{
-        build_ns_.push_back(index->Build(index_data_, num_threads_));
-      }
+      build_ns_.push_back(index->Build(index_data_, num_threads_));
 
       // Do operations.
       if (through_) {
@@ -351,7 +352,7 @@ class Benchmark {
         }
       } else if (cold_cache_) {
         if (num_threads_ > 1)
-          util::fail("cold cache not supported with multiple threads");
+          util::fail("Cold cache not supported with multiple threads.");
         if (verify_){
           DoOps<Index, true, false, true, true>(index);
         } else{
@@ -377,21 +378,16 @@ class Benchmark {
       }
     }
     PrintResult(index);
-
-    first_run_ = false;
     delete index;
   }
 
  private:
-  // void clean_cache(){
-  //   [[maybe_unused]] int res = system("echo 3 > /proc/sys/vm/drop_caches");
-  // }
 
   template <class Index, bool time_each, bool fence, bool clear_cache, bool verify>
   void DoOps(Index* index) {
     if (build_) return;
 
-    for (size_t i = 0; i < 2 - flag_; ++i){
+    for (size_t i = 0; i < (2 - flag_) * num_blocks_; ++i){
       if constexpr (time_each){
         if (track_errors_){
           index->initSearch();
@@ -399,10 +395,10 @@ class Benchmark {
       }
 
       FGParam fg_params[num_threads_];
-      // check if parameters are cacheline aligned
+      // Check if parameters are cacheline aligned
       for (size_t worker_i = 0; worker_i < num_threads_; ++ worker_i) {
         if ((uint64_t)(&(fg_params[worker_i])) % CACHELINE_SIZE != 0) {
-          std::cerr << "wrong parameter address: " << &(fg_params[worker_i]) << std::endl;
+          std::cerr << "Wrong parameter address: " << &(fg_params[worker_i]) << std::endl;
         }
       }
 
@@ -415,9 +411,15 @@ class Benchmark {
         fg_params[worker_i].keys = &keys_;
         fg_params[worker_i].individual_ns = individual_ns + exe_cnt;
         fg_params[worker_i].thread_id = worker_i;
-        fg_params[worker_i].start = bound_points[3 * worker_i + i];
-        fg_params[worker_i].limit = bound_points[3 * worker_i + i + 1 + flag_];
-
+        if (num_blocks_ > 1){
+          fg_params[worker_i].start = bound_points[i];
+          fg_params[worker_i].limit = bound_points[i + 1];
+        }
+        else{
+          fg_params[worker_i].start = bound_points[3 * worker_i + i];
+          fg_params[worker_i].limit = bound_points[3 * worker_i + i + 1 + flag_];
+        }
+        
         exe_cnt += fg_params[worker_i].limit - fg_params[worker_i].start;
       }
 
@@ -428,16 +430,7 @@ class Benchmark {
       else{
         util::running = true;
         timing = util::timing([&] {
-          if (perf_){
-            checkLinux(({
-              BenchmarkParameters params;
-              PerfEventBlock e(exe_cnt, params, &perf_metrics, /*printHeader=*/first_run_);
-              DoOpsCoreLoop<false, KeyType, Index, time_each, fence, clear_cache, verify>(fg_params);
-            }));
-          }
-          else{
-            DoOpsCoreLoop<false, KeyType, Index, time_each, fence, clear_cache, verify>(fg_params);
-          }
+          DoOpsCoreLoop<false, KeyType, Index, time_each, fence, clear_cache, verify>(fg_params);
         });
       }
 
@@ -506,13 +499,7 @@ class Benchmark {
             std::cout << "," << search_times_[i] << "," << search_latencies_[i] << "," << search_bounds_[i];
           }
         }
-      }
-
-      if (perf_){
-        for (const auto& p: perf_metrics){
-          std::cout << "," << p;
-        }
-      }  
+      } 
     }
 
     for (auto str: index->variants()){
@@ -560,12 +547,6 @@ class Benchmark {
           }
         }
       }  
-
-      if (perf_){
-        for (const auto& p: perf_metrics){
-          fout << "," << p;
-        }
-      }
     }
 
     for (auto str: index->variants()){
@@ -576,18 +557,25 @@ class Benchmark {
     return;
   }
 
+  // Dataset filename.
   const std::string data_filename_;
-  const std::string ops_filename_;
+  // Workload filename.
   std::string dataset_name_;
+  // Dataset keys.
   std::vector<KeyType> keys_;
+  // Bulk-loaded data.
   std::vector<KeyValue<KeyType>> index_data_;
+  // Whether dataset keys are unique.
   bool unique_keys_;
+  // Whether workload has range queries.
   bool is_range_query_;
+  // Insert ratio of workload.
   double insert_ratio_;
+  // Decode workload.
   std::vector<std::vector<Operation<KeyType>>> ops_;
   std::vector<size_t> bound_points;
   size_t flag_;
-  // Metrics
+  // Metrics.
   std::vector<uint64_t> build_ns_;
   std::vector<LatencyStat> latencies_;
   uint64_t* individual_ns;
@@ -595,11 +583,8 @@ class Benchmark {
   std::vector<double> search_bounds_;
   std::vector<double> search_times_;
   std::vector<double> search_latencies_;
-  std::vector<std::string> perf_metrics;
-  // Used to only print profiling header information for first run.
-  bool first_run_;
+  // Options chosen.
   bool through_;
-  bool perf_;
   bool build_;
   bool fence_;
   bool measure_each_;
@@ -607,9 +592,9 @@ class Benchmark {
   bool track_errors_;
   bool csv_;
   bool verify_;
-  // Number of lookup threads.
   const size_t num_threads_;
   const size_t num_repeats_;
+  size_t num_blocks_;
 };
 
-}  // namespace sosd
+}  // namespace tli

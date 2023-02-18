@@ -30,7 +30,6 @@
           .count();                                                                                                                       \
       ++Search<record>::search_num;                                                                                                       \
     }
-// log_sum_search_bound += log2(abs(std::distance(start, actual)) + 1);
 
 class BaseSearch {
  public:
@@ -74,14 +73,10 @@ class Search<1>: public BaseSearch {
   static double searchAverageTime() { return (double)timing / search_num; }
   static uint64_t searchTotalTime() { return timing; }
   static double searchBound() { 
-    // if (SearchClass::name() == "LinearSearch" || SearchClass::name() == "LinearAVX"){
     return double(sum_search_bound) / research_num;
-    // }
-    // return SearchClass::log_sum_search_bound / SearchClass::search_num; 
   }
   static void initSearch() { 
     timing = 0;
-    // SearchClass::log_sum_search_bound = 0;
     search_num = 0;
     sum_search_bound = 0;
     research_num = 0;
@@ -89,7 +84,6 @@ class Search<1>: public BaseSearch {
 
   static uint64_t timing;
   static size_t search_num;
-  // static double log_sum_search_bound;
   static uint64_t sum_search_bound;
   static size_t research_num;
 };

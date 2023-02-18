@@ -22,9 +22,9 @@ double computeResult(const vector<KeyType>& keys, size_t start_pos, size_t num, 
         // size_t accurate;
         search_points.push_back({target, predict});
         // if (keys[accurate] != keys[start_pos + target]){
-        //     std::cerr << "search returned wrong result:" << std::endl;
-        //     std::cerr << "lookup key: " << keys[start_pos + target] << " at " << start_pos + target << std::endl;
-        //     std::cerr << "found key: " << keys[accurate] << " at " << accurate << std::endl;
+        //     std::cerr << "Search returned wrong result:" << std::endl;
+        //     std::cerr << "Lookup key: " << keys[start_pos + target] << " at " << start_pos + target << std::endl;
+        //     std::cerr << "Actual key: " << keys[accurate] << " at " << accurate << std::endl;
         // }
     }
     uint64_t time = util::timing([&](){

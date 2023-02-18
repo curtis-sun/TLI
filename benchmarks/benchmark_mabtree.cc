@@ -3,21 +3,8 @@
 #include "common.h"
 #include "competitors/mabtree.h"
 
-// template <typename Searcher>
-// void benchmark_32_mabtree(sosd::Benchmark<uint32_t>& benchmark,
-//                          bool pareto) {
-//   benchmark.template Run<MABTree<uint32_t, Searcher, 12, 6>>();
-//   benchmark.template Run<MABTree<uint32_t, Searcher, 14, 8>>();
-//   if (pareto) {
-//     benchmark.template Run<MABTree<uint32_t, Searcher, 10, 6>>();
-//     benchmark.template Run<MABTree<uint32_t, Searcher, 14, 6>>();
-//     benchmark.template Run<MABTree<uint32_t, Searcher, 12, 8>>();
-//     benchmark.template Run<MABTree<uint32_t, Searcher, 8, 8>>();
-//   }
-// }
-
 template <typename Searcher>
-void benchmark_64_mabtree(sosd::Benchmark<uint64_t>& benchmark, 
+void benchmark_64_mabtree(tli::Benchmark<uint64_t>& benchmark, 
                           bool pareto, const std::vector<int>& params) {
   if (!pareto){
     util::fail("MAB+tree's hyperparameters cannot be set");
@@ -42,7 +29,7 @@ void benchmark_64_mabtree(sosd::Benchmark<uint64_t>& benchmark,
 }
 
 template <int record>
-void benchmark_64_mabtree(sosd::Benchmark<uint64_t>& benchmark, const std::string& filename) {
+void benchmark_64_mabtree(tli::Benchmark<uint64_t>& benchmark, const std::string& filename) {
   if (filename.find("books_200M") != std::string::npos) {
     if (filename.find("0.000000i") != std::string::npos) {
       benchmark.template Run<MABTree<uint64_t, LinearSearch<record>,12,7>>();
@@ -185,5 +172,4 @@ void benchmark_64_mabtree(sosd::Benchmark<uint64_t>& benchmark, const std::strin
   }
 }
 
-// INSTANTIATE_TEMPLATES(benchmark_32_mabtree, uint32_t);
 INSTANTIATE_TEMPLATES(benchmark_64_mabtree, uint64_t);

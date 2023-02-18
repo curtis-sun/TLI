@@ -18,11 +18,6 @@ class InterpolationSearch : public Search<record> {
       record_start();
       Iterator it;
       
-      // if (last - first < 1024) {
-      //   it = BranchingBinarySearch<0>::lower_bound(first, last, lookup_key, start, at);
-      //   record_end(start, it);
-      //   return it;
-      // }
       if (start != last && at(start) < lookup_key){
         Iterator mid = start;
         ++mid;

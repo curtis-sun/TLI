@@ -1,5 +1,5 @@
-#ifndef SOSDB_DYNAMIC_PGM_H
-#define SOSDB_DYNAMIC_PGM_H
+#ifndef TLI_DYNAMIC_PGM_H
+#define TLI_DYNAMIC_PGM_H
 
 #include <algorithm>
 #include <cstdlib>
@@ -74,4 +74,4 @@ class DynamicPGM : public Competitor<KeyType, SearchClass> {
   DynamicPGMIndex<KeyType, uint64_t, SearchClass, PGMIndex<KeyType, SearchClass, pgm_error, 16>> pgm_;
 };
 
-#endif  // SOSDB_DYNAMIC_PGM_H
+#endif  // TLI_DYNAMIC_PGM_H

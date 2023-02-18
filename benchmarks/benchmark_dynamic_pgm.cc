@@ -4,20 +4,8 @@
 #include "benchmarks/common.h"
 #include "competitors/dynamic_pgm_index.h"
 
-// template <typename Searcher>
-// void benchmark_32_dynamic_pgm(sosd::Benchmark<uint32_t>& benchmark,
-//                       bool pareto) {
-//   benchmark.template Run<DynamicPGM<uint32_t, Searcher, 16>>();
-//   if (pareto) {
-//     benchmark.template Run<DynamicPGM<uint32_t, Searcher, 8>>();
-//     benchmark.template Run<DynamicPGM<uint32_t, Searcher, 32>>();
-//     benchmark.template Run<DynamicPGM<uint32_t, Searcher, 64>>();
-//     benchmark.template Run<DynamicPGM<uint32_t, Searcher, 256>>();
-//   }
-// }
-
 template <typename Searcher>
-void benchmark_64_dynamic_pgm(sosd::Benchmark<uint64_t>& benchmark, 
+void benchmark_64_dynamic_pgm(tli::Benchmark<uint64_t>& benchmark, 
                               bool pareto, const std::vector<int>& params) {
   if (!pareto){
     util::fail("Dynamic PGM's hyperparameter cannot be set");
@@ -34,7 +22,7 @@ void benchmark_64_dynamic_pgm(sosd::Benchmark<uint64_t>& benchmark,
 }
 
 template <int record>
-void benchmark_64_dynamic_pgm(sosd::Benchmark<uint64_t>& benchmark, const std::string& filename) {
+void benchmark_64_dynamic_pgm(tli::Benchmark<uint64_t>& benchmark, const std::string& filename) {
   if (filename.find("books_200M") != std::string::npos) {
     if (filename.find("0.000000i") != std::string::npos) {
       benchmark.template Run<DynamicPGM<uint64_t, BranchingBinarySearch<record>,16>>();
@@ -177,5 +165,4 @@ void benchmark_64_dynamic_pgm(sosd::Benchmark<uint64_t>& benchmark, const std::s
   }
 }
 
-// INSTANTIATE_TEMPLATES(benchmark_32_dynamic_pgm, uint32_t);
 INSTANTIATE_TEMPLATES(benchmark_64_dynamic_pgm, uint64_t);

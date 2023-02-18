@@ -1,5 +1,5 @@
-#ifndef SOSDB_XINDEX_H
-#define SOSDB_XINDEX_H
+#ifndef TLI_XINDEX_H
+#define TLI_XINDEX_H
 
 #include <algorithm>
 #include <cstdlib>
@@ -11,7 +11,7 @@
 #include "xindex/xindex.h"
 #include "xindex/xindex_impl.h"
 
-namespace sosd_xindex{
+namespace tli_xindex{
 
 template <class KeyType>
 class Key {
@@ -180,4 +180,4 @@ class XIndex : public Competitor<KeyType, SearchClass> {
 
 };
 
-#endif  // SOSDB_XINDEX_H
+#endif  // TLI_XINDEX_H

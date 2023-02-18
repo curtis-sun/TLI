@@ -44,7 +44,9 @@ class Wormhole : public Base<KeyType> {
     std::vector<std::string> keys;
     keys.reserve(data.size());
     for (const KeyValue<KeyType>& kv : data) {
-      keys.push_back(util::convertToString(kv.key));
+      std::string key;
+      util::convert2String(kv.key, key);
+      keys.push_back(key);
     }
 
     kvmap_mm allocator = (kvmap_mm){kv_dup_in_count, kv_dup_out_count,
@@ -76,7 +78,8 @@ class Wormhole : public Base<KeyType> {
   }
 
   size_t EqualityLookup(const KeyType& lookup_key, uint32_t thread_id) const {
-    std::string key = util::convertToString(lookup_key);
+    std::string key;
+    util::convert2String(lookup_key, key);
     kv_refill(in[thread_id], key.c_str(), key.length(), NULL, 0);
     kref kref = kv_kref(in[thread_id]);
     if (whsafe_get(refs[thread_id].instance, &kref, out[thread_id])){
@@ -88,7 +91,9 @@ class Wormhole : public Base<KeyType> {
 
   uint64_t RangeQuery(const KeyType lower_key, const KeyType upper_key, uint32_t thread_id) const {
     auto iter = wormhole_iter_create(refs[thread_id].instance);
-    std::string lkey = util::convertToString(lower_key), ukey = util::convertToString(upper_key);
+    std::string lkey, ukey;
+    util::convert2String(lower_key, lkey);
+    util::convert2String(upper_key, ukey);
     kv_refill(in[thread_id], lkey.c_str(), lkey.length(), NULL, 0);
     kref kref = kv_kref(in[thread_id]);
     whsafe_iter_seek(iter, &kref);
@@ -106,7 +111,8 @@ class Wormhole : public Base<KeyType> {
   }
   
   void Insert(const KeyValue<KeyType>& data, uint32_t thread_id) {
-    std::string key = util::convertToString(data.key);
+    std::string key; 
+    util::convert2String(data.key, key);
     kv_refill(in[thread_id], key.c_str(), key.length(), reinterpret_cast<const char* const>(&data.value), sizeof(uint64_t));
     whsafe_put(refs[thread_id].instance, in[thread_id]);
   }
@@ -114,7 +120,7 @@ class Wormhole : public Base<KeyType> {
   std::string name() const { return "Wormhole"; }
 
   std::size_t size() const {
-    // return used memory in bytes
+    // Return used memory in bytes.
     if (usage_ < 0) {
       util::fail("Wormhole memory usage was negative!");
     }
@@ -164,7 +170,7 @@ class Wormhole : public Base<KeyType> {
   }
 
   bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& ops_filename) {
-    // only supports unique keys.
+    // Only supports unique keys.
     return unique;
   }
 

@@ -7,14 +7,8 @@
 
 using namespace std;
 
-// We ensure that there are no more qualifying entries for a given lookup
-// than specified here.
-// Setting a low value (e.g., 100) here ensures that the checksum computation
-// doesn't dominate performance.
-constexpr size_t max_num_qualifying = 100;
-
 // Maximum number of retries to find a lookup key that has at most
-// `max_num_qualifying entries`.
+// `max_num_retries`.
 constexpr size_t max_num_retries = 100;
 
 static mt19937_64 g(42);
@@ -33,9 +27,31 @@ vector<size_t> generate_permute(size_t lo, size_t hi, bool is_shuffle=false){
   return permute;
 }
 
+// Help generate block-wise loading.
+vector<size_t> generate_permute_blockwise(size_t op_cnt, size_t insert_cnt, size_t range_query_cnt, size_t lookup_cnt, size_t block_num){
+  vector<size_t> permute(op_cnt);
+
+  size_t cur = 0, insert_cur = 0, lookup_cur = insert_cnt, range_query_cur = insert_cnt + lookup_cnt;
+  for (size_t i = 0; i < block_num; i ++){
+    size_t block_insert_cnt = (i != block_num - 1) ? insert_cnt / block_num : insert_cnt - insert_cur, 
+    block_range_query_cnt = (i != block_num - 1) ? range_query_cnt / block_num : op_cnt - range_query_cur, 
+    block_lookup_cnt = (i != block_num - 1) ? lookup_cnt / block_num : insert_cnt + lookup_cnt - lookup_cur;
+    for (size_t j = 0; j < block_insert_cnt; j ++){
+      permute[insert_cur ++] = cur ++;
+    }
+    for (size_t j = 0; j < block_lookup_cnt; j ++){
+      permute[lookup_cur ++] = cur ++;
+    }
+    for (size_t j = 0; j < block_range_query_cnt; j ++){
+      permute[range_query_cur ++] = cur ++;
+    }
+  }
+  return permute;
+}
+
 // Generate queries compatible with `negative_lookup_ratio` 
-// and `range_query_ratio`, and manipulate the scan number 
-// of range queries with `max_num`.
+// and `range_query_ratio`, and ensure that range query never
+// scans more than `max_num` pairs.
 template <class KeyType>
 void generate_equality_lookups(const string& filename, vector<Operation<KeyType>>& ops, util::FastRandom& ranny,
     std::multimap<KeyType, uint64_t>& data_map, vector<KeyValue<KeyType>>& data_vec,
@@ -50,7 +66,6 @@ void generate_equality_lookups(const string& filename, vector<Operation<KeyType>
       continue;
     }
     if (ops[i].op == util::LOOKUP){
-      // Required to generate negative lookups within data domain.
       KeyType min_key, max_key;
       if (is_insert){
         min_key = data_map.begin()->first;
@@ -74,7 +89,7 @@ void generate_equality_lookups(const string& filename, vector<Operation<KeyType>
           KeyType negative_lookup;
           bool is_exist = true;
           while (is_exist) {
-            // Draw lookup key from within data domain.
+            // Draw lookup key from data domain.
             negative_lookup = (ranny.ScaleFactor() * (max_key - min_key)) + min_key;
             if (is_insert){
               is_exist = data_map.find(negative_lookup) != data_map.end();
@@ -122,7 +137,7 @@ void generate_equality_lookups(const string& filename, vector<Operation<KeyType>
           max_key = data_vec[data_vec.size() - max_num - 1].key;
         }
 
-        // Draw lookup key from within data domain.
+        // Draw lookup key from data domain.
         if constexpr (std::is_same<KeyType, std::string>::value) {
           while(true){
             const uint64_t offset = ranny.RandUint32(0, data_vec.size() - 1);
@@ -130,7 +145,7 @@ void generate_equality_lookups(const string& filename, vector<Operation<KeyType>
             if (lo_key > max_key){
               ++num_retries;
               if (num_retries > max_num_retries)
-                util::fail("generate_equality_lookups: exceeded max number of retries");
+                util::fail("Generate_equality_lookups: exceeded max number of retries");
               continue;
             }
             break;
@@ -168,10 +183,10 @@ void generate_equality_lookups(const string& filename, vector<Operation<KeyType>
         }
 
         if (num_qualifying > max_num || num_qualifying < min_num) {
-          // Too many or too few qualifying entries.
+          // Too many or too few qualifying pairs.
           ++num_retries;
           if (num_retries > max_num_retries)
-            util::fail("generate_equality_lookups: exceeded max number of retries");
+            util::fail("Generate_equality_lookups: exceeded max number of retries");
           // Try a different lookup key.
           continue;
         }
@@ -182,17 +197,17 @@ void generate_equality_lookups(const string& filename, vector<Operation<KeyType>
       }
       continue;
     }
-    util::fail("unknown operation");
+    util::fail("Undefined operation");
   }
 }
 
-// Generate insertions and bulk loads 
+// Generate insert and bulk loading 
 // compatible with `insert_ratio` and 
 // `insert_pattern`.
 template <class KeyType>
 void generate_inserts(vector<Operation<KeyType>>& ops, vector<KeyValue<KeyType>>& bulk_loads, const vector<size_t>& op_id,
     const vector<KeyValue<KeyType>>& data_vec,
-    const size_t num_insert, const InsertPat pat, const double hotspot_ratio) {
+    const size_t insert_cnt, const InsertPat pat, const double hotspot_ratio) {
   size_t lo = 0, hi = data_vec.size();
   switch (pat) {
     case InsertPat::Equality: {
@@ -200,7 +215,7 @@ void generate_inserts(vector<Operation<KeyType>>& ops, vector<KeyValue<KeyType>>
     }
 
     case InsertPat::Delta: {
-      lo = hi - num_insert;
+      lo = hi - insert_cnt;
       break;
     }
 
@@ -211,14 +226,14 @@ void generate_inserts(vector<Operation<KeyType>>& ops, vector<KeyValue<KeyType>>
     }
 
     default: {
-      util::fail("undefined insert pattern found.");
+      util::fail("Undefined insert pattern found.");
     }
   }
 
   bulk_loads.insert(bulk_loads.end(), data_vec.begin(), data_vec.begin() + lo);
 
   if (pat == InsertPat::Delta) {
-    for (size_t i = 0; i < num_insert; i ++){
+    for (size_t i = 0; i < insert_cnt; i ++){
       ops[op_id[i]].op = util::INSERT;
       ops[op_id[i]].lo_key = data_vec[lo + i].key;
       ops[op_id[i]].result = data_vec[lo + i].value;
@@ -226,10 +241,9 @@ void generate_inserts(vector<Operation<KeyType>>& ops, vector<KeyValue<KeyType>>
   }
   else {
     vector<size_t> kv_id = generate_permute(lo, hi, true);
-    size_t num = hi - lo;
-    for (size_t i = 0; i < num; i ++){
+    for (size_t i = 0; i < hi - lo; i ++){
       auto kv = data_vec[kv_id[i]];
-      if (i < num_insert){
+      if (i < insert_cnt){
         ops[op_id[i]].op = util::INSERT;
         ops[op_id[i]].lo_key = kv.key;
         ops[op_id[i]].result = kv.value;
@@ -284,10 +298,10 @@ void print_op_stats(
         continue;
       }
     }
-    cout << "thread's operation count: " << ops[i].size() << endl;
-    cout << "negative lookup ratio: " << static_cast<double>(negative_count) / lookup_count << endl;
-    cout << "range query ratio: " << static_cast<double>(rq_count) / ops[i].size() << endl;
-    cout << "insert ratio: " << static_cast<double>(insert_count) / ops[i].size() << endl;
+    cout << "Thread's operation count: " << ops[i].size() << endl;
+    cout << "Negative lookup ratio: " << static_cast<double>(negative_count) / lookup_count << endl;
+    cout << "Range query ratio: " << static_cast<double>(rq_count) / ops[i].size() << endl;
+    cout << "Insert ratio: " << static_cast<double>(insert_count) / ops[i].size() << endl;
   }
 }
 
@@ -295,15 +309,15 @@ template <class KeyType>
 void generate(const string& filename, size_t op_cnt, 
               double range_query_ratio, double negative_lookup_ratio, double insert_ratio,
               InsertPat pat, double hotspot_ratio, 
-              size_t thread_num, bool mix, size_t bulkload_cnt){
+              size_t thread_num, bool mix, size_t block_num, size_t bulkload_cnt){
   util::FastRandom ranny(42);
   // Load data.
   const vector<KeyType> keys = util::load_data<KeyType>(filename);
 
   if (!is_sorted(keys.begin(), keys.end()))
-    util::fail("keys have to be sorted");
+    util::fail("Keys have to be sorted.");
 
-  // Generate name for benchmark.
+  // Generate name for workload.
   string op_filename = filename + "_ops_" + to_nice_number(op_cnt) + "_" 
                     + to_string(range_query_ratio) + "rq_"
                     + to_string(negative_lookup_ratio) + "nl_"
@@ -318,6 +332,9 @@ void generate(const string& filename, size_t op_cnt,
   if (mix){
     op_filename += "_mix";
   }
+  if (block_num > 1){
+    op_filename += "_" + to_string(block_num) + "blk";
+  }
   if (bulkload_cnt != size_t(-1)){
     op_filename += "_" + to_nice_number(bulkload_cnt) + "bulkload";
   }
@@ -327,14 +344,23 @@ void generate(const string& filename, size_t op_cnt,
   vector<KeyValue<KeyType>> org_vec = util::add_values(keys);
 
   size_t insert_cnt = op_cnt * insert_ratio;
-  size_t range_query_cnt = op_cnt * range_query_ratio;
-  size_t lookup_cnt = op_cnt - insert_cnt - range_query_cnt;
+  if (bulkload_cnt != size_t(-1) && insert_cnt + bulkload_cnt > keys.size()){
+    util::fail("Insert number + Bulk-loaded number > Dataset size");
+  }
+  size_t range_query_cnt = 0, lookup_cnt = 0; 
+  if (insert_ratio + range_query_ratio >= 1.){
+    range_query_cnt = op_cnt - insert_cnt;
+  }
+  else{
+    range_query_cnt = op_cnt * range_query_ratio;
+    lookup_cnt = op_cnt - insert_cnt - range_query_cnt;
+  }
   
   vector<KeyValue<KeyType>> bulk_loads;
   bulk_loads.reserve(org_vec.size() - insert_cnt);
   vector<Operation<KeyType>> tot_ops(op_cnt);
   
-  vector<size_t> op_id = generate_permute(0, op_cnt, mix);
+  vector<size_t> op_id = (block_num == 1) ? generate_permute(0, op_cnt, mix) : generate_permute_blockwise(op_cnt, insert_cnt, range_query_cnt, lookup_cnt, block_num);
   if (insert_ratio > 0) {
     if (mix){
       sort(op_id.begin(), op_id.begin() + insert_cnt);
@@ -372,10 +398,6 @@ void generate(const string& filename, size_t op_cnt,
         insert_vecs[i].emplace_back(e.lo_key, e.result);
       }
     }
-    // size_t nxt_id = cur_id + 1;
-    // while(nxt_id < org_vec.size() && org_vec[nxt_id].key == org_vec[nxt_id - 1].key){
-    //   ++ nxt_id;
-    // }
   }
   else{
     ops[0] = tot_ops;
@@ -383,7 +405,7 @@ void generate(const string& filename, size_t op_cnt,
 
 
   for (size_t i = 0; i < thread_num; i ++){
-    // Generate benchmarks.
+    // Generate workload.
     
     vector<KeyValue<KeyType>> data_vec = bulk_loads;
     std::multimap<KeyType, uint64_t> data_map;
@@ -398,8 +420,13 @@ void generate(const string& filename, size_t op_cnt,
         }
         other_vec.insert(other_vec.end(), insert_vecs[j].begin(), insert_vecs[j].end());
       }
-      sort(other_vec.begin(), other_vec.end());
-      data_map.insert(other_vec.begin(), other_vec.end());
+      if (thread_num > 1){
+        sort(other_vec.begin(), other_vec.end());
+      }
+      auto it = data_map.begin();
+      for (const auto& e: other_vec){
+        it = data_map.insert(it, e);
+      }
     }
     
     generate_equality_lookups(filename, ops[i], ranny,
@@ -437,7 +464,9 @@ int main(int argc, char* argv[]) {
                                cxxopts::value<string>()->default_value("equality"))(
       "h,hotspot-ratio", "Hotspot ratio",
                                cxxopts::value<double>()->default_value("0.1"))(
-      "mix", "Mix lookups, range queries and inserts together");
+      "mix", "Mix lookups, range queries and inserts together")(
+      "block", "Divide workload into several blocks, number of blocks", 
+                               cxxopts::value<size_t>()->default_value("1"));
 
   options.parse_positional({"data", "operation-count"});
 
@@ -454,6 +483,11 @@ int main(int argc, char* argv[]) {
   const DataType type = util::resolve_type(filename);
   size_t op_cnt = result["operation-count"].as<size_t>();
   size_t thread_num = result["thread"].as<size_t>();
+  size_t block_num = result["block"].as<size_t>();
+  if (block_num > 1 && (thread_num > 1 || mix)) {
+    util::fail(
+        "Can not use block-wise loading mode with multi-thread or mixed scenario.");
+  }
   size_t bulkload_cnt = result["bulkload-count"].as<size_t>();
   double range_query_ratio = result["scan-ratio"].as<double>(), 
          negative_lookup_ratio = result["negative-lookup-ratio"].as<double>(),
@@ -487,21 +521,21 @@ int main(int argc, char* argv[]) {
       generate<uint32_t>(filename, op_cnt, 
                   range_query_ratio, negative_lookup_ratio, insert_ratio, 
                   pat, hotspot_ratio,
-                  thread_num, mix, bulkload_cnt);
+                  thread_num, mix, block_num, bulkload_cnt);
       break;
     }
     case DataType::UINT64: {
       generate<uint64_t>(filename, op_cnt, 
                   range_query_ratio, negative_lookup_ratio, insert_ratio, 
                   pat, hotspot_ratio,
-                  thread_num, mix, bulkload_cnt);
+                  thread_num, mix, block_num, bulkload_cnt);
       break;
     }
     case DataType::STRING: {
       generate<std::string>(filename, op_cnt, 
                   range_query_ratio, 0, insert_ratio, 
                   pat, hotspot_ratio,
-                  thread_num, mix, bulkload_cnt);
+                  thread_num, mix, block_num, bulkload_cnt);
       break;
     }
   }

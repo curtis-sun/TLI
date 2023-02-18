@@ -16,8 +16,8 @@ class RMI_B: public Competitor<KeyType, SearchClass> {
  RMI_B(const std::vector<int>& params){}
  uint64_t Build(const std::vector<KeyValue<KeyType>>& data, const size_t num_threads) {
     const std::string rmi_path =
-        (std::getenv("SOSD_RMI_PATH") == NULL ? "rmi_data"
-                                              : std::getenv("SOSD_RMI_PATH"));
+        (std::getenv("TLI_RMI_PATH") == NULL ? "rmi_data"
+                                              : std::getenv("TLI_RMI_PATH"));
     if (!RMI_LOAD(rmi_path.c_str())) {
       util::fail(
           "Could not load RMI data from rmi_data/ -- either an allocation "

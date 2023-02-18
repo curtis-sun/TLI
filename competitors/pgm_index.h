@@ -1,5 +1,5 @@
-#ifndef SOSDB_PGM_H
-#define SOSDB_PGM_H
+#ifndef TLI_PGM_H
+#define TLI_PGM_H
 
 #include <algorithm>
 #include <cstdlib>
@@ -9,24 +9,12 @@
 #include "../util.h"
 #include "base.h"
 #include "pgm_index.hpp"
-//#include <functional>
-//#include <boost/iterator/transform_iterator.hpp>
-//#include <boost/range/adaptors.hpp>
 
 template <class KeyType, class SearchClass, size_t pgm_error>
 class PGM : public Competitor<KeyType, SearchClass> {
  public:
   PGM(const std::vector<int>& params){}
   uint64_t Build(const std::vector<KeyValue<KeyType>>& data, const size_t num_threads) {
-    // This code uses a boost transform iterator to avoid a copy. It
-    // seems to be much slower, however.
-    /*
-    auto it_begin = boost::make_transform_iterator(data.begin(), extract_key);
-    auto it_end = boost::make_transform_iterator(data.end(), extract_key);
-    pgm_ = PGMIndex<KeyType, pgm_error, 4>(it_begin, it_end);
-    */
-
-    // don't count the data copy time against the PGM build time
     std::vector<KeyType> keys;
     keys.reserve(data.size());
     std::transform(data.begin(), data.end(), std::back_inserter(keys),
@@ -96,4 +84,4 @@ class PGM : public Competitor<KeyType, SearchClass> {
   std::vector<KeyValue<KeyType>> data_;
 };
 
-#endif  // SOSDB_PGM_H
+#endif  // TLI_PGM_H

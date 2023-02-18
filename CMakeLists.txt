@@ -20,6 +20,9 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 find_package(Boost REQUIRED COMPONENTS chrono)
 
+find_library(JemallocLib jemalloc)
+find_library(TbbLib tbb)
+
 set(MKL_INCLUDE_DIRECTORY "/opt/intel/mkl/include")
 set(MKL_LINK_DIRECTORY "/opt/intel/mkl/lib/intel64")
 
@@ -30,6 +33,7 @@ if (${APPLE})
 endif ()
 
 include_directories(${MKL_INCLUDE_DIRECTORY})
+link_directories(${MKL_LINK_DIRECTORY})
 
 set(SOURCE_FILES util.h)
 file(GLOB_RECURSE RMI_SOURCES "competitors/rmi/*.cpp")
@@ -77,8 +81,12 @@ endif ()
 target_link_libraries(benchmark
         PRIVATE Threads::Threads dtl
         PRIVATE ${Boost_LIBRARIES})
+        
+target_link_libraries(benchmark
+        PRIVATE ${TbbLib} 
+        PRIVATE ${JemallocLib}
+        PRIVATE ${CMAKE_THREAD_LIBS_INIT})
 
 target_link_libraries(benchmark
-        PRIVATE ${MKL_LINK_DIRECTORY}
         PRIVATE dl
         PRIVATE mkl_rt)

@@ -1,6 +1,6 @@
-# Workload on Sorted Data Testbed (WOSD)
+# Testbed for Learned Indexes (TLI)
 
-WOSD is a testbed to compare (learned) indexes on various datasets and workloads, and it is generally composed of three components (i.e., workload generation, hyper-parameter tuning, performance evaluation).
+TLI is a testbed to compare (learned) indexes on various datasets and workloads, and it is generally composed of three components (i.e., workload generation, hyper-parameter tuning, performance evaluation). We develop this system from the well-known [SOSD](https://github.com/learnedsystems/SOSD) framework. Besides, we use perf and [pmu-tools](https://github.com/andikleen/pmu-tools) to measure micro-architectural metrics.
 
 ## Dependencies
 
@@ -45,22 +45,24 @@ Build times can be long, as we make aggressive use of templates to ensure we do 
 
 ## Results
 
-The results in `results/through-results` are obtained in single-thread workloads, `results/multithread-results` in concurrency workloads, and `results/string-results` for string indexes. They are shown in the following format.
+The results in `results/through-results` are obtained in single-thread workloads, `results/multithread-results` in concurrency workloads, `results/string-results` for string indexes. They are shown in the following format.
 ```txt
-(index name) (bulk loading time) (index size) (throughputs) (hyper-parameters)
+(index name) (bulk loading time) (index size) (throughput) (hyper-parameters)
 ```
 
 The results in `results/latency-results` are obtained measuring latencies in single-thread workload, and are shown in the following format.
 ```txt
-(index name) (bulk loading time) (index size) (average, P50, P99, P99.9, max, standard derivation of the latency) (hyper-parameters)
+(index name) (bulk loading time) (index size) (average, P50, P99, P99.9, max, standard derivation of latency) (hyper-parameters)
 ```
 
 The results in `results/errors-results` are obtained measuring position searches, and are shown in the following format.
 ```txt
-(index name) (bulk loading time) (index size) (average, P50, P99, P99.9, max, standard derivation of the latency) (average position search overhead) (average position search overhead per operation) (average prediction error) (hyper-parameters)
+(index name) (bulk loading time) (index size) (average, P50, P99, P99.9, max, standard derivation of latency) (average position search overhead) (position search latency per operation) (average prediction error) (hyper-parameters)
 ```
 
-The filenames of csvs in `results` comply with the following rule.
+The filenames of csvs in `results` mainly comply with the following rule.
 ```txt
-{dataset}_ops_{operation count}_{range query ratio}_{negative lookup ratio}_{insert ratio}_({insert pattern}_)({hotspot ratio}_)({thread number}_)(mix_)({bulk-loaded data size}_)results_table.csv
+{dataset}_ops_{operation count}_{range query ratio}_{negative lookup ratio}_{insert ratio}_({insert pattern}_)({hotspot ratio}_)({thread number}_)(mix_)({loaded block number}_)({bulk-loaded data size}_)results_table.csv
 ```
+
+The results in `results/perf-results` are obtained measuring micro-architectural metrics.

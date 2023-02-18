@@ -1,6 +1,5 @@
 #include "search.h"
-
-// double Search::log_sum_search_bound;                                            
+                                           
 uint64_t Search<1>::timing;                                    
 size_t Search<1>::search_num;                                  
 uint64_t Search<1>::sum_search_bound;  

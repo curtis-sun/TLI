@@ -39,30 +39,16 @@
   }
 
 // #define run_rmi_pareto_size(dtype, name, search_class)                       
-//   {                                                                          
+//   {
+//     run_rmi_pareto(dtype, NAME3(name, _, 800M), search_class)                
+//     run_rmi_pareto(dtype, NAME3(name, _, 400M), search_class)   
 //     run_rmi_pareto(dtype, NAME3(name, _, 200M), search_class)                
-//     run_rmi_pareto(dtype, NAME3(name, _, 100M), search_class)                
-//     run_rmi_pareto(dtype, NAME3(name, _, 50M), search_class)                 
-//     run_rmi_pareto(dtype, NAME3(name, _, 25M), search_class)                 
-//     run_rmi_pareto(dtype, NAME3(name, _, 12500K), search_class)              
+//     run_rmi_pareto(dtype, NAME3(name, _, 100M), search_class)               
+//     run_rmi_pareto(dtype, NAME3(name, _, 50M), search_class) 
 //   }
 
-// template <typename Searcher>
-// void benchmark_32_rmi(sosd::Benchmark<uint32_t>& benchmark,
-//                       bool pareto, const std::string& filename) {
-//   run_rmi_pareto(uint32, books_100M, Searcher);
-//   run_rmi_pareto(uint32, books_50M, Searcher);
-//   run_rmi_pareto(uint32, books_25M, Searcher);
-//   run_rmi_pareto(uint32, books_12500K, Searcher);
-  
-//   run_rmi_pareto(uint32, uniform_dense_200M, Searcher);
-//   run_rmi_pareto(uint32, uniform_sparse_200M, Searcher);
-//   run_rmi_pareto(uint32, normal_200M, Searcher);
-//   run_rmi_pareto(uint32, lognormal_200M, Searcher);
-// }
-
 template <typename Searcher>
-void benchmark_64_rmi(sosd::Benchmark<uint64_t>& benchmark, 
+void benchmark_64_rmi(tli::Benchmark<uint64_t>& benchmark, 
                       bool pareto, const std::vector<int>& params, const std::string& filename) {
   if (!pareto){
     util::fail("RMI's hyperparameters cannot be set");
@@ -77,9 +63,6 @@ void benchmark_64_rmi(sosd::Benchmark<uint64_t>& benchmark,
     // run_rmi_pareto_size(uint64, osm_cellids, Searcher);
     // run_rmi_pareto_size(uint64, books, Searcher);
 
-    // run_rmi_pareto(uint64, osm_cellids_800M, Searcher);
-    // run_rmi_pareto(uint64, books_800M, Searcher);
-
     // run_rmi_pareto(uint64, uniform_dense_200M, Searcher);
     // run_rmi_pareto(uint64, uniform_sparse_200M, Searcher);
     // run_rmi_pareto(uint64, lognormal_200M, Searcher);
@@ -88,7 +71,7 @@ void benchmark_64_rmi(sosd::Benchmark<uint64_t>& benchmark,
 }
 
 template <int record>
-void benchmark_64_rmi(sosd::Benchmark<uint64_t>& benchmark, const std::string& filename) {
+void benchmark_64_rmi(tli::Benchmark<uint64_t>& benchmark, const std::string& filename) {
   if (filename.find("bulkload") == std::string::npos) {
     if (filename.find("books_200M") != std::string::npos) {
       run_rmi(uint64, books_200M, LinearSearch<record>, 0, 0);
@@ -113,6 +96,5 @@ void benchmark_64_rmi(sosd::Benchmark<uint64_t>& benchmark, const std::string& f
   }
 }
 
-// INSTANTIATE_TEMPLATES_RMI(benchmark_32_rmi, uint32_t);
 INSTANTIATE_TEMPLATES_RMI_(benchmark_64_rmi, uint64_t, 0);
 INSTANTIATE_TEMPLATES_RMI_(benchmark_64_rmi, uint64_t, 1);

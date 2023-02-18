@@ -1,5 +1,5 @@
-#ifndef SOSDB_FINEDEX_H
-#define SOSDB_FINEDEX_H
+#ifndef TLI_FINEDEX_H
+#define TLI_FINEDEX_H
 
 #include <algorithm>
 #include <cstdlib>
@@ -11,7 +11,7 @@
 #include "finedex/include/aidel.h"
 #include "finedex/include/aidel_impl.h"
 
-namespace sosd_finedex{
+namespace tli_finedex{
 
 template <class KeyType, class SearchClass>
 class FINEdex : public Competitor<KeyType, SearchClass> {
@@ -120,4 +120,4 @@ class FINEdex : public Competitor<KeyType, SearchClass> {
 
 };
 
-#endif  // SOSDB_FINEDEX_H
+#endif  // TLI_FINEDEX_H

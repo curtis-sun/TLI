@@ -21,7 +21,9 @@ class FST : public Base<KeyType> {
     std::vector<uint64_t> values;
     values.reserve(data.size());
     for (const KeyValue<KeyType>& kv : data) {
-      keys.emplace_back(util::convertToString(kv.key));
+      std::string key;
+      util::convert2String(kv.key, key);
+      keys.emplace_back(key);
       values.push_back(kv.value);
     }
 
@@ -39,15 +41,20 @@ class FST : public Base<KeyType> {
   size_t EqualityLookup(const KeyType& lookup_key, uint32_t thread_id) const {
     // looking up a value greater than the largest value causes a segfault...
     uint64_t guess = 0;
-    if (fst_->lookupKey(util::convertToString(lookup_key), guess) && keys_[guess] == lookup_key){
+    std::string key;
+    util::convert2String(lookup_key, key);
+    if (fst_->lookupKey(key, guess) && keys_[guess] == lookup_key){
       return guess;
     }
     return util::OVERFLOW;
   }
 
   uint64_t RangeQuery(const KeyType& lower_key, const KeyType& upper_key, uint32_t thread_id) const {
-    auto iterators = fst_->lookupRange(util::convertToString(lower_key), true, 
-                                util::convertToString(upper_key), true);
+    std::string lkey, ukey;
+    util::convert2String(lower_key, lkey);
+    util::convert2String(upper_key, ukey);
+    auto iterators = fst_->lookupRange(lkey, true, 
+                                ukey, true);
     uint64_t result = 0;
     if (iterators.first.isValid() && keys_[iterators.first.getValue()] < lower_key){
       iterators.first ++;
