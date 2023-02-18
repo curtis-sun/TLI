@@ -8,8 +8,8 @@ if [ ! -f $BENCHMARK ]; then
     exit
 fi
 
-function execute_lookups_200M() {
-    echo "Executing lookups for $1 and index $2"
+function execute_uint64_200M() {
+    echo "Executing operations for $1 and index $2"
     $BENCHMARK ./data/$1 ./data/$1_ops_20M_0.000000rq_0.500000nl_0.000000i --through --csv --only $2 -r 3
     $BENCHMARK ./data/$1 ./data/$1_ops_20M_1.000000rq_0.000000nl_0.000000i --through --csv --only $2 -r 3
 
@@ -30,15 +30,10 @@ function execute_lookups_200M() {
     $BENCHMARK ./data/$1 ./data/$1_ops_20M_0.000000rq_0.500000nl_0.500000i_0m_10Mbulkload --through --csv --only $2 -r 3
     $BENCHMARK ./data/$1 ./data/$1_ops_20M_0.000000rq_0.500000nl_0.500000i_1m_10Mbulkload --through --csv --only $2 -r 3
     $BENCHMARK ./data/$1 ./data/$1_ops_20M_0.000000rq_0.500000nl_0.500000i_2m_0.050000h_10Mbulkload --through --csv --only $2 -r 3
-    $BENCHMARK ./data/$1 ./data/$1_ops_20M_0.000000rq_0.500000nl_0.500000i_2m_0.100000h_10Mbulkload --through --csv --only $2 -r 3
-    $BENCHMARK ./data/$1 ./data/$1_ops_20M_0.000000rq_0.500000nl_0.500000i_2m_0.150000h_10Mbulkload --through --csv --only $2 -r 3
-    $BENCHMARK ./data/$1 ./data/$1_ops_20M_0.000000rq_0.500000nl_0.500000i_2m_0.200000h_10Mbulkload --through --csv --only $2 -r 3
-    $BENCHMARK ./data/$1 ./data/$1_ops_20M_0.000000rq_0.500000nl_0.500000i_2m_0.250000h_10Mbulkload --through --csv --only $2 -r 3
-    $BENCHMARK ./data/$1 ./data/$1_ops_20M_0.000000rq_0.500000nl_0.500000i_2m_0.300000h_10Mbulkload --through --csv --only $2 -r 3
 }
 
-function execute_strings_90M() {
-    echo "Executing lookups for $1 and index $2"
+function execute_string_90M() {
+    echo "Executing operations for $1 and index $2"
     $BENCHMARK ./data/$1 ./data/$1_ops_60M_0.000000rq_0.000000nl_1.000000i_0m_3Mbulkload --through --csv --only $2 -r 3
     $BENCHMARK ./data/$1 ./data/$1_ops_60M_0.000000rq_0.000000nl_0.500000i_0m_mix_3Mbulkload --through --csv --only $2 -r 3
     $BENCHMARK ./data/$1 ./data/$1_ops_60M_0.000000rq_0.000000nl_0.050000i_0m_mix_3Mbulkload --through --csv --only $2 -r 3
@@ -51,11 +46,11 @@ for DATA in fb osm_cellids books wiki_ts
 do
 for INDEX in ART RMI TS FAST PGM DynamicPGM LIPP BTree ALEX MABTree XIndex FINEdex Wormhole
 do
-    execute_lookups_200M ${DATA}_200M_uint64 $INDEX
+    execute_uint64_200M ${DATA}_200M_uint64 $INDEX
 done
 done
 
 for INDEX in ART Wormhole SIndex
 do
-    execute_strings_90M url_90M_string $INDEX
+    execute_string_90M url_90M_string $INDEX
 done
