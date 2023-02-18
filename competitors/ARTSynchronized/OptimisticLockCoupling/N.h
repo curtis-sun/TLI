@@ -33,6 +33,8 @@ namespace ART_OLC {
     static constexpr uint32_t maxStoredPrefixLength = 11;
 
     using Prefix = uint8_t[maxStoredPrefixLength];
+    using LoadKeyFunction = void (*)(TID tid, Key &key);
+    using DeleteKeyFunction = void (*)(TID tid);
 
     class N {
     protected:
@@ -118,9 +120,11 @@ namespace ART_OLC {
 
         static TID getAnyChildTid(const N *n, bool &needRestart);
 
-        static void deleteChildren(N *node);
+        static void deleteChildren(N *node, DeleteKeyFunction deleteKey);
 
-        static void deleteNode(N *node);
+        static void deleteNode(N *node, DeleteKeyFunction deleteKey);
+
+        static uint64_t size(N *node, LoadKeyFunction loadKey);
 
         static std::tuple<N *, uint8_t> getSecondChild(N *node, const uint8_t k);
 
@@ -131,7 +135,7 @@ namespace ART_OLC {
         static void removeAndShrink(curN *n, uint64_t v, N *parentNode, uint64_t parentVersion, uint8_t keyParent, uint8_t key, bool &needRestart, ThreadInfo &threadInfo);
 
         static uint64_t getChildren(const N *node, uint8_t start, uint8_t end, std::tuple<uint8_t, N *> children[],
-                                uint32_t &childrenCount);
+                                uint32_t &childrenCount, bool& needRestart);
     };
 
     class N4 : public N {
@@ -162,10 +166,12 @@ namespace ART_OLC {
 
         std::tuple<N *, uint8_t> getSecondChild(const uint8_t key) const;
 
-        void deleteChildren();
+        void deleteChildren(DeleteKeyFunction deleteKey);
+
+        uint64_t size(LoadKeyFunction loadKey) const;
 
         uint64_t getChildren(uint8_t start, uint8_t end, std::tuple<uint8_t, N *> *&children,
-                         uint32_t &childrenCount) const;
+                         uint32_t &childrenCount, bool& needRestart) const;
     };
 
     class N16 : public N {
@@ -194,6 +200,10 @@ namespace ART_OLC {
 
         N *const *getChildPos(const uint8_t k) const;
 
+        N *const *getChildGtPos(const uint8_t k) const;
+
+        N *const *getChildGePos(const uint8_t k) const;
+
     public:
         N16(const uint8_t *prefix, uint32_t prefixLength) : N(NTypes::N16, prefix,
                                                                               prefixLength) {
@@ -218,10 +228,12 @@ namespace ART_OLC {
 
         bool isUnderfull() const;
 
-        void deleteChildren();
+        void deleteChildren(DeleteKeyFunction deleteKey);
+
+        uint64_t size(LoadKeyFunction loadKey) const;
 
         uint64_t getChildren(uint8_t start, uint8_t end, std::tuple<uint8_t, N *> *&children,
-                         uint32_t &childrenCount) const;
+                         uint32_t &childrenCount, bool& needRestart) const;
     };
 
     class N48 : public N {
@@ -253,10 +265,12 @@ namespace ART_OLC {
 
         bool isUnderfull() const;
 
-        void deleteChildren();
+        void deleteChildren(DeleteKeyFunction deleteKey);
+
+        uint64_t size(LoadKeyFunction loadKey) const;
 
         uint64_t getChildren(uint8_t start, uint8_t end, std::tuple<uint8_t, N *> *&children,
-                         uint32_t &childrenCount) const;
+                         uint32_t &childrenCount, bool& needRestart) const;
     };
 
     class N256 : public N {
@@ -285,10 +299,12 @@ namespace ART_OLC {
 
         bool isUnderfull() const;
 
-        void deleteChildren();
+        void deleteChildren(DeleteKeyFunction deleteKey);
+
+        uint64_t size(LoadKeyFunction loadKey) const;
 
         uint64_t getChildren(uint8_t start, uint8_t end, std::tuple<uint8_t, N *> *&children,
-                         uint32_t &childrenCount) const;
+                         uint32_t &childrenCount, bool& needRestart) const;
     };
 }
 #endif //ART_OPTIMISTIC_LOCK_COUPLING_N_H

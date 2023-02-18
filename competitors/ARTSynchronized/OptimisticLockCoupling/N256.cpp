@@ -12,13 +12,23 @@ namespace ART_OLC {
         return count == 37;
     }
 
-    void N256::deleteChildren() {
+    void N256::deleteChildren(DeleteKeyFunction deleteKey) {
         for (uint64_t i = 0; i < 256; ++i) {
             if (children[i] != nullptr) {
-                N::deleteChildren(children[i]);
-                N::deleteNode(children[i]);
+                N::deleteChildren(children[i], deleteKey);
+                N::deleteNode(children[i], deleteKey);
             }
         }
+    }
+
+    uint64_t N256::size(LoadKeyFunction loadKey) const {
+        uint64_t size = sizeof(*this);
+        for (uint64_t i = 0; i < 256; ++i) {
+            if (children[i] != nullptr) {
+                size += N::size(children[i], loadKey);
+            }
+        }
+        return size;
     }
 
     void N256::insert(uint8_t key, N *val) {
@@ -64,12 +74,14 @@ namespace ART_OLC {
     }
 
     uint64_t N256::getChildren(uint8_t start, uint8_t end, std::tuple<uint8_t, N *> *&children,
-                           uint32_t &childrenCount) const {
+                           uint32_t &childrenCount, bool& needRestart) const {
         restart:
-        bool needRestart = false;
+        needRestart = false;
         uint64_t v;
         v = readLockOrRestart(needRestart);
-        if (needRestart) goto restart;
+        if (needRestart){
+            return v;
+        }
         childrenCount = 0;
         for (unsigned i = start; i <= end; i++) {
             if (this->children[i] != nullptr) {

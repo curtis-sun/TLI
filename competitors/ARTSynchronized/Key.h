@@ -36,6 +36,28 @@ public:
         return std::memcmp(&k[0], data, getKeyLen()) == 0;
     }
 
+    static bool equal(const Key& k1, const Key& k2, std::size_t level) {
+        if (k1.getKeyLen() != k2.getKeyLen()) {
+            return false;
+        }
+        return std::memcmp(&k1[level], &k2[level], k1.getKeyLen() - level) == 0;
+    }
+
+    static int compare(const Key& k1, const Key& k2, std::size_t level) {
+        for (;; level ++){
+            if (k1.getKeyLen() <= level || k2.getKeyLen() <= level){
+                break;
+            }
+            if (k1[level] < k2[level]){
+                return -1;
+            }
+            if (k2[level] < k1[level]){
+                return 1;
+            }
+        }
+        return 0;
+    }
+
     uint8_t &operator[](std::size_t i);
 
     const uint8_t &operator[](std::size_t i) const;

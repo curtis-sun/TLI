@@ -66,22 +66,34 @@ namespace ART_OLC {
         return anyChild;
     }
 
-    void N48::deleteChildren() {
+    void N48::deleteChildren(DeleteKeyFunction deleteKey) {
         for (unsigned i = 0; i < 256; i++) {
             if (childIndex[i] != emptyMarker) {
-                N::deleteChildren(children[childIndex[i]]);
-                N::deleteNode(children[childIndex[i]]);
+                N::deleteChildren(children[childIndex[i]], deleteKey);
+                N::deleteNode(children[childIndex[i]], deleteKey);
             }
         }
     }
 
+    uint64_t N48::size(LoadKeyFunction loadKey) const {
+        uint64_t size = sizeof(*this);
+        for (unsigned i = 0; i < 256; i++) {
+            if (childIndex[i] != emptyMarker) {
+                size += N::size(children[childIndex[i]], loadKey);
+            }
+        }
+        return size;
+    }
+
     uint64_t N48::getChildren(uint8_t start, uint8_t end, std::tuple<uint8_t, N *> *&children,
-                          uint32_t &childrenCount) const {
+                          uint32_t &childrenCount, bool& needRestart) const {
         restart:
-        bool needRestart = false;
+        needRestart = false;
         uint64_t v;
         v = readLockOrRestart(needRestart);
-        if (needRestart) goto restart;
+        if (needRestart){
+            return v;
+        }
         childrenCount = 0;
         for (unsigned i = start; i <= end; i++) {
             if (this->childIndex[i] != emptyMarker) {

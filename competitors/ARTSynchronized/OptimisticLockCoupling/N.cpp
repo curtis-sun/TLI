@@ -171,30 +171,59 @@ namespace ART_OLC {
         __builtin_unreachable();
     }
 
-    void N::deleteChildren(N *node) {
+    void N::deleteChildren(N *node, DeleteKeyFunction deleteKey) {
         if (N::isLeaf(node)) {
             return;
         }
         switch (node->getType()) {
             case NTypes::N4: {
                 auto n = static_cast<N4 *>(node);
-                n->deleteChildren();
+                n->deleteChildren(deleteKey);
                 return;
             }
             case NTypes::N16: {
                 auto n = static_cast<N16 *>(node);
-                n->deleteChildren();
+                n->deleteChildren(deleteKey);
                 return;
             }
             case NTypes::N48: {
                 auto n = static_cast<N48 *>(node);
-                n->deleteChildren();
+                n->deleteChildren(deleteKey);
                 return;
             }
             case NTypes::N256: {
                 auto n = static_cast<N256 *>(node);
-                n->deleteChildren();
+                n->deleteChildren(deleteKey);
                 return;
+            }
+        }
+        assert(false);
+        __builtin_unreachable();
+    }
+
+    uint64_t N::size(N *node, LoadKeyFunction loadKey) {
+        if (N::isLeaf(node)) {
+            auto tid = N::getLeaf(node);
+            Key k;
+            loadKey(tid, k);
+            return k.getKeyLen() + sizeof(uint64_t);
+        }
+        switch (node->getType()) {
+            case NTypes::N4: {
+                auto n = static_cast<N4 *>(node);
+                return n->size(loadKey);
+            }
+            case NTypes::N16: {
+                auto n = static_cast<N16 *>(node);
+                return n->size(loadKey);
+            }
+            case NTypes::N48: {
+                auto n = static_cast<N48 *>(node);
+                return n->size(loadKey);
+            }
+            case NTypes::N256: {
+                auto n = static_cast<N256 *>(node);
+                return n->size(loadKey);
             }
         }
         assert(false);
@@ -329,15 +358,18 @@ namespace ART_OLC {
 
 
     bool N::isLeaf(const N *n) {
-        return (reinterpret_cast<uint64_t>(n) & (static_cast<uint64_t>(1) << 63)) == (static_cast<uint64_t>(1) << 63);
+        // return (reinterpret_cast<uint64_t>(n) & (static_cast<uint64_t>(1) << 63)) == (static_cast<uint64_t>(1) << 63);
+        return reinterpret_cast<uint64_t>(n) & 1;
     }
 
     N *N::setLeaf(TID tid) {
-        return reinterpret_cast<N *>(tid | (static_cast<uint64_t>(1) << 63));
+        // return reinterpret_cast<N *>(tid | (static_cast<uint64_t>(1) << 63));
+        return reinterpret_cast<N *>((tid << 1) | 1);
     }
 
     TID N::getLeaf(const N *n) {
-        return (reinterpret_cast<uint64_t>(n) & ((static_cast<uint64_t>(1) << 63) - 1));
+        // return (reinterpret_cast<uint64_t>(n) & ((static_cast<uint64_t>(1) << 63) - 1));
+        return reinterpret_cast<uint64_t>(n) >> 1;
     }
 
     std::tuple<N *, uint8_t> N::getSecondChild(N *node, const uint8_t key) {
@@ -353,8 +385,9 @@ namespace ART_OLC {
         }
     }
 
-    void N::deleteNode(N *node) {
+    void N::deleteNode(N *node, DeleteKeyFunction deleteKey) {
         if (N::isLeaf(node)) {
+            deleteKey(N::getLeaf(node));
             return;
         }
         switch (node->getType()) {
@@ -403,23 +436,23 @@ namespace ART_OLC {
     }
 
     uint64_t N::getChildren(const N *node, uint8_t start, uint8_t end, std::tuple<uint8_t, N *> children[],
-                        uint32_t &childrenCount) {
+                        uint32_t &childrenCount, bool& needRestart) {
         switch (node->getType()) {
             case NTypes::N4: {
                 auto n = static_cast<const N4 *>(node);
-                return n->getChildren(start, end, children, childrenCount);
+                return n->getChildren(start, end, children, childrenCount, needRestart);
             }
             case NTypes::N16: {
                 auto n = static_cast<const N16 *>(node);
-                return n->getChildren(start, end, children, childrenCount);
+                return n->getChildren(start, end, children, childrenCount, needRestart);
             }
             case NTypes::N48: {
                 auto n = static_cast<const N48 *>(node);
-                return n->getChildren(start, end, children, childrenCount);
+                return n->getChildren(start, end, children, childrenCount, needRestart);
             }
             case NTypes::N256: {
                 auto n = static_cast<const N256 *>(node);
-                return n->getChildren(start, end, children, childrenCount);
+                return n->getChildren(start, end, children, childrenCount, needRestart);
             }
         }
         assert(false);

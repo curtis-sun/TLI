@@ -50,6 +50,26 @@ namespace ART_OLC {
         }
     }
 
+    N *const *N16::getChildGePos(const uint8_t k) const {
+        __m128i cmp = _mm_xor_si128(_mm_cmplt_epi8(_mm_loadu_si128(reinterpret_cast<const __m128i *>(keys)), _mm_set1_epi8(flipSign(k))), _mm_set1_epi8(char(-1)));
+        unsigned bitfield = _mm_movemask_epi8(cmp) & (0xFFFF >> (16 - count));
+        if (bitfield) {
+            return &children[ctz(bitfield)];
+        } else {
+            return nullptr;
+        }
+    }
+
+    N *const *N16::getChildGtPos(const uint8_t k) const {
+        __m128i cmp = _mm_cmpgt_epi8(_mm_loadu_si128(reinterpret_cast<const __m128i *>(keys)), _mm_set1_epi8(flipSign(k)));
+        unsigned bitfield = _mm_movemask_epi8(cmp) & (0xFFFF >> (16 - count));
+        if (bitfield) {
+            return &children[ctz(bitfield)];
+        } else {
+            return nullptr;
+        }
+    }
+
     N *N16::getChild(const uint8_t k) const {
         N *const *childPos = getChildPos(k);
         if (childPos == nullptr) {
@@ -78,28 +98,46 @@ namespace ART_OLC {
         return children[0];
     }
 
-    void N16::deleteChildren() {
+    void N16::deleteChildren(DeleteKeyFunction deleteKey) {
         for (std::size_t i = 0; i < count; ++i) {
-            N::deleteChildren(children[i]);
-            N::deleteNode(children[i]);
+            N::deleteChildren(children[i], deleteKey);
+            N::deleteNode(children[i], deleteKey);
         }
     }
 
+    uint64_t N16::size(LoadKeyFunction loadKey) const {
+        uint64_t size = sizeof(*this);
+        for (std::size_t i = 0; i < count; ++i) {
+            size += N::size(children[i], loadKey);
+        }
+        return size;
+    }
+
     uint64_t N16::getChildren(uint8_t start, uint8_t end, std::tuple<uint8_t, N *> *&children,
-                          uint32_t &childrenCount) const {
+                          uint32_t &childrenCount, bool& needRestart) const {
         restart:
-        bool needRestart = false;
+        needRestart = false;
         uint64_t v;
         v = readLockOrRestart(needRestart);
-        if (needRestart) goto restart;
+        if (needRestart){
+            return v;
+        }
         childrenCount = 0;
-        auto startPos = getChildPos(start);
-        auto endPos = getChildPos(end);
+        auto startPos = getChildGePos(start);
+        auto endPos = getChildGtPos(end);
         if (startPos == nullptr) {
             startPos = this->children;
         }
         if (endPos == nullptr) {
             endPos = this->children + (count - 1);
+        }
+        else{
+            if (endPos == this->children){
+                readUnlockOrRestart(v, needRestart);
+                if (needRestart) goto restart;
+                return v;
+            }
+            -- endPos;
         }
         for (auto p = startPos; p <= endPos; ++p) {
             children[childrenCount] = std::make_tuple(flipSign(keys[p - this->children]), *p);

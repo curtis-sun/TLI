@@ -4,11 +4,19 @@
 
 namespace ART_OLC {
 
-    void N4::deleteChildren() {
+    void N4::deleteChildren(DeleteKeyFunction deleteKey) {
         for (uint32_t i = 0; i < count; ++i) {
-            N::deleteChildren(children[i]);
-            N::deleteNode(children[i]);
+            N::deleteChildren(children[i], deleteKey);
+            N::deleteNode(children[i], deleteKey);
         }
+    }
+
+    uint64_t N4::size(LoadKeyFunction loadKey) const {
+        uint64_t size = sizeof(*this);
+        for (uint32_t i = 0; i < count; ++i) {
+            size += N::size(children[i], loadKey);
+        }
+        return size;
     }
 
     bool N4::isFull() const {
@@ -89,12 +97,14 @@ namespace ART_OLC {
     }
 
     uint64_t N4::getChildren(uint8_t start, uint8_t end, std::tuple<uint8_t, N *> *&children,
-                         uint32_t &childrenCount) const {
+                         uint32_t &childrenCount, bool& needRestart) const {
         restart:
-        bool needRestart = false;
+        needRestart = false;
         uint64_t v;
         v = readLockOrRestart(needRestart);
-        if (needRestart) goto restart;
+        if (needRestart){
+            return v;
+        }
         childrenCount = 0;
         for (uint32_t i = 0; i < count; ++i) {
             if (this->keys[i] >= start && this->keys[i] <= end) {

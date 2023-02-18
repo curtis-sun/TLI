@@ -11,15 +11,12 @@ using namespace ART;
 namespace ART_OLC {
 
     class Tree {
-    public:
-        using LoadKeyFunction = void (*)(TID tid, Key &key);
-
-    private:
         N *const root;
 
-        TID checkKey(const TID tid, const Key &k) const;
+        TID checkKey(const TID tid, const Key &k, size_t level) const;
 
         LoadKeyFunction loadKey;
+        DeleteKeyFunction deleteKey;
 
         Epoche epoche{256};
 
@@ -42,6 +39,8 @@ namespace ART_OLC {
         };
         enum class PCEqualsResults : uint8_t {
             BothMatch,
+            StartMatch,
+            EndMatch,
             Contained,
             NoMatch
         };
@@ -58,11 +57,11 @@ namespace ART_OLC {
 
     public:
 
-        Tree(LoadKeyFunction loadKey);
+        Tree(LoadKeyFunction loadKey, DeleteKeyFunction deleteKey);
 
         Tree(const Tree &) = delete;
 
-        Tree(Tree &&t) : root(t.root), loadKey(t.loadKey) { }
+        Tree(Tree &&t) : root(t.root), loadKey(t.loadKey), deleteKey(t.deleteKey) { }
 
         ~Tree();
 
@@ -73,11 +72,13 @@ namespace ART_OLC {
         bool lookupRange(const Key &start, const Key &end, Key &continueKey, TID result[], std::size_t resultLen,
                          std::size_t &resultCount, ThreadInfo &threadEpocheInfo) const;
 
-        bool lookupRange(const Key &start, TID result[], std::size_t resultLen, std::size_t &resultCount, ThreadInfo &threadEpocheInfo) const;
+        // bool lookupRange(const Key &start, TID result[], std::size_t resultLen, std::size_t &resultCount, ThreadInfo &threadEpocheInfo) const;
 
         void insert(const Key &k, TID tid, ThreadInfo &epocheInfo);
 
         void remove(const Key &k, TID tid, ThreadInfo &epocheInfo);
+
+        uint64_t size() const;
     };
 }
 #endif //ART_OPTIMISTICLOCK_COUPLING_N_H
