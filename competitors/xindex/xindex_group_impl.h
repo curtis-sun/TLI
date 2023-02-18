@@ -399,6 +399,11 @@ inline void Group<key_t, val_t, seq, SearchClass, max_model_n>::compact_phase_2(
 }
 
 template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+bool Group<key_t, val_t, seq, SearchClass, max_model_n>::equal_data(Group *group) {
+  return group && (data == group->data);
+}
+
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
 void Group<key_t, val_t, seq, SearchClass, max_model_n>::free_data() {
   if (data){
     delete[] data;
@@ -939,7 +944,7 @@ inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::scan_2_way(
     std::vector<std::pair<key_t, val_t>> &result) {
   size_t remaining = n;
   bool out_of_range = false;
-  uint32_t base_i = get_pos_from_array(begin);
+  uint32_t base_i = (begin == key_t::min()) ? 0 : get_pos_from_array(begin);
   ArrayDataSource array_source(data, array_size, base_i);
   typename buffer_t::DataSource buffer_source(begin, buffer);
 
@@ -959,14 +964,14 @@ inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::scan_2_way(
     assert(base_key != buf_key);  // since update are inplaced
 
     if (base_key < buf_key) {
-      if (base_key >= end) {
+      if (base_key > end) {
         out_of_range = true;
         break;
       }
       result.push_back(std::pair<key_t, val_t>(base_key, base_val));
       array_source.advance_to_next_valid();
     } else {
-      if (buf_key >= end) {
+      if (buf_key > end) {
         out_of_range = true;
         break;
       }
@@ -980,7 +985,7 @@ inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::scan_2_way(
   while (array_source.has_next && remaining && !out_of_range) {
     const key_t &base_key = array_source.get_key();
     const val_t &base_val = array_source.get_val();
-    if (base_key >= end) {
+    if (base_key > end) {
       out_of_range = true;
       break;
     }
@@ -992,7 +997,7 @@ inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::scan_2_way(
   while (buffer_source.has_next && remaining && !out_of_range) {
     const key_t &buf_key = buffer_source.get_key();
     const val_t &buf_val = buffer_source.get_val();
-    if (buf_key >= end) {
+    if (buf_key > end) {
       out_of_range = true;
       break;
     }
@@ -1010,7 +1015,7 @@ inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::scan_3_way(
     std::vector<std::pair<key_t, val_t>> &result) {
   size_t remaining = n;
   bool out_of_range = false;
-  uint32_t base_i = get_pos_from_array(begin);
+  uint32_t base_i = (begin == key_t::min()) ? 0 : get_pos_from_array(begin);
   ArrayDataSource array_source(data, array_size, base_i);
   typename buffer_t::DataSource buffer_source(begin, buffer);
   typename buffer_t::DataSource temp_buffer_source(begin, buffer_temp);
@@ -1036,21 +1041,21 @@ inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::scan_3_way(
     assert(base_key != tmp_buf_key);  // and removed values are skipped
 
     if (base_key < buf_key && base_key < tmp_buf_key) {
-      if (base_key >= end) {
+      if (base_key > end) {
         out_of_range = true;
         break;
       }
       result.push_back(std::pair<key_t, val_t>(base_key, base_val));
       array_source.advance_to_next_valid();
     } else if (buf_key < base_key && buf_key < tmp_buf_key) {
-      if (buf_key >= end) {
+      if (buf_key > end) {
         out_of_range = true;
         break;
       }
       result.push_back(std::pair<key_t, val_t>(buf_key, buf_val));
       buffer_source.advance_to_next_valid();
     } else {
-      if (tmp_buf_key >= end) {
+      if (tmp_buf_key > end) {
         out_of_range = true;
         break;
       }
@@ -1073,14 +1078,14 @@ inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::scan_3_way(
     assert(base_key != buf_key);  // since update are inplaced
 
     if (base_key < buf_key) {
-      if (base_key >= end) {
+      if (base_key > end) {
         out_of_range = true;
         break;
       }
       result.push_back(std::pair<key_t, val_t>(base_key, base_val));
       array_source.advance_to_next_valid();
     } else {
-      if (buf_key >= end) {
+      if (buf_key > end) {
         out_of_range = true;
         break;
       }
@@ -1102,14 +1107,14 @@ inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::scan_3_way(
     assert(buf_key != tmp_buf_key);  // and removed values are skipped
 
     if (buf_key < tmp_buf_key) {
-      if (buf_key >= end) {
+      if (buf_key > end) {
         out_of_range = true;
         break;
       }
       result.push_back(std::pair<key_t, val_t>(buf_key, buf_val));
       buffer_source.advance_to_next_valid();
     } else {
-      if (tmp_buf_key >= end) {
+      if (tmp_buf_key > end) {
         out_of_range = true;
         break;
       }
@@ -1131,14 +1136,14 @@ inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::scan_3_way(
     assert(base_key != tmp_buf_key);  // and removed values are skipped
 
     if (base_key < tmp_buf_key) {
-      if (base_key >= end) {
+      if (base_key > end) {
         out_of_range = true;
         break;
       }
       result.push_back(std::pair<key_t, val_t>(base_key, base_val));
       array_source.advance_to_next_valid();
     } else {
-      if (tmp_buf_key >= end) {
+      if (tmp_buf_key > end) {
         out_of_range = true;
         break;
       }
@@ -1153,7 +1158,7 @@ inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::scan_3_way(
   while (array_source.has_next && remaining && !out_of_range) {
     const key_t &base_key = array_source.get_key();
     const val_t &base_val = array_source.get_val();
-    if (base_key >= end) {
+    if (base_key > end) {
       out_of_range = true;
       break;
     }
@@ -1165,7 +1170,7 @@ inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::scan_3_way(
   while (buffer_source.has_next && remaining && !out_of_range) {
     const key_t &buf_key = buffer_source.get_key();
     const val_t &buf_val = buffer_source.get_val();
-    if (buf_key >= end) {
+    if (buf_key > end) {
       out_of_range = true;
       break;
     }
@@ -1177,7 +1182,7 @@ inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::scan_3_way(
   while (temp_buffer_source.has_next && remaining && !out_of_range) {
     const key_t &tmp_buf_key = temp_buffer_source.get_key();
     const val_t &tmp_buf_val = temp_buffer_source.get_val();
-    if (tmp_buf_key >= end) {
+    if (tmp_buf_key > end) {
       out_of_range = true;
       break;
     }

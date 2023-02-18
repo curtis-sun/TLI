@@ -105,6 +105,7 @@ class alignas(CACHELINE_SIZE) Group {
   Group *merge_group(Group &next_group);
   Group *compact_phase_1();
   void compact_phase_2();
+  bool equal_data(Group *group);
 
   void free_data();
   void free_buffer();

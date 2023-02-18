@@ -5,6 +5,7 @@
 #include "benchmarks/benchmark_alex.h"
 #include "benchmarks/benchmark_lipp.h"
 #include "benchmarks/benchmark_art.h"
+#include "benchmarks/benchmark_artolc.h"
 #include "benchmarks/benchmark_btree.h"
 #include "benchmarks/benchmark_xindex.h"
 #include "benchmarks/benchmark_finedex.h"
@@ -18,10 +19,11 @@
 #include "benchmarks/benchmark_ts.h"
 #include "benchmarks/benchmark_wormhole.h"
 #include "config.h"
-#include "searches/branching_binary_search.h"
-#include "searches/interpolation_search.h"
-#include "searches/exponential_search.h"
+#include "searches/linear_search.h"
 #include "searches/linear_search_avx.h"
+#include "searches/branching_binary_search.h"
+#include "searches/exponential_search.h"
+#include "searches/interpolation_search.h"
 #include "util.h"
 #include "utils/cxxopts.hpp"
 using namespace std;
@@ -35,7 +37,7 @@ using namespace std;
 #define add_search_type(name, func, type, search_class, record)                                           \
   if (search_type == (name) ) {                                                                           \
     sosd::Benchmark<type> benchmark(                                                                      \
-        filename, ops, num_repeats, through, perf, build, fence, cold_cache,                              \
+        filename, ops, num_repeats, through, build, fence, cold_cache,                                    \
         track_errors, csv, num_threads, verify);                                                          \
     func<search_class, record>(benchmark, pareto, params, only_mode, only, filename);                     \
     break;                                                                                                \
@@ -43,7 +45,7 @@ using namespace std;
 #define add_default(func, type, record)                                                                   \
   if (!pareto && params.empty()) {                                                                        \
     sosd::Benchmark<type> benchmark(                                                                      \
-        filename, ops, num_repeats, through, perf, build, fence, cold_cache,                              \
+        filename, ops, num_repeats, through, build, fence, cold_cache,                                    \
         track_errors, csv, num_threads, verify);                                                          \
     func<record>(benchmark, only_mode, only, ops);                                                        \
     break;                                                                                                \
@@ -105,6 +107,7 @@ void execute_64_bit(sosd::Benchmark<uint64_t>& benchmark, bool pareto, const std
     check_only("LIPP", benchmark_64_lipp(benchmark));
     check_only("MABTree", benchmark_64_mabtree<SearchClass>(benchmark, pareto, params));
   }
+  check_only("ARTOLC", benchmark_64_artolc(benchmark));
   check_only("FINEdex", benchmark_64_finedex<SearchClass>(benchmark, pareto, params, filename));
   check_only("XIndex", benchmark_64_xindex<SearchClass>(benchmark, pareto, params, filename));
   #ifndef __APPLE__
@@ -133,6 +136,7 @@ void execute_64_bit(sosd::Benchmark<uint64_t>& benchmark, bool only_mode,
     check_only("LIPP", benchmark_64_lipp(benchmark));
     check_only("MABTree", benchmark_64_mabtree<record>(benchmark, filename));
   }
+  check_only("ARTOLC", benchmark_64_artolc(benchmark));
   check_only("FINEdex", benchmark_64_finedex<record>(benchmark, filename));
   check_only("XIndex", benchmark_64_xindex<record>(benchmark, filename));
   #ifndef __APPLE__
@@ -152,6 +156,7 @@ void execute_string(sosd::Benchmark<std::string>& benchmark, bool pareto, const 
   #endif
   #endif
   }
+  check_only("ARTOLC", benchmark_string_artolc(benchmark));
   check_only("SIndex", benchmark_string_sindex<SearchClass>(benchmark, pareto, params));
   #ifndef __APPLE__
     check_only("Wormhole",benchmark_string_wormhole(benchmark));
@@ -170,6 +175,7 @@ void execute_string(sosd::Benchmark<std::string>& benchmark, bool only_mode,
   #endif
   #endif
   }
+  check_only("ARTOLC", benchmark_string_artolc(benchmark));
   check_only("SIndex", benchmark_string_sindex<record>(benchmark, filename));
   #ifndef __APPLE__
     check_only("Wormhole",benchmark_string_wormhole(benchmark));
@@ -188,7 +194,6 @@ int main(int argc, char* argv[]) {
       "through", "Measure throughput")(
       "r,repeats", "Number of repeats",
       cxxopts::value<int>()->default_value("1"))(
-      "p,perf", "Track performance counters")(
       "b,build", "Only measure and report build times")(
       "only", "Only run the specified index",
       cxxopts::value<std::string>()->default_value(""))(
@@ -220,7 +225,6 @@ int main(int argc, char* argv[]) {
   const size_t num_threads = result["threads"].as<int>();
   cout << "Using " << num_threads << " thread(s)." << endl;
 
-  const bool perf = result.count("perf");
   const bool build = result.count("build");
   const bool fence = result.count("fence");
   const bool track_errors = result.count("errors");
