@@ -18,6 +18,7 @@ function execute_uint64_200M() {
     $BENCHMARK ./data/$1 ./data/$1_ops_186666666_0.000000rq_0.500000nl_0.892857i_0m_$2t --through --threads $2 --csv --only $3 -r 3
     $BENCHMARK ./data/$1 ./data/$1_ops_201818181_0.000000rq_0.500000nl_0.900901i_0m_$2t --through --threads $2 --csv --only $3 -r 3
 
+    $BENCHMARK ./data/$1 ./data/$1_ops_20M_0.000000rq_0.500000nl_0.500000i_2m_0.050000h_$2t_10Mbulkload --through --threads $2 --csv --only $3 -r 3
     $BENCHMARK ./data/$1 ./data/$1_ops_20M_0.000000rq_0.500000nl_0.500000i_2m_0.050005h_$2t_10Mbulkload --through --threads $2 --csv --only $3 -r 3
     $BENCHMARK ./data/$1 ./data/$1_ops_20M_0.000000rq_0.500000nl_0.500000i_2m_0.050010h_$2t_10Mbulkload --through --threads $2 --csv --only $3 -r 3
     $BENCHMARK ./data/$1 ./data/$1_ops_20M_0.000000rq_0.500000nl_0.500000i_2m_0.050015h_$2t_10Mbulkload --through --threads $2 --csv --only $3 -r 3
