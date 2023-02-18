@@ -1288,36 +1288,100 @@ public:
     }
 
     bool range_scan(const key_type &lkey, const key_type &rkey, std::vector<std::pair<key_type, data_type>> &result){
+        uint64_t child_ver;
         child_bin* child = nullptr;
         bool is_end = false;
         memory_fence();
         if(m_root){
             root_bin* root = m_root;
+            uint64_t root_ver = root->version;
             int slot = find_lower(root, lkey);
-            child = static_cast<child_bin*>(root->children[slot]);
+            memory_fence();
+            bool locked = root->locked == 1;
+            memory_fence();
+            bool version_changed = root_ver != root->version;
+            if (!locked && !version_changed) {
+                child = static_cast<child_bin*>(root->children[slot]);
+                child_ver = child->version;
+            } else {
+                return range_scan(lkey, rkey, result);
+            } 
         } else {
             if(m_headbin){
                 child = m_headbin;
+                child_ver = child->version;
             } else {
                 return is_end;
             }
         }
         assert(child!=nullptr);
-        int cslot = find_lower(child, lkey);
-        if(cslot>=child->slotuse){
-            child = child->nextbin;
-            cslot = 0;
-        }
-        while(child) {
-            if (child->slotkey[cslot] > rkey){
-                is_end = true;
+        while(true) {
+            int resultSize = result.size();
+            int cslot = find_lower(child, lkey);
+            for (; cslot < child->slotuse; cslot ++){
+                if (unlikely(child->slotkey[cslot] > rkey)){
+                    is_end = true;
+                    break;
+                }
+                result.push_back(std::pair<key_type, data_type>(child->slotkey[cslot], child->slotdata[cslot]));
+            }
+            memory_fence();
+            bool locked = child->locked == 1;
+            memory_fence();
+            bool version_changed = child_ver != child->version;
+
+            if (!locked && !version_changed){
+                if (is_end){
+                    return true;
+                }
+                child = child->nextbin;
+                if (child){
+                    child_ver = child->version;
+                }
                 break;
             }
-            result.push_back(std::pair<key_type, data_type>(child->slotkey[cslot], child->slotdata[cslot]));
-            cslot++;
-            if(cslot>=child->slotuse){
+
+            is_end = false;
+            result.resize(resultSize);
+
+            child_ver = child->version;
+            memory_fence();
+            child_bin *next_bin = child->nextbin;
+            while (next_bin && next_bin->slotkey[0] <= lkey) {
+                child = next_bin;
+                child_ver = child->version;
+                memory_fence();
+                next_bin = child->nextbin;
+            }
+        }
+
+        while(child) {
+            int resultSize = result.size();
+            for (int cslot = 0; cslot < child->slotuse; cslot ++){
+                if (child->slotkey[cslot] > rkey){
+                    is_end = true;
+                    break;
+                }
+                result.push_back(std::pair<key_type, data_type>(child->slotkey[cslot], child->slotdata[cslot]));
+            }
+            memory_fence();
+            bool locked = child->locked == 1;
+            memory_fence();
+            bool version_changed = child_ver != child->version;
+
+            if (!locked && !version_changed){
+                if (is_end){
+                    return true;
+                }
                 child = child->nextbin;
-                cslot = 0;
+                if (child){
+                    child_ver = child->version;
+                }
+            } 
+            else {
+                is_end = false;
+                result.resize(resultSize);
+                child_ver = child->version;
             }
         }
         return is_end;

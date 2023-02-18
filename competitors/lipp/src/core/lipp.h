@@ -896,26 +896,46 @@ public:
         }
     }
 
+    struct StackTuple{
+        Node* node;
+        int index;
+        bitmap_t one_bitmap;
+    };
+
     class LIPPIterator {
-        using stack_pair = std::pair<Node*, int>;
         using lipp_type = LIPP<T, P, USE_FMCD>;
+
+        void bitmap_next_1(Node* node, int& index, bitmap_t& one_bitmap) const {
+            while(!one_bitmap && index + 1 < BITMAP_SIZE(node->num_items)){
+                index ++;
+                one_bitmap = ~(node->none_bitmap[index]);
+            }
+        }
 
         void advance_stack() {
             while(!stack.empty()){
-                auto[tmp_it, i] = stack.top();
+                StackTuple tuple = stack.top();
                 stack.pop();
-                for (int new_i = i + 1; new_i < tmp_it->num_items; ++ new_i){
-                    if (BITMAP_GET(tmp_it->none_bitmap, new_i) == 1){
-                        continue;
-                    }
-                    stack.push(std::make_pair(tmp_it, new_i));
-                    if (BITMAP_GET(tmp_it->child_bitmap, new_i) == 0){
-                        it = tmp_it->items + new_i;
-                        return;
-                    }
-                    stack.push(std::make_pair(tmp_it->items[new_i].comp.child, -1));
-                    break;
-                }       
+                bitmap_next_1(tuple.node, tuple.index, tuple.one_bitmap);
+                if (!tuple.one_bitmap){
+                    continue;
+                }
+                int next = BITMAP_NEXT_1(tuple.one_bitmap);
+                tuple.one_bitmap -= 1 << next;
+                int new_i = tuple.index * BITMAP_WIDTH + next;
+
+                stack.push(tuple);
+                Node* node = tuple.node;
+                if (BITMAP_GET(node->child_bitmap, new_i) == 0){
+                    it = node->items + new_i;
+                    return;
+                }
+
+                StackTuple ctuple;
+                ctuple.node = node->items[new_i].comp.child;
+                ctuple.index = 0;
+                ctuple.one_bitmap = ~(ctuple.node->none_bitmap[0]);
+                stack.push(ctuple);    
             }
             it = nullptr;
         }
@@ -923,7 +943,7 @@ public:
         using pointer = const Item *;
         using reference = const Item &;
 
-        std::stack<stack_pair> stack;
+        std::stack<StackTuple> stack;
         Item* it;
 
         LIPPIterator &operator++() {
@@ -950,7 +970,11 @@ public:
 
         while (true) {
             int pos = PREDICT_POS(node, key);
-            it.stack.push(std::make_pair(node, pos));
+            StackTuple tuple;
+            tuple.node = node;
+            tuple.index = pos / BITMAP_WIDTH;
+            tuple.one_bitmap = ~(node->none_bitmap[tuple.index] | ((1 << ((pos % BITMAP_WIDTH) + 1)) - 1)); 
+            it.stack.push(tuple);
             if (BITMAP_GET(node->child_bitmap, pos) == 1) {
                 node = node->items[pos].comp.child;
             } else {

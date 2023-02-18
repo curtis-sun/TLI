@@ -356,7 +356,7 @@ inline size_t AidelModel<key_t, val_t, SearchClass>::locate_in_levelbin(const ke
     //index_pos = index_pos <= upbound? index_pos:upbound;
 
     // search
-    size_t begin, end, mid;
+    size_t begin, end;
     if(key > keys[index_pos]){
         begin = index_pos+1 < upbound? (index_pos+1):upbound;
         end = begin+maxErr < upbound? (begin+maxErr):upbound;
@@ -605,13 +605,16 @@ bool AidelModel<key_t, val_t, SearchClass>::range_scan(const key_t &lkey, const 
         ++ pos;
     }
     while(!is_end && pos <= capacity) {
-        if(mobs[pos] != nullptr){
-            model_or_bin_t* mob = mobs[pos];
+        memory_fence();
+        model_or_bin_t* mob = mobs[pos];
+        if(mob != nullptr){
+            mob->lock();
             if(mob->isbin){
                 is_end = mob->mob.lb->range_scan(lkey, rkey, result);
             } else {
                 is_end = mob->mob.ai->range_scan(lkey, rkey, result);
             }
+            mob->unlock();
         }
         if(!is_end && pos < capacity){
             if (keys[pos] > rkey){

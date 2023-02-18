@@ -72,7 +72,7 @@ void AIDEL<key_t, val_t, SearchClass>::train(const std::vector<key_t> &keys,
     }
 
     //root = new root_type(model_keys);
-    COUT_THIS("[aidle] get models -> "<< model_keys.size());
+    COUT_THIS("[aidel] get models -> "<< model_keys.size());
     assert(model_keys.size()==aimodels.size());
 }
 
@@ -249,7 +249,7 @@ void AIDEL<key_t, val_t, SearchClass>::train_opt(const std::vector<key_t> &keys,
     std::cout<<"training begin, length of training_data is:" << keys.size() <<" ,maxErr: "<< maxErr << std::endl;
 
     segments = make_segmentation(keys.begin(), keys.end(), maxErr);
-    COUT_THIS("[aidle] get models -> "<< segments.size());
+    COUT_THIS("[aidel] get models -> "<< segments.size());
 
     /*
     // ===== predict the positions ===========
