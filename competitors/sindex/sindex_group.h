@@ -110,6 +110,7 @@ class alignas(CACHELINE_SIZE) Group {
   inline bool remove_from_array(const key_t &key);
 
   inline size_t get_pos_from_array(const key_t &key);
+  inline size_t lower_bound_from_array(const key_t &key);
   inline size_t binary_search_key(const key_t &key, size_t pos_hint,
                                   size_t search_begin, size_t search_end);
   inline size_t exponential_search_key(const key_t &key, size_t pos_hint) const;
@@ -119,6 +120,9 @@ class alignas(CACHELINE_SIZE) Group {
   inline size_t exponential_search_key_no_predict(record_t *const data,
                                        uint32_t array_size, const key_t &key,
                                        size_t pos_hint) const;
+  inline size_t exponential_search_complete_key(record_t *const data,
+                                       uint32_t array_size, const key_t &key,
+                                       size_t pos_hint) const;                            
 
   inline bool get_from_buffer(const key_t &key, val_t &val, buffer_t *buffer);
   inline bool update_to_buffer(const key_t &key, const val_t &val,

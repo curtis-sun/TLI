@@ -158,7 +158,36 @@ template <class key_t, class val_t, bool seq, class SearchClass>
 inline size_t Root<key_t, val_t, seq, SearchClass>::range_scan(
     const key_t &begin, const key_t &end,
     std::vector<std::pair<key_t, val_t>> &result) {
-  COUT_N_EXIT("not implemented yet");
+  bool is_begin = false, is_end = false;
+  result.clear();
+  key_t latest_group_pivot = key_t::min();
+
+  int group_i;
+  group_t *group = locate_group_pt2(begin, locate_group_pt1(begin, group_i));
+
+  group->range_scan(begin, end, result);
+  latest_group_pivot = group->pivot;
+  group = group->next;
+  while (true) {
+    while (group && group->pivot > latest_group_pivot) {
+      if (group->pivot > end){
+        is_end = true;
+        break;
+      }
+      is_begin |= (group->pivot > begin);
+
+      group->range_scan((is_begin ? key_t::min() : begin), end, result);
+      latest_group_pivot = group->pivot;
+      group = group->next;
+    }
+    group_i++;
+    if (is_end || group_i > (int)group_n - 1){
+      break;
+    }
+    group = groups[group_i].second;
+  }
+
+  return 0;
 }
 
 template <class key_t, class val_t, bool seq, class SearchClass>

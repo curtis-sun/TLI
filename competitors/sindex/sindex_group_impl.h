@@ -519,6 +519,14 @@ inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::get_pos_from_a
 }
 
 template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::lower_bound_from_array(
+    const key_t &key) {
+  size_t model_i = locate_model(key);
+  size_t pos = predict(model_i, key);
+  return exponential_search_complete_key(data, array_size, key, pos);
+}
+
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
 inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::binary_search_key(
     const key_t &key, size_t pos, size_t search_begin, size_t search_end) {
   // search within the range
@@ -614,6 +622,22 @@ inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::exponential_se
   }
 
   assert(end_i == begin_i);
+  assert(data[end_i].first == key || end_i == 0 || end_i == (int)array_size ||
+         (data[end_i - 1].first < key && data[end_i].first > key));
+
+  return end_i;
+}
+
+template <class key_t, class val_t, bool seq, class SearchClass, size_t max_model_n>
+inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::exponential_search_complete_key(
+    record_t *const data, uint32_t array_size, const key_t &key,
+    size_t pos) const {
+  if (array_size == 0) return 0;
+  pos = (pos >= array_size ? (array_size - 1) : pos);
+  assert(pos < array_size);
+  size_t end_i = SearchClass::lower_bound(data, data + array_size, key, data + pos, 
+                           std::function<key_t(record_t *const)>([](record_t *const it)->key_t{ return  it->first; }))
+                           - data;
   assert(data[end_i].first == key || end_i == 0 || end_i == (int)array_size ||
          (data[end_i - 1].first < key && data[end_i].first > key));
 
@@ -975,7 +999,7 @@ inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::scan_2_way(
     std::vector<std::pair<key_t, val_t>> &result) {
   size_t remaining = n;
   bool out_of_range = false;
-  uint32_t base_i = get_pos_from_array(begin);
+  uint32_t base_i = (begin == key_t::min()) ? 0 : lower_bound_from_array(begin);
   ArrayDataSource array_source(data, array_size, base_i);
   typename buffer_t::DataSource buffer_source(begin, buffer);
 
@@ -1046,7 +1070,7 @@ inline size_t Group<key_t, val_t, seq, SearchClass, max_model_n>::scan_3_way(
     std::vector<std::pair<key_t, val_t>> &result) {
   size_t remaining = n;
   bool out_of_range = false;
-  uint32_t base_i = get_pos_from_array(begin);
+  uint32_t base_i = (begin == key_t::min()) ? 0 : lower_bound_from_array(begin);
   ArrayDataSource array_source(data, array_size, base_i);
   typename buffer_t::DataSource buffer_source(begin, buffer);
   typename buffer_t::DataSource temp_buffer_source(begin, buffer_temp);

@@ -39,7 +39,7 @@ We provide a number of scripts to automate things. Each is located in the `scrip
 - `./scripts/build_rmis.sh` compiles and builds the RMIs for each dataset. If you run into the error message `error: no override and no default toolchain set`, try running `rustup install stable`.
 - `./scripts/download_rmis.sh` will download pre-built RMIs instead, which may be faster. You'll need to run `build_rmis.sh` if you want to measure build times on your platform.
 - `./scripts/prepare.sh` constructs the single-thread workloads and compiles the testbed, and `./scripts/prepare_multithread.sh` for concurrency workloads.
-- `./scripts/execute.sh` executes the testbed on single-thread workloads, storing the results in `results`, and `./scripts/execute_multithread.sh` for concurrency workloads.
+- `./scripts/execute.sh, execute_latency.sh, execute_errors.sh, execute_perf.sh` executes the testbed on single-thread workloads, storing the results in `results`, and `./scripts/execute_multithread.sh` for concurrency workloads.
 
 Build times can be long, as we make aggressive use of templates to ensure we do not accidentally measure vtable lookup time. 
 

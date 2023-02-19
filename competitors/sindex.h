@@ -1,5 +1,5 @@
-#ifndef SOSDB_SINDEX_H
-#define SOSDB_SINDEX_H
+#ifndef TLI_SINDEX_H
+#define TLI_SINDEX_H
 
 #include <algorithm>
 #include <cstdlib>
@@ -11,7 +11,7 @@
 #include "sindex/sindex.h"
 #include "sindex/sindex_impl.h"
 
-namespace sosd_sindex{
+namespace tli_sindex{
 
 template <size_t len>
 class StrKey {
@@ -120,7 +120,7 @@ class SIndex : public Competitor<KeyType, SearchClass> {
     uint64_t build_time =
         util::timing([&] { 
           if (num_threads > 1){
-            table = new sindex_t(keys, values, num_workers_, 1, et, pt);
+            table = new sindex_t(keys, values, num_workers_, (num_workers_ + 23) / 24, et, pt);
           }
           else{
             table = new sindex_t(keys, values, 1, 1, et, pt);
@@ -138,6 +138,16 @@ class SIndex : public Competitor<KeyType, SearchClass> {
     return util::OVERFLOW;
   }
 
+  uint64_t RangeQuery(const KeyType& lower_key, const KeyType& upper_key, uint32_t thread_id) const {
+    std::vector<std::pair<index_key_t, uint64_t>> results;
+    table->range_scan(index_key_t(lower_key), index_key_t(upper_key), results, thread_id);
+    uint64_t result = 0;
+    for (size_t i = 0; i < results.size(); ++ i){
+      result += results[i].second;
+    }
+    return result;
+  }
+
   void Insert(const KeyValue<KeyType>& data, uint32_t thread_id) {
     table->put(index_key_t(data.key), data.value, thread_id);
   }
@@ -148,7 +158,7 @@ class SIndex : public Competitor<KeyType, SearchClass> {
 
   bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& ops_filename) const {
     std::string name = SearchClass::name();
-    return name != "LinearAVX" && name != "InterpolationSearch" && std::is_same<KeyType, std::string>::value && !range_query && unique;
+    return name != "LinearAVX" && name != "InterpolationSearch" && std::is_same<KeyType, std::string>::value && unique;
   }
 
   std::vector<std::string> variants() const { 
@@ -159,12 +169,26 @@ class SIndex : public Competitor<KeyType, SearchClass> {
     return vec;
   }
 
+  struct alignas(CACHELINE_SIZE) SIndexParam{
+    FGParam* param;
+    void *(* func)(void *);
+  };
+
+  static void * myFunc(void * param){
+    SIndexParam &thread_param = *(SIndexParam *)param;
+    auto p = (*thread_param.func)((void *)thread_param.param);
+    sindex::config.rcu_status[thread_param.param->thread_id].status =  std::numeric_limits<long long>::max();
+    return p;
+  }
+
   uint64_t runMultithread(void *(* func)(void *), FGParam *params) {
     pthread_t threads[num_workers_];
+    SIndexParam sindexParams[num_workers_];
 
     for (size_t worker_i = 0; worker_i < num_workers_; worker_i++) {
-      int ret = pthread_create(&threads[worker_i], nullptr, func,
-                              (void *)&params[worker_i]);
+      sindexParams[worker_i].func = func;
+      sindexParams[worker_i].param = &params[worker_i];
+      int ret = pthread_create(&threads[worker_i], nullptr, myFunc, (void *)&sindexParams[worker_i]);
       if (ret) {
         std::cout << "Error: " << ret << std::endl;
       }
@@ -198,4 +222,4 @@ class SIndex : public Competitor<KeyType, SearchClass> {
 
 };
 
-#endif  // SOSDB_SINDEX_H
+#endif  // TLI_SINDEX_H
