@@ -17,7 +17,6 @@
 #include "benchmarks/benchmark_rmi.h"
 #include "benchmarks/benchmark_ts.h"
 #include "benchmarks/benchmark_wormhole.h"
-#include "config.h"
 #include "searches/linear_search.h"
 #include "searches/linear_search_avx.h"
 #include "searches/branching_binary_search.h"

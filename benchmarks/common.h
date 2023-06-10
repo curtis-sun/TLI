@@ -1,4 +1,3 @@
-#include "config.h"
 #include "searches/branching_binary_search.h"
 #include "searches/interpolation_search.h"
 #include "searches/exponential_search.h"

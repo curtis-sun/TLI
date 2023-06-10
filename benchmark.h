@@ -10,7 +10,6 @@
 #include <sstream>
 #include <regex>
 
-#include "config.h"
 #include "util.h"
 #include <boost/chrono.hpp>
 
